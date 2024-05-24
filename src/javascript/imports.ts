@@ -1,4 +1,3 @@
-import {readFile} from "node:fs/promises";
 import {join} from "node:path/posix";
 import type {Node} from "acorn";
 import type {CallExpression} from "acorn";
@@ -61,50 +60,7 @@ export function hasImportDeclaration(body: Node): boolean {
  * exports are only allowed in JavaScript modules (not in Markdown).
  */
 export function findImports(body: Node, path: string, input: string): ImportReference[] {
-  const imports: ImportReference[] = [];
-  const keys = new Set<string>();
-
-  simple(body, {
-    ImportDeclaration: findImport,
-    ImportExpression: findImport,
-    ExportAllDeclaration: findImport,
-    ExportNamedDeclaration: findImport,
-    CallExpression: findImportMetaResolve
-  });
-
-  function addImport(ref: ImportReference) {
-    const key = `${ref.type}:${ref.method}:${ref.name}`;
-    if (!keys.has(key)) keys.add(key), imports.push(ref);
-  }
-
-  function findImport(node: ImportNode | ExportNode) {
-    const source = node.source;
-    if (!source || !isStringLiteral(source)) return;
-    const name = decodeURI(getStringLiteralValue(source));
-    const method = node.type === "ImportExpression" ? "dynamic" : "static";
-    if (isPathImport(name)) {
-      const localPath = resolveLocalPath(path, name);
-      if (!localPath) throw syntaxError(`non-local import: ${name}`, node, input); // prettier-ignore
-      addImport({name: relativePath(path, localPath), type: "local", method});
-    } else {
-      addImport({name, type: "global", method});
-    }
-  }
-
-  function findImportMetaResolve(node: CallExpression) {
-    const source = node.arguments[0];
-    if (!isImportMetaResolve(node) || !isStringLiteral(source)) return;
-    const name = decodeURI(getStringLiteralValue(source));
-    if (isPathImport(name)) {
-      const localPath = resolveLocalPath(path, name);
-      if (!localPath) throw syntaxError(`non-local import: ${name}`, node, input); // prettier-ignore
-      addImport({name: relativePath(path, localPath), type: "local", method: "dynamic"});
-    } else {
-      addImport({name, type: "global", method: "dynamic"});
-    }
-  }
-
-  return imports;
+  return [];
 }
 
 export function isImportMetaResolve(node: CallExpression): boolean {
@@ -126,20 +82,5 @@ export function isJavaScript(path: string): boolean {
 const parseImportsCache = new Map<string, Promise<ImportReference[]>>();
 
 export async function parseImports(root: string, path: string): Promise<ImportReference[]> {
-  if (!isJavaScript(path)) return []; // TODO traverse CSS, too
-  const filePath = join(root, path);
-  let promise = parseImportsCache.get(filePath);
-  if (promise) return promise;
-  promise = (async function () {
-    try {
-      const source = await readFile(filePath, "utf-8");
-      const body = parseProgram(source);
-      return findImports(body, path, source);
-    } catch (error: any) {
-      console.warn(`unable to fetch or parse ${path}: ${error.message}`);
-      return [];
-    }
-  })();
-  parseImportsCache.set(filePath, promise);
-  return promise;
+    return [];
 }

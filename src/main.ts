@@ -1,7 +1,9 @@
 import './style.css'
 import typescriptLogo from './typescript.svg'
 import viteLogo from '/vite.svg'
-import { setupCounter } from './counter.ts'
+
+import {parseJavaScript} from "./javascript/parse.ts"
+import {transpileJavaScript} from "./javascript/transpile.ts"
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
@@ -21,4 +23,8 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </div>
 `
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+const jsNode = parseJavaScript("const a = b + c()", {});
+
+debugger;
+const tr = transpileJavaScript(jsNode, {});
+console.log(tr);
