@@ -2,6 +2,7 @@ export type NodeId = string;
 export type VarName = string;
 
 export type ScriptCell = {
+    code: string,
     body: (...args: any[]) => Array<any>,
     id: string,
     inputs: Array<string>,

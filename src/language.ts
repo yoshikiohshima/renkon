@@ -3,7 +3,7 @@ import {transpileJavaScript} from "./javascript/transpile.ts"
 
 import {ProgramState, ScriptCell} from "./types.ts"
 
-type ScriptCellForSort = Omit<ScriptCell, "body">
+type ScriptCellForSort = Omit<ScriptCell, "body" | "code">
 
 /*
 const ary = [
@@ -27,23 +27,46 @@ console.log(sorted);
 */
 
 export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
-    const jsNodes = scripts.map((script) => parseJavaScript(script.textContent!, {path:''}));
-    const translated = jsNodes.map((node, i) => transpileJavaScript(node, {id: `${i}`}));
+    const codes = new Map(scripts.map((script, i) => ([script.id !== "" ? script.id : `${i}`, script.textContent || ""])));
+    const jsNodes = [...codes].map(([id, code]) => ({id, jsNode: parseJavaScript(code, {path:''})}))
+    const translated = jsNodes.map(({id, jsNode}, i) => transpileJavaScript(jsNode, {id}));
     const evaluated = translated.map((tr) => evalCode(tr));
 
-    evaluated.forEach((obj) => {
-        obj.inputs = obj.inputs || [];
-        obj.outputs = obj.outputs || [];
-    });
-    
     const sorted = topologicalSort(evaluated);
 
+    /*
+    we basically clear all promises and resolved values, except when the code of the same id is the same, and input array is the same.
+    otherwise, it cleas promises, resolved array and input array and outputs
+    */
+
     state.order = sorted;
-    state.nodes = new Map(evaluated.map((e) => [e.id, e]));
-    state.promises = new Map();
-    state.resolved = new Map();
-    state.inputArray = new Map();
-    state.outputs = new Map();
+    const invalidatedNodes:Set<string> = new Set();
+    const removedNodes:Set<string> = new Set(state.order);
+    for (const node of evaluated) {
+        const exist = state.nodes.get(node.id);
+        removedNodes.delete(node.id);
+        if (exist && exist.code !== node.code) {
+            invalidatedNodes.add(node.id);
+        }
+        state.nodes.set(node.id, node);
+    }
+
+    const clearNodes = invalidNodes(state, invalidatedNodes);
+
+    for (const nodeId of clearNodes) {
+        const node = state.nodes.get(nodeId);
+        if (!node) {continue;}
+        
+        for (const out of node.outputs) {
+            const promise = state.promises.get(out);
+            state.promises.delete(out);
+            if (promise) {
+                state.resolved.delete(promise);
+            }
+            state.outputs.delete(node.id);
+        }
+        state.inputArray.delete(node.id);
+    }
 }
 
 export function evaluate(state:ProgramState, _t:number, requestEvaluation: () => void) {
@@ -132,7 +155,9 @@ function fby<T>(init:T, updater: (v:T) => T, id:number, state:any) {
 function evalCode(str:string):ScriptCell {
     let code = `return ${str}`;
     let func = new Function("fby", "define", code);
-    return func(fby, define);
+    let val = func(fby, define);
+    val.code = str;
+    return val;
 }
 
 function topologicalSort(nodes:Array<ScriptCell>) {
@@ -178,3 +203,90 @@ function topologicalSort(nodes:Array<ScriptCell>) {
     }
     return order;
 }
+
+function invalidNodes(state: ProgramState, ids:Set<string>):Set<string> {
+    function has(anArray:Array<string>, set:Set<string>) {
+        for (const a of anArray) {
+            if (set.has(a)) {return true;}
+        }
+        return false;
+    }
+
+    const invalidatedVars:Set<string> = new Set();
+    const nodes:Set<string> = new Set(ids);
+
+    for (const nodeId of ids) {
+        const outputs = state.nodes.get(nodeId)?.outputs;
+        outputs!.forEach((out) => invalidatedVars.add(out));
+    }
+
+    for (const nodeId of state.order) {
+        const node = state.nodes.get(nodeId);
+        if (has(node!.inputs, invalidatedVars)) {
+            const outputs = state.outputs.get(nodeId);
+            for (const out in outputs) {
+                invalidatedVars.add(out);
+            }
+            nodes.add(nodeId);
+        }
+    }
+    return nodes;
+}
+
+/*
+  We follow some good ideas in the Observable Framework.
+
+  A block of code can have top-level variables that are by default reactive.
+
+  The declaration of a top level variable becomes known to it.
+
+  a top-level variable can contain a promise or generator or a regular value.
+
+  We figure out the dependency graph of the top level variables. We keep the idea of blocks and simply re-evaluate the block accordingly.
+
+  we also have the code edited and reloaded. The basic idea was to keep the values of behaviors but not events' .Can we do it?
+
+  Do we use the trick of using undefined as undefined, or rather, 
+
+  Let us make sure that basic combinators can be implemented.
+
+  The line between behaviors and events are murky. A normal value in program text is a behavior. A loading event or promise firing is an event. a cached value would be an event converted to a behavior. animation frame is an event.
+
+  implicit conversion between Bs and Es are ok. Unless it is explicitly prevented perhaps with a different combinator, a computed value would become a behavior upon storing into the state.
+
+  const y = new Promise((resolve) => setTimeout(() => resolve(42), 1000));
+  // y would be considered event
+  
+  const x = y + 3;
+  // x is undefined until 1000 ms passes. 3 is a behavior and the computed value is an event but the resulting x a behavior.
+
+  oneE: a normal value that is used on reload.
+  zeroE: if we use the undefined trick it is that.
+  mapE: a simple expression.
+  mergeE: it'd have to be combinator.
+
+  switchE: we will do things without this.
+  condE: a combinator (but probably not actually needed)
+
+  filterE: would need the undefined trick
+  ifE: would be easy to use ?:
+
+  collectE: this is interesting as it won't have the access to the previous value. perhaps we can have a $-prefixed variable to indicate the previous value.
+
+  andE, orE, notE: simple expressions
+  
+  delayE: will be a combinator, in a way, basically a syntax sugar of setTimeout
+
+  blineE: a combinator
+  calmE: a combinator
+
+  timeE: a syntax sugar of setInterval but returns a promise that would be replaced with a fresh one upon computing values.
+
+  
+  We can have a class called Stream. it represents a time varying value.
+
+  Observable Framework uses Acorn parser. I think we can do that too.
+
+  Another good feature is the integration with DOM input elements.
+  
+  */

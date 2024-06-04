@@ -1,4 +1,4 @@
-import { basicSetup, EditorView } from "https://esm.sh/codemirror@v6.0.1"
+import { basicSetup, EditorView } from "codemirror"
 //import { html, htmlLanguage } from "https://esm.sh/@codemirror/lang-html@v6.4.9"
 //import { javascript } from "https://esm.sh/@codemirror/lang-javascript@v6.0.1"
 
@@ -44,7 +44,7 @@ export function primerView(dom:HTMLElement) {
     container.appendChild(galley);
     container.appendChild(editor);
 
-    let scripts = [...document.querySelectorAll("script[type='reactive']")];
+    let scripts = [...dom.querySelectorAll("script[type='reactive']")];
 
     setupProgram(scripts as Array<HTMLScriptElement>, programState);
     evaluate(programState, performance.now(), requestEvaluation);
@@ -156,4 +156,9 @@ function update(editorView:EditorView) {
         galley.lastChild.remove();
     }
     newGalleyChildren.forEach((c) => galley.appendChild(c));
+
+    let scripts = [...div.querySelectorAll("script[type='reactive']")];
+
+    setupProgram(scripts as Array<HTMLScriptElement>, programState);
+    evaluate(programState, performance.now(), requestEvaluation);
 }
