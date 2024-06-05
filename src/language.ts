@@ -117,7 +117,6 @@ export function evaluate(state:ProgramState, _t:number, requestEvaluation: () =>
                 maybeValue.then((value:any) => {
                     const wasResolved = state.resolved.get(maybeValue);
                     if (!wasResolved) {
-                        console.log("just resolved");
                         window.justResolved = true;;
                         state.resolved.set(maybeValue, value);
                         requestEvaluation();
@@ -134,7 +133,6 @@ export function evaluate(state:ProgramState, _t:number, requestEvaluation: () =>
         if (promise[isGenerator]) {
             if (state.resolved.get(promise) !== undefined) {
                 state.resolved.delete(promise);
-                console.log("callUpdater");
                 promise.updater();
                 const newPromise = {...promise};
                 state.promises.set(varName, newPromise);
@@ -195,7 +193,8 @@ const Generators = {
         let myPromise:Promise<any>;
         let handler = (evt) => {
             myResolve(evt.target.value);
-        }
+            returnValue.requestEvaluation();
+        };
         dom.addEventListener("change", handler);
 
         const updater = () => {

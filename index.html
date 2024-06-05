@@ -17,22 +17,16 @@
         })
       </script>
       <script type="reactive">
-        console.log(g);
-        document.getElementById("foo").textContent = `${g}`;
-      </script>
-      <script type="reactive">
-        console.log(a);
-      </script>
-      <script type="reactive">
-        const a = new Promise((resolve, _) => setTimeout(() => resolve(42), 1000));
-      </script>
-      <script type="reactive">
         const b = Generators.input(document.querySelector("#slider"));
       </script>
       <script type="reactive">
-        console.log(b);
+        document.getElementById("foo").textContent = `${g}`;
+      </script>
+      <script type="reactive">
+       document.getElementById("foo").textContent = `${g}`;
       </script>
       <div id="foo">foo</div>
+      <div id="bar">bar</div>
       <input id="slider" type="range">foo</input>
     </div>
     <script type="module">
