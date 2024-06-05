@@ -17,3 +17,5 @@ export type ProgramState = {
     inputArray: Map<NodeId, Array<any>>;
     outputs: Map<NodeId, any>
 }
+
+export type ObserveCallback = (notifier:(v:any) => void) => () => void;

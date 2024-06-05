@@ -1,11 +1,8 @@
 import { basicSetup, EditorView } from "codemirror"
 //import { html, htmlLanguage } from "https://esm.sh/@codemirror/lang-html@v6.4.9"
 //import { javascript } from "https://esm.sh/@codemirror/lang-javascript@v6.0.1"
-
 import {setupProgram, evaluate} from "./language";
-
 import {ProgramState} from "./types";
-
 import {matrix3d} from "./matrix";
 
 const viewForEditor = new Map();
@@ -29,11 +26,12 @@ let requestEvaluation:() => void = () => {
 };
 
 export function primerView(dom:HTMLElement) {
-    let scenes = [...dom.querySelectorAll("scene")];
+    let scenes = [...dom.querySelectorAll("scene")] as Array<HTMLElement>;
+    scenes.forEach((s) => s.style.setProperty("display", "none"));
 
     let galley = document.createElement("div");
     galley.classList.add("galley");
-    let galleyChildren = galleyView(scenes as Array<HTMLElement>);
+    let galleyChildren = galleyView(scenes);
     galleyChildren.forEach((c) => galley.appendChild(c));
     
     let editor = createEditor(dom);
@@ -94,6 +92,13 @@ export function galleyView(scenes:HTMLElement[]) {
 
         return elem;
     });
+
+    if (scenes.length === 0) {
+        const elem = document.createElement("div");
+        elem.classList.add("topLevel");
+        return [elem];
+    }
+
     let slider = document.createElement("input");
     slider.type = "range";
     slider.classList.add("timeSlider");

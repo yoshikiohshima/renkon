@@ -5,6 +5,8 @@ import {simple} from "acorn-walk";
 import {Sourcemap} from "../sourcemap.js";
 import {hasImportDeclaration} from "./imports.js";
 import type {JavaScriptNode} from "./parse.js";
+import {defaultGlobals} from "./globals";
+import {renkonGlobals} from "./renkonGlobals";
 
 let fbyId = 0;
 
@@ -18,7 +20,8 @@ export interface TranspileOptions {
 
 export function transpileJavaScript(node: JavaScriptNode, {id}: TranspileOptions): string {
   let async = node.async;
-  const inputs = Array.from(new Set<string>(node.references.map((r) => r.name)));
+  const inputs = Array.from(new Set<string>(node.references.map((r) => r.name)))
+    .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
   const outputs = Array.from(new Set<string>(node.declarations?.map((r) => r.name)));
   const display = node.expression && !inputs.includes("display") && !inputs.includes("view");
   if (display) inputs.push("display"), (async = true);

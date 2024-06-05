@@ -7,49 +7,37 @@
   </head>
   <body>
     <div id="all">
-      <scene duration="5000" background="grad_010_ovr.svg">
-        <!-- quad='[[738, 819], [844.5, 1095], [596, 1197.5], [483, 904]]' -->
-        <screen>
-          <fill
-            color="#00FF00"
-            domSurface
-            quad='[[369, 409.5], [422.25, 547.5], [298, 598.75], [241.5, 452]]'
-            useChromestage></fill>
-          <!--
-          <fill
-            color="#FF00F5"
-            domSurface
-            quad="[[1331, 569.5], [1326, 893.5], [786, 940.5], [786, 609.5]]"
-            url="https://tinlizzie.org"
-            ></fill>-->
-        </screen>
-        <div class="subtitles">
-          The lecture is a video. It’s shown full screen on her secondary monitor.
-        </div>
-      </scene>
+      <script type="reactive">
+        const g = Generators.observe((change) => {
+          const pointerMoved = (evt) => {
+            change([evt.clientX, evt.clientY]);
+          };
+          document.addEventListener("pointermove", pointerMoved);
+          return () => document.removeEventListener("pointermove", pointerMoved);
+        })
+      </script>
+      <script type="reactive">
+        console.log(g);
+        document.getElementById("foo").textContent = `${g}`;
+      </script>
       <script type="reactive">
         console.log(a);
       </script>
       <script type="reactive">
-        console.log("b = a + 1");
-        const b = new Promise((resolve, _) => setTimeout(() => resolve(a + 1), 1000));
+        const a = new Promise((resolve, _) => setTimeout(() => resolve(42), 1000));
       </script>
       <script type="reactive">
-        console.log("c = a + b");
-        const c = a + b;
-        console.log("c", c)
+        const b = Generators.input(document.querySelector("#slider"));
       </script>
       <script type="reactive">
         console.log(b);
       </script>
-      <script type="reactive">
-        const a = new Promise((resolve, _) => setTimeout(() => resolve(42), 1000));
-      </script>
+      <div id="foo">foo</div>
+      <input id="slider" type="range">foo</input>
     </div>
     <script type="module">
       import {primerView} from "./src/main.js";
       let scene = document.body.querySelector("#all");
-      scene.style.display = "none";
       let elem = primerView(scene);
       scene.parentNode.insertBefore(elem, scene);
     </script>
