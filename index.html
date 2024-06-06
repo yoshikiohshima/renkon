@@ -6,7 +6,7 @@
     <link id="style" rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
-    <div id="all">
+    <div id="renkon">
       <script type="reactive">
         const g = Events.observe((change) => {
           const pointerMoved = (evt) => {
@@ -27,13 +27,12 @@
       </script>
       <div id="foo">foo</div>
       <div id="bar">bar</div>
-      <input id="slider" type="range">foo</input>
+      <input id="slider" type="range"/>
     </div>
     <script type="module">
       import {primerView} from "./src/main.js";
-      let scene = document.body.querySelector("#all");
-      let elem = primerView(scene);
-      scene.parentNode.insertBefore(elem, scene);
+      let source = document.body.querySelector("#renkon");
+      primerView(source);
     </script>
   </body>
 </html>

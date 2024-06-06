@@ -1,1 +1,1 @@
-export {primerView, galleyView} from './primerView';
+export {primerView} from './primerView';

@@ -30,3 +30,26 @@ body {
     background-color: #ffffff;
     border: 1px solid black;
 }
+
+.dock {
+    position: fixed;
+    top: 60px;
+    display: flex;
+    box-shadow: 10px 10px 5px #4d4d4d, -10px -10px 5px #dddddd;
+    right: 0px;
+    transition: right 0.5s;
+}
+
+.closed {
+    right: -500px;
+}
+
+#drawerButton {
+    align-self: center;
+}
+
+#updateButton {
+    margin-left: 40px;
+    margin-bottom: 10px;
+    margin-top: 10px;
+}
