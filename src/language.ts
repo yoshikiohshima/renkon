@@ -1,16 +1,14 @@
 import {parseJavaScript} from "./javascript/parse.ts"
 import {transpileJavaScript} from "./javascript/transpile.ts"
 
-import {ProgramState, ScriptCell, ObserveCallback} from "./types.ts"
+import {ProgramState, ScriptCell, ObserveCallback, isGenerator, Event, Stream} from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code">
-
-const isGenerator = Symbol("renkon-generator");
 
 export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
     const codes = new Map(scripts.map((script, i) => ([script.id !== "" ? script.id : `${i}`, script.textContent || ""])));
     const jsNodes = [...codes].map(([id, code]) => ({id, jsNode: parseJavaScript(code, {path:''})}))
-    const translated = jsNodes.map(({id, jsNode}, i) => transpileJavaScript(jsNode, {id}));
+    const translated = jsNodes.map(({id, jsNode}) => transpileJavaScript(jsNode, {id}));
     const evaluated = translated.map((tr) => evalCode(tr));
 
     const sorted = topologicalSort(evaluated);
@@ -39,16 +37,17 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
         if (!node) {continue;}
         
         for (const out of node.outputs) {
-            const promise = state.promises.get(out);
-            state.promises.delete(out);
-            if (promise) {
-                if (promise[isGenerator]) {
-                    if (promise.cleanup && typeof promise.cleanup === "function") {
-                        promise.cleanup();
-                        promise.cleanup = null;
+            let stream = state.streams.get(out);
+            state.streams.delete(out);
+            if (stream) {
+                if ((stream as any)[isGenerator]) {
+                    stream = stream as Event;
+                    if (stream.cleanup && typeof stream.cleanup === "function") {
+                        stream.cleanup();
+                        stream.cleanup = null;
                     }
                 }
-                state.resolved.delete(promise);
+                state.resolved.delete(stream);
             }
             state.outputs.delete(node.id);
         }
@@ -57,9 +56,9 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
 }
 
 export function evaluate(state:ProgramState, _t:number, requestEvaluation: () => void) {
-    function ready(inputs:Array<Promise<any>|undefined>) {
-        for (const promise of inputs) {
-            const resolved = promise && state.resolved.get(promise);
+    function ready(inputs:Array<Stream|undefined>) {
+        for (const stream of inputs) {
+            const resolved = stream && state.resolved.get(stream);
             if (resolved === undefined) {return false;}
         }
         return true;
@@ -79,16 +78,16 @@ export function evaluate(state:ProgramState, _t:number, requestEvaluation: () =>
     // console.log(state);
     for (let id of state.order) {
         const node = state.nodes.get(id)!;
-        const inputs:Array<Promise<any>|undefined> = node.inputs.map((inputName) => {
+        const inputs:Array<Stream|undefined> = node.inputs.map((inputName) => {
             // console.log(state);
-            return state.promises.get(inputName);
+            return state.streams.get(inputName);
         }); 
 
         // console.log("check ready ", id);
         const isReady = ready(inputs);
         if (!isReady) {continue;}
 
-        const inputArray = inputs.map((promise) => promise && state.resolved.get(promise));
+        const inputArray = inputs.map((stream) => stream && state.resolved.get(stream));
         const lastInputArray = state.inputArray.get(id);
 
         let outputs:{[key:string]: any};
@@ -109,15 +108,14 @@ export function evaluate(state:ProgramState, _t:number, requestEvaluation: () =>
                 maybeValue.requestEvaluation = requestEvaluation;
             }
             if (!maybeValue.then) {
-                let promise = Promise.resolve(maybeValue);
-                state.promises.set(output, promise)
-                state.resolved.set(promise, maybeValue);
+                let stream = Promise.resolve(maybeValue);
+                state.streams.set(output, stream)
+                state.resolved.set(stream, maybeValue);
             } else {
-                state.promises.set(output, maybeValue);
+                state.streams.set(output, maybeValue);
                 maybeValue.then((value:any) => {
                     const wasResolved = state.resolved.get(maybeValue);
                     if (!wasResolved) {
-                        window.justResolved = true;;
                         state.resolved.set(maybeValue, value);
                         requestEvaluation();
                     }
@@ -129,13 +127,14 @@ export function evaluate(state:ProgramState, _t:number, requestEvaluation: () =>
     for all promises, check if it is actually a generator.
     if it is resolved, its promise and resolved will be cleared
     */
-    for (const [varName, promise] of state.promises) {
-        if (promise[isGenerator]) {
-            if (state.resolved.get(promise) !== undefined) {
-                state.resolved.delete(promise);
-                promise.updater();
-                const newPromise = {...promise};
-                state.promises.set(varName, newPromise);
+    for (let [varName, stream] of state.streams) {
+        if ((stream as any)[isGenerator]) {
+            stream = stream as Event;
+            if (state.resolved.get(stream) !== undefined) {
+                state.resolved.delete(stream);
+                stream.updater();
+                const newStream = {...stream};
+                state.streams.set(varName, newStream);
             }
         }
     }
@@ -157,68 +156,69 @@ function fby<T>(init:T, updater: (v:T) => T, id:number, state:any) {
     return newValue;
 }
 
-const Generators = {
-    observe: (callback:ObserveCallback) => {
-        let returnValue:any = {[isGenerator]: true};
-        let myResolve: (v:any) => void;
-        let myReject: () => void;
-        let then:(v:any) => any; 
-        let myPromise:Promise<any>;
+type EventBodyType = {
+    forObserve: boolean;
+    callback?: ObserveCallback;
+    dom?: HTMLInputElement;
+};
 
-        const notifier = (val:any) => {
-            myResolve(val);
-            returnValue.requestEvaluation();
-        }
-        const updater = () => {
-            myPromise = new Promise((resolve, reject) => {
-                myResolve = resolve;
-                myReject = reject;
-            });
-            then = (func) => {
-                return myPromise.then(func);
-            };
-            returnValue.then = then;
-            returnValue.myPromise = myPromise;
-        }
-        updater();
+function eventBody(options:EventBodyType) {
+    let {forObserve, callback, dom} = options;
+    let returnValue:any = {[isGenerator]: true};
+    let myResolve: (v:any) => void;
+    let myReject: () => void;
+    let then:(v:any) => any; 
+    let myPromise:Promise<any>;
+
+    let handler = (evt:any) => {
+        myResolve(evt.target.value);
+        returnValue.requestEvaluation();
+    };
+
+    const notifier = (val:any) => {
+        myResolve(val);
+        returnValue.requestEvaluation();
+    }
+    if (dom && !forObserve) {
+        dom.addEventListener("change", handler);
+    }
+
+    const updater = () => {
+        myPromise = new Promise((resolve, reject) => {
+            myResolve = resolve;
+            myReject = reject;
+        });
+        then = (func) => {
+            return myPromise.then(func);
+        };
+        returnValue.then = then;
+        returnValue.promise = myPromise;
+    }
+
+    updater();
+    if (forObserve && callback) {
         returnValue.cleanup = callback(notifier);
-        returnValue.updater = updater;
-        return returnValue;
+    }
+    if (!forObserve && dom) {
+        returnValue.cleanup = () => dom.removeEventListener("change", handler);
+    }
+    returnValue.updater = updater;
+    return returnValue;
+}
+
+const Events = {
+    observe: (callback:ObserveCallback) => {
+        return eventBody({forObserve: true, callback});
     },
     input: (dom:HTMLInputElement) => {
-        let returnValue:any = {[isGenerator]: true};
-        let myResolve: (v:any) => void;
-        let myReject: () => void;
-        let then:(v:any) => any; 
-        let myPromise:Promise<any>;
-        let handler = (evt) => {
-            myResolve(evt.target.value);
-            returnValue.requestEvaluation();
-        };
-        dom.addEventListener("change", handler);
-
-        const updater = () => {
-            myPromise = new Promise((resolve, reject) => {
-                myResolve = resolve;
-                myReject = reject;
-            });
-            then = (func) => {
-                return myPromise.then(func);
-            };
-            returnValue.then = then;
-            returnValue.myPromise = myPromise;
-        }
-        updater();
-        returnValue.cleanup = () => dom.removeEventListener("change", handler);
-        returnValue.updater = updater;
-        return returnValue;
+        return eventBody({forObserve: false, dom});
     }
 };
 
 function evalCode(str:string):ScriptCell {
     let code = `return ${str}`;
-    let func = new Function("fby", "define", "Generators", code);
-    let val = func(fby, define, Generators);
+    let func = new Function("fby", "define", "Events", code);
+    let val = func(fby, define, Events);
     val.code = str;
     return val;
 }

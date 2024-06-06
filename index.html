@@ -8,7 +8,7 @@
   <body>
     <div id="all">
       <script type="reactive">
-        const g = Generators.observe((change) => {
+        const g = Events.observe((change) => {
           const pointerMoved = (evt) => {
             change([evt.clientX, evt.clientY]);
           };
@@ -17,13 +17,13 @@
         })
       </script>
       <script type="reactive">
-        const b = Generators.input(document.querySelector("#slider"));
+        const b = Events.input(document.querySelector("#slider"));
       </script>
       <script type="reactive">
         document.getElementById("foo").textContent = `${g}`;
       </script>
       <script type="reactive">
-       document.getElementById("foo").textContent = `${g}`;
+       document.getElementById("bar").textContent = `${b}`;
       </script>
       <div id="foo">foo</div>
       <div id="bar">bar</div>

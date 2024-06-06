@@ -9,11 +9,23 @@ export type ScriptCell = {
     outputs: Array<string>
 }
 
+export const isGenerator = Symbol("renkon-generator");
+
+export type Event = {
+    [isGenerator]: boolean, 
+    promise: Promise<any>, 
+    updater: () => void,
+    cleanup: (() => void) | null, 
+    then: (v:any) => any
+}
+
+export type Stream = Event | Promise<any>;
+
 export type ProgramState = {
     order: Array<NodeId>;
     nodes: Map<NodeId, ScriptCell>;
-    promises: Map<VarName, Promise<any>>;
-    resolved: Map<Promise<any>, any>;
+    streams: Map<VarName, Stream>;
+    resolved: Map<Stream, any>;
     inputArray: Map<NodeId, Array<any>>;
     outputs: Map<NodeId, any>
 }

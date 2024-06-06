@@ -10,7 +10,7 @@ const viewForEditor = new Map();
 let programState: ProgramState = {
     order: [],
     nodes: new Map(),
-    promises: new Map(),
+    streams: new Map(),
     resolved: new Map(),
     inputArray: new Map(),
     outputs: new Map(),
