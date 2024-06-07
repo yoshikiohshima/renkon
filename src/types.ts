@@ -4,7 +4,7 @@ export type VarName = string;
 export type ScriptCell = {
     code: string,
     body: (...args: any[]) => Array<any>,
-    id: string,
+    id: NodeId,
     inputs: Array<string>,
     outputs: Array<string>
 }
