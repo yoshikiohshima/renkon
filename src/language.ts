@@ -13,11 +13,6 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
 
     const sorted = topologicalSort(evaluated);
 
-    /*
-    we basically clear all promises and resolved values, except when the code of the same id is the same, and input array is the same.
-    otherwise, it cleas promises, resolved array and input array and outputs
-    */
-
     state.order = sorted;
     const invalidatedNodes:Set<string> = new Set();
     const removedNodes:Set<string> = new Set(state.order);
@@ -35,23 +30,20 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
     for (const nodeId of clearNodes) {
         const node = state.nodes.get(nodeId);
         if (!node) {continue;}
-        
-        for (const out of node.outputs) {
-            let stream = state.streams.get(out);
-            state.streams.delete(out);
-            if (stream) {
-                if ((stream as any)[isGenerator]) {
-                    stream = stream as Event;
-                    if (stream.cleanup && typeof stream.cleanup === "function") {
-                        stream.cleanup();
-                        stream.cleanup = null;
-                    }
-                }
-                state.resolved.delete(stream);
-            }
-            state.outputs.delete(node.id);
-        }
+        state.outputs.delete(node.id);
         state.inputArray.delete(node.id);
+    }
+
+    for (let [varName, stream] of state.streams) {
+        if ((stream as any)[isGenerator]) {
+            stream = stream as Event;
+            if (stream.cleanup && typeof stream.cleanup === "function") {
+                stream.cleanup();
+                stream.cleanup = null;
+            }
+        }
+        state.resolved.delete(stream);
+        state.streams.delete(varName)
     }
 }
 
@@ -166,7 +158,7 @@ function eventBody(options:EventBodyType) {
     let {forObserve, callback, dom} = options;
     let returnValue:any = {[isGenerator]: true};
     let myResolve: (v:any) => void;
-    let myReject: () => void;
+    // let myReject: () => void;
     let then:(v:any) => any; 
     let myPromise:Promise<any>;
 
@@ -184,9 +176,9 @@ function eventBody(options:EventBodyType) {
     }
 
     const updater = () => {
-        myPromise = new Promise((resolve, reject) => {
+        myPromise = new Promise((resolve, _reject) => {
             myResolve = resolve;
-            myReject = reject;
+            // myReject = reject;
         });
         then = (func) => {
             return myPromise.then(func);
@@ -200,7 +192,9 @@ function eventBody(options:EventBodyType) {
         returnValue.cleanup = callback(notifier);
     }
     if (!forObserve && dom) {
-        returnValue.cleanup = () => dom.removeEventListener("change", handler);
+        returnValue.cleanup = () => {
+            dom.removeEventListener("change", handler);
+        }
     }
     returnValue.updater = updater;
     return returnValue;

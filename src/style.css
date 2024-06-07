@@ -36,16 +36,16 @@ body {
     top: 60px;
     display: flex;
     box-shadow: 10px 10px 5px #4d4d4d, -10px -10px 5px #dddddd;
-    right: 0px;
-    transition: right 0.5s;
-}
-
-.closed {
-    right: -500px;
+    left: 0px;
+    transition: left 0.5s;
 }
 
 #drawerButton {
     align-self: center;
+    padding-top: 40px;
+    padding-bottom: 40px;
+    padding-right: 8px;
+    padding-left: 8px;
 }
 
 #updateButton {

@@ -57,7 +57,8 @@ function createEditorDock(initialText:string) {
     updateButton.textContent = "Update";
 
     const drawerButton = dock.querySelector("#drawerButton")! as HTMLButtonElement;
-    drawerButton.onclick = () => toggleDock(dock);
+    drawerButton.onclick = () => toggleDock(dock as HTMLElement);
+    toggleDock(dock as HTMLElement, false);
     return {dock, editorView, updateButton};
 }   
 
@@ -69,6 +70,13 @@ function update(renkon:HTMLElement, editorView:EditorView) {
     evaluate(programState, performance.now(), requestEvaluation);
 }
 
-function toggleDock(dock:HTMLElement) {
-    dock.classList.toggle("closed", !dock.classList.contains ("closed"));
+function toggleDock(dock:HTMLElement, force?:boolean) {
+    const toOpen = force !== undefined ? force : !dock.classList.contains("opened");
+    const width = dock.getBoundingClientRect().width;
+    dock.classList.toggle("opened");
+    if (toOpen) {
+        dock.style.left = `${window.innerWidth - width}px`;
+    } else {
+        dock.style.left = `${window.innerWidth - 80}px`;
+    }
 }
