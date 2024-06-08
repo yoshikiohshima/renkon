@@ -1,11 +1,30 @@
 import {parseJavaScript} from "./javascript/parse.ts"
 import {transpileJavaScript} from "./javascript/transpile.ts"
 
-import {ProgramState, ScriptCell, ObserveCallback, isGenerator, Event, Stream} from "./types.ts"
+import {ProgramState, ScriptCell, ObserveCallback, isGenerator, Event, Stream, VarName, NodeId} from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code">
 
 export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
+    if (window.setupProgramCalled === undefined) {
+        window.setupProgramCalled = 0;
+    }
+    window.setupProgramCalled++;
+    const invalidatedNodes:Set<NodeId> = new Set();
+    const invalidatedStreamNames:Set<VarName> = new Set();
+    for (let [varName, stream] of state.streams) {
+        if ((stream as any)[isGenerator]) {
+            stream = stream as Event;
+            if (stream.cleanup && typeof stream.cleanup === "function") {
+                stream.cleanup();
+                stream.cleanup = null;
+            }
+        }
+        state.resolved.delete(stream);
+        state.streams.delete(varName);
+        invalidatedStreamNames.add(varName);
+    }
+
     const codes = new Map(scripts.map((script, i) => ([script.id !== "" ? script.id : `${i}`, script.textContent || ""])));
     const jsNodes = [...codes].map(([id, code]) => ({id, jsNode: parseJavaScript(code, {path:''})}))
     const translated = jsNodes.map(({id, jsNode}) => transpileJavaScript(jsNode, {id}));
@@ -14,13 +33,16 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
     const sorted = topologicalSort(evaluated);
 
     state.order = sorted;
-    const invalidatedNodes:Set<string> = new Set();
+
     const removedNodes:Set<string> = new Set(state.order);
     for (const node of evaluated) {
         const exist = state.nodes.get(node.id);
         removedNodes.delete(node.id);
         if (exist && exist.code !== node.code) {
             invalidatedNodes.add(node.id);
+        }
+        if (exist && invalidatedOutput(exist, invalidatedStreamNames)) {
+            invalidatedNodes.add(node.id)
         }
         state.nodes.set(node.id, node);
     }
@@ -33,39 +55,11 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
         state.outputs.delete(node.id);
         state.inputArray.delete(node.id);
     }
-
-    for (let [varName, stream] of state.streams) {
-        if ((stream as any)[isGenerator]) {
-            stream = stream as Event;
-            if (stream.cleanup && typeof stream.cleanup === "function") {
-                stream.cleanup();
-                stream.cleanup = null;
-            }
-        }
-        state.resolved.delete(stream);
-        state.streams.delete(varName)
-    }
 }
 
 export function evaluate(state:ProgramState, _t:number, requestEvaluation: () => void) {
-    function ready(inputs:Array<Stream|undefined>) {
-        for (const stream of inputs) {
-            const resolved = stream && state.resolved.get(stream);
-            if (resolved === undefined) {return false;}
-        }
-        return true;
-    }
+    // if (window.setupProgramCalled === 2) {debugger;}
 
-    function equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>) {
-        if (!Array.isArray(aArray) || !Array.isArray(bArray)) {return false;}
-        if (aArray.length !== bArray.length) {
-            return false;
-        }
-        for (let i = 0; i < aArray.length; i++) {
-            if (aArray[i] !== bArray[i]) {return false;}
-        }
-        return true;
-    }
 
     // console.log(state);
     for (let id of state.order) {
@@ -76,7 +70,7 @@ export function evaluate(state:ProgramState, _t:number, requestEvaluation: () =>
         }); 
 
         // console.log("check ready ", id);
-        const isReady = ready(inputs);
+        const isReady = ready(inputs, state);
         if (!isReady) {continue;}
 
         const inputArray = inputs.map((stream) => stream && state.resolved.get(stream));
@@ -172,7 +166,7 @@ function eventBody(options:EventBodyType) {
         returnValue.requestEvaluation();
     }
     if (dom && !forObserve) {
-        dom.addEventListener("change", handler);
+        dom.addEventListener("input", handler);
     }
 
     const updater = () => {
@@ -193,7 +187,7 @@ function eventBody(options:EventBodyType) {
     }
     if (!forObserve && dom) {
         returnValue.cleanup = () => {
-            dom.removeEventListener("change", handler);
+            dom.removeEventListener("input", handler);
         }
     }
     returnValue.updater = updater;
@@ -288,6 +282,39 @@ function invalidNodes(state: ProgramState, ids:Set<string>):Set<string> {
         }
     }
     return nodes;
+}
+
+function invalidatedOutput(node:ScriptCell, invalidatedVars:Set<string>) {
+    for (const out of node.outputs) {
+        if (invalidatedVars.has(out)) {
+            return true;
+        }
+    }
+    for (const input of node.inputs) {
+        if (invalidatedVars.has(input)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function ready(inputs:Array<Stream|undefined>, state: ProgramState) {
+    for (const stream of inputs) {
+        const resolved = stream && state.resolved.get(stream);
+        if (resolved === undefined) {return false;}
+    }
+    return true;
+}
+
+function equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>) {
+    if (!Array.isArray(aArray) || !Array.isArray(bArray)) {return false;}
+    if (aArray.length !== bArray.length) {
+        return false;
+    }
+    for (let i = 0; i < aArray.length; i++) {
+        if (aArray[i] !== bArray[i]) {return false;}
+    }
+    return true;
 }
 
 /*

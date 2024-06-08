@@ -13,7 +13,7 @@
             change([evt.clientX, evt.clientY]);
           };
           document.addEventListener("pointermove", pointerMoved);
-          return () => {debugger;document.removeEventListener("pointermove", pointerMoved)};
+          return () => {document.removeEventListener("pointermove", pointerMoved)};
         })
       </script>
       <script type="reactive">
@@ -25,8 +25,8 @@
       <script type="reactive">
        document.getElementById("bar").textContent = `${b}`;
       </script>
-      <div id="foo">foo</div>
-      <div id="bar">bar</div>
+      <div>pointermove <span id="foo"></span></div>
+      <div>slider value <span id="bar"></span></div>
       <input id="slider" type="range"/>
     </div>
     <script type="module">
