@@ -1,19 +1,23 @@
 import {parseJavaScript} from "./javascript/parse.ts"
 import {transpileJavaScript} from "./javascript/transpile.ts"
 
-import {ProgramState, ScriptCell, ObserveCallback, isGenerator, Event, Stream, VarName, NodeId} from "./types.ts"
+import {ProgramState, ScriptCell, ObserveCallback, isEvent, Event, Stream, VarName, NodeId} from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code">
 
 export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
-    if (window.setupProgramCalled === undefined) {
+   /* if (window.setupProgramCalled === undefined) {
         window.setupProgramCalled = 0;
     }
     window.setupProgramCalled++;
-    const invalidatedNodes:Set<NodeId> = new Set();
+    */
     const invalidatedStreamNames:Set<VarName> = new Set();
+
+    // clear all output from events anyway, as re evaluation should not run a cell that depends on an event.
+    // This should not be necessary if the DOM element that an event listener is attached stays the same.
+
     for (let [varName, stream] of state.streams) {
-        if ((stream as any)[isGenerator]) {
+        if ((stream as Event)[isEvent]) {
             stream = stream as Event;
             if (stream.cleanup && typeof stream.cleanup === "function") {
                 stream.cleanup();
@@ -25,35 +29,61 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
         invalidatedStreamNames.add(varName);
     }
 
+    // compile code and sort them.
     const codes = new Map(scripts.map((script, i) => ([script.id !== "" ? script.id : `${i}`, script.textContent || ""])));
     const jsNodes = [...codes].map(([id, code]) => ({id, jsNode: parseJavaScript(code, {path:''})}))
     const translated = jsNodes.map(({id, jsNode}) => transpileJavaScript(jsNode, {id}));
     const evaluated = translated.map((tr) => evalCode(tr));
-
     const sorted = topologicalSort(evaluated);
 
-    state.order = sorted;
+    const newNodes = new Map<NodeId, ScriptCell>();
 
-    const removedNodes:Set<string> = new Set(state.order);
-    for (const node of evaluated) {
-        const exist = state.nodes.get(node.id);
-        removedNodes.delete(node.id);
-        if (exist && exist.code !== node.code) {
-            invalidatedNodes.add(node.id);
+    const oldVariableNames:Set<VarName> = new Set();
+    const newVariableNames:Set<VarName> = new Set();
+
+    state.order.forEach((nodeId) => {
+        const old = state.nodes.get(nodeId);
+        if (old) {
+            old.outputs.forEach((varName) => oldVariableNames.add(varName));
         }
-        if (exist && invalidatedOutput(exist, invalidatedStreamNames)) {
-            invalidatedNodes.add(node.id)
+    });
+
+    evaluated.forEach((cell) => {
+        newNodes.set(cell.id, cell);
+        cell.outputs.forEach((varName) => newVariableNames.add(varName));
+    });
+
+    const removedVariableNames = difference(oldVariableNames, newVariableNames);
+    const removedNodes:Set<NodeId> = new Set(state.order);
+
+    for (const old of state.order) {
+        if (!newNodes.get(old)) {
+            removedNodes.add(old);
         }
-        state.nodes.set(node.id, node);
     }
 
-    const clearNodes = invalidNodes(state, invalidatedNodes);
+    state.order = sorted;
+    state.nodes = newNodes;
 
-    for (const nodeId of clearNodes) {
-        const node = state.nodes.get(nodeId);
-        if (!node) {continue;}
-        state.outputs.delete(node.id);
-        state.inputArray.delete(node.id);
+    for (const nodeId of state.order) {
+        const newNode = newNodes.get(nodeId)!;
+        if (invalidatedInput(newNode, invalidatedStreamNames)) {
+            state.inputArray.delete(newNode.id);
+        }
+    }
+
+    for (const nodeId of removedNodes) {
+        state.outputs.delete(nodeId);
+        state.inputArray.delete(nodeId);
+    }
+
+    for (const removed of removedVariableNames) {
+        const stream = state.streams.get(removed);
+        if (stream) {
+            state.resolved.delete(stream);
+            state.streams.delete(removed);
+        }
+        state.streams.delete(removed);
     }
 }
 
@@ -90,7 +120,7 @@ export function evaluate(state:ProgramState, _t:number, requestEvaluation: () =>
 
         for (const output in outputs) {
             let maybeValue = outputs[output];
-            if (typeof maybeValue === "object" && maybeValue[isGenerator]) {
+            if (typeof maybeValue === "object" && maybeValue[isEvent]) {
                 maybeValue.requestEvaluation = requestEvaluation;
             }
             if (!maybeValue.then) {
@@ -110,11 +140,11 @@ export function evaluate(state:ProgramState, _t:number, requestEvaluation: () =>
         }
     }
     /*
-    for all promises, check if it is actually a generator.
+    for all promises, check if it is actually an event.
     if it is resolved, its promise and resolved will be cleared
     */
     for (let [varName, stream] of state.streams) {
-        if ((stream as any)[isGenerator]) {
+        if ((stream as any)[isEvent]) {
             stream = stream as Event;
             if (state.resolved.get(stream) !== undefined) {
                 state.resolved.delete(stream);
@@ -150,7 +180,7 @@ type EventBodyType = {
 
 function eventBody(options:EventBodyType) {
     let {forObserve, callback, dom} = options;
-    let returnValue:any = {[isGenerator]: true};
+    let returnValue:any = {[isEvent]: true};
     let myResolve: (v:any) => void;
     // let myReject: () => void;
     let then:(v:any) => any; 
@@ -203,10 +233,23 @@ const Events = {
     }
 };
 
+const Behaviors = {
+    delay(value:any, t: number) {
+        return new Promise((resolve, _reject) => setTimeout(() => resolve(value), t));
+    /*
+    const d = Behavior.delay(c, 50);
+
+    => 
+        d = new Promise((resolve, reject) => (setTimeout(() => c, 50))
+
+    */
+    }
+}
+
 function evalCode(str:string):ScriptCell {
     let code = `return ${str}`;
-    let func = new Function("fby", "define", "Events", code);
-    let val = func(fby, define, Events);
+    let func = new Function("fby", "define", "Events", "Behaviors", code);
+    let val = func(fby, define, Events, Behaviors);
     val.code = str;
     return val;
 }
@@ -255,47 +298,23 @@ function topologicalSort(nodes:Array<ScriptCell>) {
     return order;
 }
 
-function invalidNodes(state: ProgramState, ids:Set<string>):Set<string> {
-    function has(anArray:Array<string>, set:Set<string>) {
-        for (const a of anArray) {
-            if (set.has(a)) {return true;}
-        }
-        return false;
-    }
-
-    const invalidatedVars:Set<string> = new Set();
-    const nodes:Set<string> = new Set(ids);
-
-    for (const nodeId of ids) {
-        const outputs = state.nodes.get(nodeId)?.outputs;
-        outputs!.forEach((out) => invalidatedVars.add(out));
-    }
-
-    for (const nodeId of state.order) {
-        const node = state.nodes.get(nodeId);
-        if (has(node!.inputs, invalidatedVars)) {
-            const outputs = state.outputs.get(nodeId);
-            for (const out in outputs) {
-                invalidatedVars.add(out);
-            }
-            nodes.add(nodeId);
-        }
-    }
-    return nodes;
-}
-
-function invalidatedOutput(node:ScriptCell, invalidatedVars:Set<string>) {
-    for (const out of node.outputs) {
-        if (invalidatedVars.has(out)) {
-            return true;
-        }
-    }
+function invalidatedInput(node:ScriptCell, invalidatedVars:Set<string>) {
     for (const input of node.inputs) {
         if (invalidatedVars.has(input)) {
             return true;
         }
     }
     return false;
+}
+
+function difference(oldSet:Set<VarName>, newSet:Set<VarName>) {
+    const result = new Set<VarName>();
+    for (const key of oldSet) {
+        if (!newSet.has(key)) {
+            result.add(key);
+        }
+    }
+    return result;
 }
 
 function ready(inputs:Array<Stream|undefined>, state: ProgramState) {

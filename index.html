@@ -8,26 +8,25 @@
   <body>
     <div id="renkon">
       <script type="reactive">
-        const g = Events.observe((change) => {
-          const pointerMoved = (evt) => {
-            change([evt.clientX, evt.clientY]);
-          };
-          document.addEventListener("pointermove", pointerMoved);
-          return () => {document.removeEventListener("pointermove", pointerMoved)};
-        })
-      </script>
-      <script type="reactive">
         const b = Events.input(document.querySelector("#slider"));
       </script>
       <script type="reactive">
-        document.getElementById("foo").textContent = `${g}`;
+        const c = Behaviors.delay(b, 100);
+      </script>
+      <script type="reactive">
+        document.querySelector("#sliderOut").value = `${c}`;
+      </script>
+      <script type="reactive">
+        document.querySelector("#baz").textContent = `${c}`;
       </script>
       <script type="reactive">
        document.getElementById("bar").textContent = `${b}`;
       </script>
       <div>pointermove <span id="foo"></span></div>
       <div>slider value <span id="bar"></span></div>
+      <div>slider value <span id="baz"></span></div>
       <input id="slider" type="range"/>
+      <input id="sliderOut" type="range"/>
     </div>
     <script type="module">
       import {primerView} from "./src/main.js";

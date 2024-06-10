@@ -9,10 +9,10 @@ export type ScriptCell = {
     outputs: Array<string>
 }
 
-export const isGenerator = Symbol("renkon-generator");
+export const isEvent = Symbol("renkon-event");
 
 export type Event = {
-    [isGenerator]: boolean, 
+    [isEvent]: true, 
     promise: Promise<any>, 
     updater: () => void,
     cleanup: (() => void) | null, 
