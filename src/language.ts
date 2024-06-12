@@ -23,7 +23,7 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
                 stream.cleanup();
                 stream.cleanup = null;
             }
-            state.resolved.delete(stream);
+            state.resolved.delete(varName);
             state.streams.delete(varName);
             invalidatedStreamNames.add(varName);
         }
@@ -82,7 +82,7 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
     for (const removed of removedVariableNames) {
         const stream = state.streams.get(removed);
         if (stream) {
-            state.resolved.delete(stream);
+            state.resolved.delete(removed);
             state.streams.delete(removed);
         }
         state.streams.delete(removed);
@@ -92,16 +92,16 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
 export function evaluate(state:ProgramState, t:number) {
     for (let id of state.order) {
         const node = state.nodes.get(id)!;
-        const inputs:Array<Stream|undefined> = node.inputs.map((inputName) => {
+        const inputs:Array<{inputName:VarName, stream: Stream|undefined}> = node.inputs.map((inputName) => {
             // console.log(state);
-            return state.streams.get(inputName);
+            return {inputName, stream: state.streams.get(inputName)};
         }); 
 
         // console.log("check ready ", id);
         const isReady = ready(node, inputs, state);
         if (!isReady) {continue;}
 
-        const inputArray = inputs.map((stream) => stream && state.resolved.get(stream)?.value);
+        const inputArray = inputs.map(({inputName, stream}) => stream && state.resolved.get(inputName)?.value);
         // if (inputArray.length > 0) {console.log("inputArray", inputArray)};
         const lastInputArray = state.inputArray.get(id);
 
@@ -127,6 +127,7 @@ export function evaluate(state:ProgramState, t:number) {
 
         for (const output in outputs) {
             let maybeValue = outputs[output];
+
             if ((maybeValue as Event).type == delayType) {
                 const oldStream = state.streams.get(output) as DelayedEvent;
                 if (!oldStream) {
@@ -139,17 +140,15 @@ export function evaluate(state:ProgramState, t:number) {
                 const value = spliceDelayedQueued(maybeValue, t);
                 // console.log("value", value);
                 if (value !== undefined) {
-                    maybeValue.promise = Promise.resolve(value);
-                    state.resolved.set(maybeValue, {value, time: t});
+                    // maybeValue.promise = Promise.resolve(value);
+                    state.resolved.set(output, {value, time: t});
                     if (maybeValue.queue.length === 0) {
                         // state.activeTimers.delete(maybeValue);
                     }
-                } else {
-                    console.log("i", bodyEvaluated, inputArray[0])
-                    if (bodyEvaluated && inputArray[0] !== undefined) {
-                        maybeValue.queue.push({time: t + maybeValue.delay, value: inputArray[0]});
+                }
+                if (bodyEvaluated && inputArray[0] !== undefined) {
+                    maybeValue.queue.push({time: t + maybeValue.delay, value: inputArray[0]});
                         // state.activeTimers.add(maybeValue);
-                    }
                 }
             } else if ((maybeValue as Event).type === eventType) {
                 maybeValue = maybeValue as Event;
@@ -157,10 +156,9 @@ export function evaluate(state:ProgramState, t:number) {
                 // state.streams.set(output, maybeValue);
                 const value = getEventValue(maybeValue, t);
                 if (value !== undefined) {
-                    const wasResolved = state.resolved.get(maybeValue)?.value;
-                    console.log("was", wasResolved, value)
+                    const wasResolved = state.resolved.get(output)?.value;
                     if (wasResolved === undefined) {
-                        state.resolved.set(maybeValue, {value, time: t});
+                        state.resolved.set(output, {value, time: t});
                     }
                 }                 
             }
@@ -173,12 +171,11 @@ export function evaluate(state:ProgramState, t:number) {
         const type = (stream as Event).type;
         if (type === eventType) {
             stream = stream as Event;
-            if (state.resolved.get(stream)?.value !== undefined) {
-                console.log("clear value", state.resolved.get(stream)?.value);
-                state.resolved.delete(stream);
+            if (state.resolved.get(varName)?.value !== undefined) {
+                state.resolved.delete(varName);
                 stream.updater?.();
-                const newStream = {...stream};
-                state.streams.set(varName, newStream);
+                // const newStream = {...stream};
+                // state.streams.set(varName, newStream);
             }
         }
     }
@@ -210,22 +207,17 @@ type EventBodyType = {
 function eventBody(options:EventBodyType) {
     let {forObserve, callback, dom, type} = options;
     let returnValue:any = {type, queue: []};
-    let myResolve: (v:any) => void;
     // let myReject: () => void;
     let then:(v:any) => any; 
     let myPromise:Promise<any>;
 
     let handler = (evt:any) => {
         const value = evt.target.value;
-        console.log("val", value)
-        if (parseFloat(value) > 70) {window.seventy = true;}
         returnValue.queue.push({value, time: 0});
-        myResolve(value);
     };
 
     const notifier = (value:any) => {
         returnValue.queue.push({value, time: 0});
-        myResolve(value);
     };
 
     if (dom && !forObserve) {
@@ -233,10 +225,6 @@ function eventBody(options:EventBodyType) {
     }
 
     const updater = () => {
-        myPromise = new Promise((resolve, _reject) => {
-            myResolve = resolve;
-            // myReject = reject;
-        });
         then = (func) => {
             return myPromise.then(func);
         };
@@ -269,13 +257,6 @@ const Events = {
 const Behaviors = {
     delay(value:any, t: number):DelayedEvent {
         return {type: delayType, delay: t, queue: []};
-       //  return new Promise((resolve, _reject) => setTimeout(() => resolve(value), t));
-    /*
-    const d = Behavior.delay(c, 50);
-
-    => d = {[isEvent]: true, promise: scheduledTime: number, value}
-    
-    */
     }
 }
 
@@ -350,15 +331,15 @@ function difference(oldSet:Set<VarName>, newSet:Set<VarName>) {
     return result;
 }
 
-function ready(node: ScriptCell, inputs:Array<Stream|undefined>, state: ProgramState) {
+function ready(node: ScriptCell, inputs:Array<{inputName: VarName, stream: Stream|undefined}>, state: ProgramState) {
     for (const output of node.outputs) {
         const stream = state.streams.get(output) as DelayedEvent;
         if (stream?.type === delayType) {
             if (stream.queue.length > 0) {return true;}
         }
     }
-    for (const stream of inputs) {
-        const resolved = stream && state.resolved.get(stream)?.value;
+    for (const {inputName, stream} of inputs) {
+        const resolved = stream && state.resolved.get(inputName)?.value;
         if (resolved === undefined) {return false;}
     }
     return true;
@@ -387,12 +368,8 @@ function spliceDelayedQueued(event:DelayedEvent, t:number) {
         return undefined;
     }
 
-
     const value = event.queue[last].value;
     const newQueue = event.queue.slice(last + 1);
-
-    console.log("t", t, event.queue, newQueue, value)
-
     event.queue = newQueue;
     return value;
 }

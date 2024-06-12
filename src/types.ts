@@ -40,7 +40,7 @@ export type ProgramState = {
     order: Array<NodeId>;
     nodes: Map<NodeId, ScriptCell>;
     streams: Map<VarName, Stream>;
-    resolved: Map<Stream, ResolveRecord>;
+    resolved: Map<VarName, ResolveRecord>;
     inputArray: Map<NodeId, Array<any>>;
     outputs: Map<NodeId, any>;
     time: number;
