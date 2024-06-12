@@ -8,12 +8,6 @@ import type {JavaScriptNode} from "./parse.js";
 import {defaultGlobals} from "./globals";
 import {renkonGlobals} from "./renkonGlobals";
 
-let fbyId = 0;
-
-function nextFbyId() {
-    return fbyId++;
-}
-
 export interface TranspileOptions {
   id: string;
 }
@@ -48,11 +42,20 @@ function rewriteFollowedByCalls(
 ): void {
   simple(body, {
     CallExpression(node) {
-      if (node.callee.type === "Identifier" && node.callee.name === "fby") {
-        console.log("fby found");
-        const id = nextFbyId();
-        output.insertRight(node.arguments[1].end, `, ${id}, _state`);
-      }
+      if (node.callee.type === "MemberExpression" 
+      && node.callee.object.type === "Identifier"
+      && node.callee.object.name === "Events"
+      && node.callee.property.type === "Identifier") {
+        if (node.callee.property.name === "fby") {
+          console.log("fby found");
+          output.insertLeft(node.arguments[1].start, '"');
+          output.insertRight(node.arguments[1].end, '"');
+         } else if (node.callee.property.name === "delay") {
+          console.log("delay found");
+          output.insertLeft(node.arguments[0].start, '"');
+          output.insertRight(node.arguments[0].end, '"');
+         }
+        }
     }
   });
 }

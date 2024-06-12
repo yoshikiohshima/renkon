@@ -9,10 +9,12 @@ export type ScriptCell = {
     outputs: Array<string>
 }
 
-export const eventType = Symbol("renkon-event");
-export const delayType = Symbol("renkon-delay");
+export const eventType = "EventType";
+export const delayType = "DelayType";
+export const fbyType = "FbyType";
 
-export type EventType = typeof eventType | typeof delayType;
+export type EventType = 
+    typeof eventType | typeof delayType | typeof fbyType;
 
 export type ResolveRecord = {
     value: any,
@@ -21,17 +23,20 @@ export type ResolveRecord = {
 
 export interface Event {
     type: EventType,
-    promise: Promise<any>, 
-    updater: () => void | null;
-    cleanup: (() => void) | null, 
-    then: (v:any) => any,
+    cleanup?: (() => void) | null, 
     queue: Array<{value:any, time:number}>
 }
 
-export interface DelayedEvent {
-    type: EventType,
+export interface DelayedEvent extends Event {
     delay: number,
-    queue: Array<{value:any, time:number}>
+    varName: VarName,
+}
+
+export interface FbyStream<I, T> extends Event {
+    init: I,
+    current: I,
+    updater: (c: I, v: T) => I,
+    varName: VarName,
 }
 
 export type Stream = Event | DelayedEvent | Promise<any>;

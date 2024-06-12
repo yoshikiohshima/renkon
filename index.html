@@ -8,19 +8,22 @@
   <body>
     <div id="renkon">
       <script type="reactive">
+        const y = Events.fby(0, b, (c, v) => c + 1);
+      </script>
+      <script type="reactive">
         const b = Events.input(document.querySelector("#slider"));
       </script>
       <script type="reactive">
-        const b1 = Behaviors.delay(b, 200);
+        const b1 = Events.delay(b, 200);
       </script>
       <script type="reactive">
-        const b2 = Behaviors.delay(b, 400);
+        const b2 = Events.delay(b, 400);
       </script>
       <script type="reactive">
-        const b3 = Behaviors.delay(b, 600);
+        const b3 = Events.delay(b, 600);
       </script>
       <script type="reactive">
-        const b4 = Behaviors.delay(b, 800);
+        const b4 = Events.delay(b, 800);
       </script>
       <script type="reactive">
         document.querySelector("#slider1").value = b1;
@@ -35,15 +38,32 @@
         document.querySelector("#slider4").value = b4;
       </script>
       <script type="reactive">
-        document.querySelector("#bar").textContent = `${[b, b4]}`;
+        document.querySelector("#bar").textContent = `${[b1, b2, b3, b4]}`;
       </script>
-      <div style="display: flex; flex-direction: column; width: 200px">
-        <div>slider value <span id="bar"></span></div>
-        <input id="slider" type="range"/>
-        <input id="slider1" type="range"/>
-        <input id="slider2" type="range"/>
-        <input id="slider3" type="range"/>
-        <input id="slider4" type="range"/>
+      <script type="reactive">
+        document.querySelector("#pointermove").textContent = `${g}`;
+      </script>
+      <script type="reactive">
+        const g = Events.observe((change) => {
+          const pointerMoved = (evt) => {
+            change([evt.clientX, evt.clientY]);
+          };
+          document.addEventListener("pointermove", pointerMoved);
+          return () => {document.removeEventListener("pointermove", pointerMoved)};
+        })
+      </script>
+      <script type="reactive">
+        document.querySelector("#changes").textContent = y;
+      </script>
+      <div>pointermove <span id="pointermove"></span></div>
+      <div>slider value <span id="bar"></span></div>
+      <div>number of slider value changes <span id="changes"></span></div>
+      <div style="display: flex; flex-direction: column; width: 400px">
+        <input id="slider" style="margin-bottom: 16px" type="range"/>
+        <input id="slider1" style="accent-color: #c44" type="range">
+        <input id="slider2" style="accent-color: #c32" type="range">
+        <input id="slider3" style="accent-color: #a41" type="range">
+        <input id="slider4"  style="accent-color: #a50" type="range">
       </div>
     </div>
     <script type="module">

@@ -1,7 +1,7 @@
 import {parseJavaScript} from "./javascript/parse.ts"
 import {transpileJavaScript} from "./javascript/transpile.ts"
 
-import {ProgramState, ScriptCell, ObserveCallback, eventType, delayType, Event, DelayedEvent, Stream, VarName, NodeId, EventType} from "./types.ts"
+import {ProgramState, ScriptCell, ObserveCallback, eventType, delayType, fbyType, Event, DelayedEvent, Stream, FbyStream, VarName, NodeId, EventType} from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code">
 
@@ -11,6 +11,7 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
     }
     window.setupProgramCalled++;
     */
+   (window as any).programState = state;
     const invalidatedStreamNames:Set<VarName> = new Set();
 
     // clear all output from events anyway, as re evaluation should not run a cell that depends on an event.
@@ -62,7 +63,7 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
         }
     }
 
-    window.programState = state;
+    // window.programState = state;
 
     state.order = sorted;
     state.nodes = newNodes;
@@ -128,7 +129,7 @@ export function evaluate(state:ProgramState, t:number) {
         for (const output in outputs) {
             let maybeValue = outputs[output];
 
-            if ((maybeValue as Event).type == delayType) {
+            if ((maybeValue as Event).type === delayType) {
                 const oldStream = state.streams.get(output) as DelayedEvent;
                 if (!oldStream) {
                     state.streams.set(output, maybeValue);
@@ -140,14 +141,15 @@ export function evaluate(state:ProgramState, t:number) {
                 const value = spliceDelayedQueued(maybeValue, t);
                 // console.log("value", value);
                 if (value !== undefined) {
-                    // maybeValue.promise = Promise.resolve(value);
                     state.resolved.set(output, {value, time: t});
                     if (maybeValue.queue.length === 0) {
                         // state.activeTimers.delete(maybeValue);
                     }
                 }
-                if (bodyEvaluated && inputArray[0] !== undefined) {
-                    maybeValue.queue.push({time: t + maybeValue.delay, value: inputArray[0]});
+                const inputIndex = node.inputs.indexOf(maybeValue.varName);
+                const myInput = inputArray[inputIndex];
+                if (bodyEvaluated && myInput !== undefined) {
+                    maybeValue.queue.push({time: t + maybeValue.delay, value: myInput});
                         // state.activeTimers.add(maybeValue);
                 }
             } else if ((maybeValue as Event).type === eventType) {
@@ -160,11 +162,42 @@ export function evaluate(state:ProgramState, t:number) {
                     if (wasResolved === undefined) {
                         state.resolved.set(output, {value, time: t});
                     }
-                }                 
+                }
+            } else if ((maybeValue as Event).type === fbyType) {
+                type ArgTypes = Parameters<typeof maybeValue.updater>;
+                maybeValue = maybeValue as FbyStream<typeof maybeValue.current, ArgTypes[1]>;
+                const oldStream = state.streams.get(output);
+                if (!oldStream) {
+                    state.streams.set(output, maybeValue);
+                } else {
+                    maybeValue = oldStream;
+                }
+
+                // state.streams.set(output, maybeValue);
+                const inputIndex = node.inputs.indexOf(maybeValue.varName);
+                const value = maybeValue.updater(maybeValue.current, inputArray[inputIndex]);
+                if (value !== undefined) {
+                    // this is dubious as it crosses the event/behavior type bridge.
+                    state.resolved.set(output, {value, time: t});
+                    maybeValue.current = value;
+                }
+            } else if (maybeValue.then) {
+                maybeValue = maybeValue as Promise<any>;
+                state.streams.set(output, maybeValue);
+                maybeValue.then((value:any) => {
+                    const wasResolved = state.resolved.get(output);
+                    if (!wasResolved) {
+                        state.resolved.set(output, {value, time: t});
+                    }
+                });
+            } else {
+                let stream = Promise.resolve(maybeValue);
+                state.streams.set(output, stream)
+                state.resolved.set(output, {value: maybeValue, time: t});
             }
         }
     }
-    // for all promises, check if it is actually an event.
+    // for all streams, check if it is an event.
     // if it is resolved, its promise and resolved will be cleared
 
     for (let [varName, stream] of state.streams) {
@@ -173,7 +206,6 @@ export function evaluate(state:ProgramState, t:number) {
             stream = stream as Event;
             if (state.resolved.get(varName)?.value !== undefined) {
                 state.resolved.delete(varName);
-                stream.updater?.();
                 // const newStream = {...stream};
                 // state.streams.set(varName, newStream);
             }
@@ -183,18 +215,6 @@ export function evaluate(state:ProgramState, t:number) {
 
 function define(spec:ScriptCell) {
    return spec;
-}
-
-function fby<T>(init:T, updater: (v:T) => T, id:number, state:any) {
-    if (!state[`fby_${id}]`]) {
-        state[`fby_${id}]`] = true;
-        state[`fby_${id}_value`] = init;
-        return init;
-    }
-    const value = state[`fby_${id}_value`];
-    const newValue = updater(value);
-    state[`fby_${id}_value`] = newValue;
-    return newValue;
 }
 
 type EventBodyType = {
@@ -207,9 +227,6 @@ type EventBodyType = {
 function eventBody(options:EventBodyType) {
     let {forObserve, callback, dom, type} = options;
     let returnValue:any = {type, queue: []};
-    // let myReject: () => void;
-    let then:(v:any) => any; 
-    let myPromise:Promise<any>;
 
     let handler = (evt:any) => {
         const value = evt.target.value;
@@ -224,15 +241,6 @@ function eventBody(options:EventBodyType) {
         dom.addEventListener("input", handler);
     }
 
-    const updater = () => {
-        then = (func) => {
-            return myPromise.then(func);
-        };
-        returnValue.then = then;
-        returnValue.promise = myPromise;
-    }
-
-    updater();
     if (forObserve && callback) {
         returnValue.cleanup = callback(notifier);
     }
@@ -241,7 +249,7 @@ function eventBody(options:EventBodyType) {
             dom.removeEventListener("input", handler);
         }
     }
-    returnValue.updater = updater;
+
     return returnValue;
 }
 
@@ -251,19 +259,22 @@ const Events = {
     },
     input: (dom:HTMLInputElement) => {
         return eventBody({forObserve: false, dom, type: eventType});
+    },
+    fby<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):FbyStream<I, T> {
+        return {type: fbyType, init, updater, varName, current: init, queue: []};
+    },
+    delay(varName:VarName, delay: number):DelayedEvent {
+        return {type: delayType, delay, varName, queue: []};
     }
 };
 
 const Behaviors = {
-    delay(value:any, t: number):DelayedEvent {
-        return {type: delayType, delay: t, queue: []};
-    }
 }
 
 function evalCode(str:string):ScriptCell {
     let code = `return ${str}`;
-    let func = new Function("fby", "define", "Events", "Behaviors", code);
-    let val = func(fby, define, Events, Behaviors);
+    let func = new Function("define", "Events", "Behaviors", code);
+    let val = func(define, Events, Behaviors);
     val.code = str;
     return val;
 }
