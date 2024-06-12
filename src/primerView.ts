@@ -11,22 +11,28 @@ let programState: ProgramState = {
     resolved: new Map(),
     inputArray: new Map(),
     outputs: new Map(),
+    time: 0,
 }
 
-let evaluateTimeout: number | null = null;
-let requestEvaluation:() => void = () => {
-    if (evaluateTimeout !== null) {return;}
-    evaluateTimeout = setTimeout(() => {
-        evaluateTimeout = null;
-        evaluate(programState, performance.now(), requestEvaluation);
-    }, 0);
-};
+let evaluatorRunning:number|undefined = undefined;
+
+const pageLoadTime = Date.now();
+function evaluator() {
+    const now = Date.now();
+    evaluatorRunning = window.requestAnimationFrame(evaluator);
+    programState.time = now;
+    evaluate(programState, now - pageLoadTime);
+}
 
 export function primerView(source:HTMLElement) {
     let {dock, editorView, updateButton} = createEditorDock(source.innerHTML.trim());
     document.body.appendChild(dock);
     updateButton.onclick = () => update(source, editorView);
+
     update(source, editorView);
+    if (evaluatorRunning === undefined) {
+        evaluator();
+    }
 }
 
 function createEditorDock(initialText:string) {
@@ -67,7 +73,7 @@ function update(renkon:HTMLElement, editorView:EditorView) {
     let scripts = [...renkon.querySelectorAll("script[type='reactive']")];
 
     setupProgram(scripts as Array<HTMLScriptElement>, programState);
-    evaluate(programState, performance.now(), requestEvaluation);
+    // evaluate(programState, performance.now(), requestEvaluation);
 }
 
 function toggleDock(dock:HTMLElement, force?:boolean) {

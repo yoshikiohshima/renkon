@@ -9,25 +9,41 @@ export type ScriptCell = {
     outputs: Array<string>
 }
 
-export const isEvent = Symbol("renkon-event");
+export const eventType = Symbol("renkon-event");
+export const delayType = Symbol("renkon-delay");
 
-export type Event = {
-    [isEvent]: true, 
-    promise: Promise<any>, 
-    updater: () => void,
-    cleanup: (() => void) | null, 
-    then: (v:any) => any
+export type EventType = typeof eventType | typeof delayType;
+
+export type ResolveRecord = {
+    value: any,
+    time: number
 }
 
-export type Stream = Event | Promise<any>;
+export interface Event {
+    type: EventType,
+    promise: Promise<any>, 
+    updater: () => void | null;
+    cleanup: (() => void) | null, 
+    then: (v:any) => any,
+    queue: Array<{value:any, time:number}>
+}
+
+export interface DelayedEvent {
+    type: EventType,
+    delay: number,
+    queue: Array<{value:any, time:number}>
+}
+
+export type Stream = Event | DelayedEvent | Promise<any>;
 
 export type ProgramState = {
     order: Array<NodeId>;
     nodes: Map<NodeId, ScriptCell>;
     streams: Map<VarName, Stream>;
-    resolved: Map<Stream, any>;
+    resolved: Map<Stream, ResolveRecord>;
     inputArray: Map<NodeId, Array<any>>;
-    outputs: Map<NodeId, any>
+    outputs: Map<NodeId, any>;
+    time: number;
 }
 
 export type ObserveCallback = (notifier:(v:any) => void) => () => void;

@@ -1,7 +1,7 @@
 import {parseJavaScript} from "./javascript/parse.ts"
 import {transpileJavaScript} from "./javascript/transpile.ts"
 
-import {ProgramState, ScriptCell, ObserveCallback, isEvent, Event, Stream, VarName, NodeId} from "./types.ts"
+import {ProgramState, ScriptCell, ObserveCallback, eventType, delayType, Event, DelayedEvent, Stream, VarName, NodeId, EventType} from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code">
 
@@ -17,16 +17,16 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
     // This should not be necessary if the DOM element that an event listener is attached stays the same.
 
     for (let [varName, stream] of state.streams) {
-        if ((stream as Event)[isEvent]) {
+        if ((stream as Event).type === eventType) {
             stream = stream as Event;
             if (stream.cleanup && typeof stream.cleanup === "function") {
                 stream.cleanup();
                 stream.cleanup = null;
             }
+            state.resolved.delete(stream);
+            state.streams.delete(varName);
+            invalidatedStreamNames.add(varName);
         }
-        state.resolved.delete(stream);
-        state.streams.delete(varName);
-        invalidatedStreamNames.add(varName);
     }
 
     // compile code and sort them.
@@ -62,6 +62,8 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
         }
     }
 
+    window.programState = state;
+
     state.order = sorted;
     state.nodes = newNodes;
 
@@ -87,11 +89,7 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
     }
 }
 
-export function evaluate(state:ProgramState, _t:number, requestEvaluation: () => void) {
-    // if (window.setupProgramCalled === 2) {debugger;}
-
-
-    // console.log(state);
+export function evaluate(state:ProgramState, t:number) {
     for (let id of state.order) {
         const node = state.nodes.get(id)!;
         const inputs:Array<Stream|undefined> = node.inputs.map((inputName) => {
@@ -100,11 +98,14 @@ export function evaluate(state:ProgramState, _t:number, requestEvaluation: () =>
         }); 
 
         // console.log("check ready ", id);
-        const isReady = ready(inputs, state);
+        const isReady = ready(node, inputs, state);
         if (!isReady) {continue;}
 
-        const inputArray = inputs.map((stream) => stream && state.resolved.get(stream));
+        const inputArray = inputs.map((stream) => stream && state.resolved.get(stream)?.value);
+        // if (inputArray.length > 0) {console.log("inputArray", inputArray)};
         const lastInputArray = state.inputArray.get(id);
+
+        let bodyEvaluated = false;
 
         let outputs:{[key:string]: any};
         if (equals(inputArray, lastInputArray)) {
@@ -116,39 +117,66 @@ export function evaluate(state:ProgramState, _t:number, requestEvaluation: () =>
             );
             state.inputArray.set(id, inputArray);
             state.outputs.set(id, outputs);
+
+            // this is where the input values are available but not equal.
+            // meaning that the Event returned from Behavior.delay 
+            // can say when it wants to be triggered
+
+            bodyEvaluated = true;
         }
 
         for (const output in outputs) {
             let maybeValue = outputs[output];
-            if (typeof maybeValue === "object" && maybeValue[isEvent]) {
-                maybeValue.requestEvaluation = requestEvaluation;
-            }
-            if (!maybeValue.then) {
-                let stream = Promise.resolve(maybeValue);
-                state.streams.set(output, stream)
-                state.resolved.set(stream, maybeValue);
-            } else {
-                state.streams.set(output, maybeValue);
-                maybeValue.then((value:any) => {
-                    const wasResolved = state.resolved.get(maybeValue);
-                    if (!wasResolved) {
-                        state.resolved.set(maybeValue, value);
-                        requestEvaluation();
+            if ((maybeValue as Event).type == delayType) {
+                const oldStream = state.streams.get(output) as DelayedEvent;
+                if (!oldStream) {
+                    state.streams.set(output, maybeValue);
+                } else {
+                    maybeValue = oldStream;
+                }
+                maybeValue = maybeValue as DelayedEvent;
+
+                const value = spliceDelayedQueued(maybeValue, t);
+                // console.log("value", value);
+                if (value !== undefined) {
+                    maybeValue.promise = Promise.resolve(value);
+                    state.resolved.set(maybeValue, {value, time: t});
+                    if (maybeValue.queue.length === 0) {
+                        // state.activeTimers.delete(maybeValue);
                     }
-                });
+                } else {
+                    console.log("i", bodyEvaluated, inputArray[0])
+                    if (bodyEvaluated && inputArray[0] !== undefined) {
+                        maybeValue.queue.push({time: t + maybeValue.delay, value: inputArray[0]});
+                        // state.activeTimers.add(maybeValue);
+                    }
+                }
+            } else if ((maybeValue as Event).type === eventType) {
+                maybeValue = maybeValue as Event;
+                state.streams.set(output, maybeValue);
+                // state.streams.set(output, maybeValue);
+                const value = getEventValue(maybeValue, t);
+                if (value !== undefined) {
+                    const wasResolved = state.resolved.get(maybeValue)?.value;
+                    console.log("was", wasResolved, value)
+                    if (wasResolved === undefined) {
+                        state.resolved.set(maybeValue, {value, time: t});
+                    }
+                }                 
             }
         }
     }
-    /*
-    for all promises, check if it is actually an event.
-    if it is resolved, its promise and resolved will be cleared
-    */
+    // for all promises, check if it is actually an event.
+    // if it is resolved, its promise and resolved will be cleared
+
     for (let [varName, stream] of state.streams) {
-        if ((stream as any)[isEvent]) {
+        const type = (stream as Event).type;
+        if (type === eventType) {
             stream = stream as Event;
-            if (state.resolved.get(stream) !== undefined) {
+            if (state.resolved.get(stream)?.value !== undefined) {
+                console.log("clear value", state.resolved.get(stream)?.value);
                 state.resolved.delete(stream);
-                stream.updater();
+                stream.updater?.();
                 const newStream = {...stream};
                 state.streams.set(varName, newStream);
             }
@@ -176,25 +204,30 @@ type EventBodyType = {
     forObserve: boolean;
     callback?: ObserveCallback;
     dom?: HTMLInputElement;
+    type: EventType;
 };
 
 function eventBody(options:EventBodyType) {
-    let {forObserve, callback, dom} = options;
-    let returnValue:any = {[isEvent]: true};
+    let {forObserve, callback, dom, type} = options;
+    let returnValue:any = {type, queue: []};
     let myResolve: (v:any) => void;
     // let myReject: () => void;
     let then:(v:any) => any; 
     let myPromise:Promise<any>;
 
     let handler = (evt:any) => {
-        myResolve(evt.target.value);
-        returnValue.requestEvaluation();
+        const value = evt.target.value;
+        console.log("val", value)
+        if (parseFloat(value) > 70) {window.seventy = true;}
+        returnValue.queue.push({value, time: 0});
+        myResolve(value);
     };
 
-    const notifier = (val:any) => {
-        myResolve(val);
-        returnValue.requestEvaluation();
-    }
+    const notifier = (value:any) => {
+        returnValue.queue.push({value, time: 0});
+        myResolve(value);
+    };
+
     if (dom && !forObserve) {
         dom.addEventListener("input", handler);
     }
@@ -226,22 +259,22 @@ function eventBody(options:EventBodyType) {
 
 const Events = {
     observe: (callback:ObserveCallback) => {
-        return eventBody({forObserve: true, callback});
+        return eventBody({forObserve: true, callback, type: eventType});
     },
     input: (dom:HTMLInputElement) => {
-        return eventBody({forObserve: false, dom});
+        return eventBody({forObserve: false, dom, type: eventType});
     }
 };
 
 const Behaviors = {
-    delay(value:any, t: number) {
-        return new Promise((resolve, _reject) => setTimeout(() => resolve(value), t));
+    delay(value:any, t: number):DelayedEvent {
+        return {type: delayType, delay: t, queue: []};
+       //  return new Promise((resolve, _reject) => setTimeout(() => resolve(value), t));
     /*
     const d = Behavior.delay(c, 50);
 
-    => 
-        d = new Promise((resolve, reject) => (setTimeout(() => c, 50))
-
+    => d = {[isEvent]: true, promise: scheduledTime: number, value}
+    
     */
     }
 }
@@ -317,9 +350,15 @@ function difference(oldSet:Set<VarName>, newSet:Set<VarName>) {
     return result;
 }
 
-function ready(inputs:Array<Stream|undefined>, state: ProgramState) {
+function ready(node: ScriptCell, inputs:Array<Stream|undefined>, state: ProgramState) {
+    for (const output of node.outputs) {
+        const stream = state.streams.get(output) as DelayedEvent;
+        if (stream?.type === delayType) {
+            if (stream.queue.length > 0) {return true;}
+        }
+    }
     for (const stream of inputs) {
-        const resolved = stream && state.resolved.get(stream);
+        const resolved = stream && state.resolved.get(stream)?.value;
         if (resolved === undefined) {return false;}
     }
     return true;
@@ -334,6 +373,37 @@ function equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>) {
         if (aArray[i] !== bArray[i]) {return false;}
     }
     return true;
+}
+
+function spliceDelayedQueued(event:DelayedEvent, t:number) {
+    let last = -1;
+    for (let i = 0; i < event.queue.length; i++) {
+        if (event.queue[i].time >= t) {
+            break;
+        }
+        last = i;
+    }
+    if (last < 0) {
+        return undefined;
+    }
+
+
+    const value = event.queue[last].value;
+    const newQueue = event.queue.slice(last + 1);
+
+    console.log("t", t, event.queue, newQueue, value)
+
+    event.queue = newQueue;
+    return value;
+}
+
+function getEventValue(event:Event, _t:number) {
+    if (event.queue.length >= 1) {
+        const value = event.queue[event.queue.length - 1].value;
+        event.queue = [];
+        return value;
+    }
+    return undefined;
 }
 
 /*
@@ -393,3 +463,14 @@ function equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>) {
   Another good feature is the integration with DOM input elements.
   
   */
+
+/*
+  Let us say we switch to a animationFrame-based evaluation.
+
+  For each animationFrame, we run evaluate() as many times as
+  needed. We should limit the timer-based event to known combinators,
+  then we can tell how many times we would need by keep track of that.
+
+  upon animationFrame, evaluate() checks all cells in order and if input is new we set value into "resolved". if a cell compares its previous input array and new one, and if any input is different, call the body.
+
+*/

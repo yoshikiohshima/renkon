@@ -11,22 +11,19 @@
         const b = Events.input(document.querySelector("#slider"));
       </script>
       <script type="reactive">
-        const c = Behaviors.delay(b, 100);
+        const b1 = Behaviors.delay(b, 200);
       </script>
       <script type="reactive">
-        document.querySelector("#sliderOut").value = `${c}`;
+        document.querySelector("#slider1").value = b1;
       </script>
-      <script type="reactive">
-        document.querySelector("#baz").textContent = `${c}`;
-      </script>
-      <script type="reactive">
-       document.getElementById("bar").textContent = `${b}`;
-      </script>
-      <div>pointermove <span id="foo"></span></div>
-      <div>slider value <span id="bar"></span></div>
-      <div>slider value <span id="baz"></span></div>
-      <input id="slider" type="range"/>
-      <input id="sliderOut" type="range"/>
+      <div style="display: flex; flex-direction: column; width: 200px">
+        <div>slider value <span id="bar"></span></div>
+        <input id="slider" type="range"/>
+        <input id="slider1" type="range"/>
+        <input id="slider2" type="range"/>
+        <input id="slider3" type="range"/>
+        <input id="slider4" type="range"/>
+      </div>
     </div>
     <script type="module">
       import {primerView} from "./src/main.js";
