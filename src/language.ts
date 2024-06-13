@@ -63,8 +63,6 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
         }
     }
 
-    // window.programState = state;
-
     state.order = sorted;
     state.nodes = newNodes;
 
@@ -155,7 +153,6 @@ export function evaluate(state:ProgramState, t:number) {
             } else if ((maybeValue as Event).type === eventType) {
                 maybeValue = maybeValue as Event;
                 state.streams.set(output, maybeValue);
-                // state.streams.set(output, maybeValue);
                 const value = getEventValue(maybeValue, t);
                 if (value !== undefined) {
                     const wasResolved = state.resolved.get(output)?.value;
@@ -173,7 +170,6 @@ export function evaluate(state:ProgramState, t:number) {
                     maybeValue = oldStream;
                 }
 
-                // state.streams.set(output, maybeValue);
                 const inputIndex = node.inputs.indexOf(maybeValue.varName);
                 const value = maybeValue.updater(maybeValue.current, inputArray[inputIndex]);
                 if (value !== undefined) {
@@ -206,8 +202,6 @@ export function evaluate(state:ProgramState, t:number) {
             stream = stream as Event;
             if (state.resolved.get(varName)?.value !== undefined) {
                 state.resolved.delete(varName);
-                // const newStream = {...stream};
-                // state.streams.set(varName, newStream);
             }
         }
     }
