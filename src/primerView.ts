@@ -20,8 +20,8 @@ const pageLoadTime = Date.now();
 function evaluator() {
     const now = Date.now();
     evaluatorRunning = window.requestAnimationFrame(evaluator);
-    programState.time = now;
-    evaluate(programState, now - pageLoadTime);
+    programState.time = now - pageLoadTime;
+    evaluate(programState);
 }
 
 export function primerView(source:HTMLElement) {
@@ -58,6 +58,7 @@ function createEditorDock(initialText:string) {
         extensions: [basicSetup],
         parent: editor,
     });
+    editorView.dom.style.height = "500px";
 
     const updateButton = dock.querySelector("#updateButton")! as HTMLButtonElement;
     updateButton.textContent = "Update";

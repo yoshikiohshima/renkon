@@ -38,6 +38,7 @@ body {
     box-shadow: 10px 10px 5px #4d4d4d, -10px -10px 5px #dddddd;
     left: 0px;
     transition: left 0.5s;
+    background-color: white;
 }
 
 #drawerButton {

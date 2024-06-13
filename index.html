@@ -8,43 +8,37 @@
   <body>
     <div id="renkon">
       <script type="reactive">
-        const y = Events.fby(0, b, (c, v) => c + 1);
-      </script>
-      <script type="reactive">
         const b = Events.input(document.querySelector("#slider"));
+        const delay = 200;
+
       </script>
       <script type="reactive">
-        const b1 = Events.delay(b, 200);
+        const b1 = Events.delay(b, delay);
       </script>
       <script type="reactive">
-        const b2 = Events.delay(b, 400);
+        const b2 = Events.delay(b1, delay);
       </script>
       <script type="reactive">
-        const b3 = Events.delay(b, 600);
+        const b3 = Events.delay(b2, delay);
       </script>
       <script type="reactive">
-        const b4 = Events.delay(b, 800);
+        const b4 = Events.delay(b3, delay);
       </script>
       <script type="reactive">
         document.querySelector("#slider1").value = b1;
-      </script>
-      <script type="reactive">
         document.querySelector("#slider2").value = b2;
-      </script>
-      <script type="reactive">
         document.querySelector("#slider3").value = b3;
-      </script>
-      <script type="reactive">
         document.querySelector("#slider4").value = b4;
       </script>
       <script type="reactive">
-        document.querySelector("#bar").textContent = `${[b1, b2, b3, b4]}`;
+        document.querySelector("#bar").textContent = `${[b1, b2, b3 ,b4]}`;
       </script>
       <script type="reactive">
-        document.querySelector("#pointermove").textContent = `${g}`;
+        document.querySelector("#pointermove").textContent = `${pointer}`;
+        document.querySelector("#changes").textContent = `${changes}`;
       </script>
       <script type="reactive">
-        const g = Events.observe((change) => {
+        const pointer = Events.observe((change) => {
           const pointerMoved = (evt) => {
             change([evt.clientX, evt.clientY]);
           };
@@ -53,7 +47,23 @@
         })
       </script>
       <script type="reactive">
-        document.querySelector("#changes").textContent = y;
+        const changes = Events.fby(0, b, (a, c) => a + 1);
+      </script>
+      <script type="reactive">
+        const p1 = Events.delay(pointer, delay);
+
+      </script>
+      <script type="reactive">
+        const p2 = Events.delay(pointer, delay * 2);
+
+      </script>
+      <script type="reactive">
+        document.querySelector("#cursor1").style.left = `${p1[0]-8}px`;
+        document.querySelector("#cursor1").style.top = `${p1[1]-8}px`;
+      </script>
+      <script type="reactive">
+        document.querySelector("#cursor2").style.left = `${p2[0]-8}px`;
+        document.querySelector("#cursor2").style.top = `${p2[1]-8}px`;
       </script>
       <div>pointermove <span id="pointermove"></span></div>
       <div>slider value <span id="bar"></span></div>
@@ -65,6 +75,8 @@
         <input id="slider3" style="accent-color: #a41" type="range">
         <input id="slider4"  style="accent-color: #a50" type="range">
       </div>
+      <div id="cursor1" style="pointer-events: none;background-color: #a50; position: absolute; width: 16px; height: 16px; "></div>
+      <div id="cursor2" style="pointer-events: none;background-color: #a50; position: absolute; width: 16px; height: 16px; "></div>
     </div>
     <script type="module">
       import {primerView} from "./src/main.js";

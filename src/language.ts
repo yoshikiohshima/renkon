@@ -1,7 +1,7 @@
 import {parseJavaScript} from "./javascript/parse.ts"
 import {transpileJavaScript} from "./javascript/transpile.ts"
 
-import {ProgramState, ScriptCell, ObserveCallback, eventType, delayType, fbyType, Event, DelayedEvent, Stream, FbyStream, VarName, NodeId, EventType} from "./types.ts"
+import {ProgramState, ScriptCell, ObserveCallback, eventType, delayType, fbyType, promiseType, Event, DelayedEvent, Stream, FbyStream, PromiseEvent, VarName, NodeId, EventType} from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code">
 
@@ -88,19 +88,14 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
     }
 }
 
-export function evaluate(state:ProgramState, t:number) {
+export function evaluate(state:ProgramState) {
     for (let id of state.order) {
+        // if (window.wasResolved) {debugger;}
         const node = state.nodes.get(id)!;
-        const inputs:Array<{inputName:VarName, stream: Stream|undefined}> = node.inputs.map((inputName) => {
-            // console.log(state);
-            return {inputName, stream: state.streams.get(inputName)};
-        }); 
-
-        // console.log("check ready ", id);
-        const isReady = ready(node, inputs, state);
+        const isReady = ready(node, state);
         if (!isReady) {continue;}
 
-        const inputArray = inputs.map(({inputName, stream}) => stream && state.resolved.get(inputName)?.value);
+        const inputArray = node.inputs.map((inputName) => state.resolved.get(inputName)?.value);
         // if (inputArray.length > 0) {console.log("inputArray", inputArray)};
         const lastInputArray = state.inputArray.get(id);
 
@@ -115,6 +110,21 @@ export function evaluate(state:ProgramState, t:number) {
                 inputArray
             );
             state.inputArray.set(id, inputArray);
+
+            for (const output in outputs) {
+                const maybePromise = outputs[output];
+                if (maybePromise.then) {
+                    const promise = maybePromise;
+                    promise.then((value:any) => {
+                        const wasResolved = state.resolved.get(output)?.value;
+                        if (!wasResolved) {
+                            state.resolved.set(output, {value, time: state.time});
+                        }
+                    });
+                    const e:PromiseEvent = {type: promiseType, promise, queue: []};
+                    outputs[output] = e;
+                }
+            }
             state.outputs.set(id, outputs);
 
             // this is where the input values are available but not equal.
@@ -129,17 +139,20 @@ export function evaluate(state:ProgramState, t:number) {
 
             if ((maybeValue as Event).type === delayType) {
                 const oldStream = state.streams.get(output) as DelayedEvent;
-                if (!oldStream) {
+                if (!oldStream || 
+                    oldStream.delay !== maybeValue.delay ||
+                    oldStream.varName !== maybeValue.varName
+                ) {
                     state.streams.set(output, maybeValue);
                 } else {
                     maybeValue = oldStream;
                 }
                 maybeValue = maybeValue as DelayedEvent;
 
-                const value = spliceDelayedQueued(maybeValue, t);
+                const value = spliceDelayedQueued(maybeValue, state.time);
                 // console.log("value", value);
                 if (value !== undefined) {
-                    state.resolved.set(output, {value, time: t});
+                    state.resolved.set(output, {value, time: state.time});
                     if (maybeValue.queue.length === 0) {
                         // state.activeTimers.delete(maybeValue);
                     }
@@ -147,17 +160,17 @@ export function evaluate(state:ProgramState, t:number) {
                 const inputIndex = node.inputs.indexOf(maybeValue.varName);
                 const myInput = inputArray[inputIndex];
                 if (bodyEvaluated && myInput !== undefined) {
-                    maybeValue.queue.push({time: t + maybeValue.delay, value: myInput});
+                    maybeValue.queue.push({time: state.time + maybeValue.delay, value: myInput});
                         // state.activeTimers.add(maybeValue);
                 }
             } else if ((maybeValue as Event).type === eventType) {
                 maybeValue = maybeValue as Event;
                 state.streams.set(output, maybeValue);
-                const value = getEventValue(maybeValue, t);
+                const value = getEventValue(maybeValue, state.time);
                 if (value !== undefined) {
                     const wasResolved = state.resolved.get(output)?.value;
                     if (wasResolved === undefined) {
-                        state.resolved.set(output, {value, time: t});
+                        state.resolved.set(output, {value, time: state.time});
                     }
                 }
             } else if ((maybeValue as Event).type === fbyType) {
@@ -174,22 +187,24 @@ export function evaluate(state:ProgramState, t:number) {
                 const value = maybeValue.updater(maybeValue.current, inputArray[inputIndex]);
                 if (value !== undefined) {
                     // this is dubious as it crosses the event/behavior type bridge.
-                    state.resolved.set(output, {value, time: t});
+                    state.resolved.set(output, {value, time: state.time});
                     maybeValue.current = value;
                 }
-            } else if (maybeValue.then) {
-                maybeValue = maybeValue as Promise<any>;
+            } else if (maybeValue.type === promiseType) {
+                maybeValue = maybeValue as PromiseEvent;
                 state.streams.set(output, maybeValue);
+                /*
                 maybeValue.then((value:any) => {
-                    const wasResolved = state.resolved.get(output);
+                    const wasResolved = state.resolved.get(output)?.value;
                     if (!wasResolved) {
                         state.resolved.set(output, {value, time: t});
                     }
                 });
+                */
             } else {
                 let stream = Promise.resolve(maybeValue);
                 state.streams.set(output, stream)
-                state.resolved.set(output, {value: maybeValue, time: t});
+                state.resolved.set(output, {value: maybeValue, time: state.time});
             }
         }
     }
@@ -336,15 +351,15 @@ function difference(oldSet:Set<VarName>, newSet:Set<VarName>) {
     return result;
 }
 
-function ready(node: ScriptCell, inputs:Array<{inputName: VarName, stream: Stream|undefined}>, state: ProgramState) {
+function ready(node: ScriptCell, state: ProgramState) {
     for (const output of node.outputs) {
         const stream = state.streams.get(output) as DelayedEvent;
         if (stream?.type === delayType) {
             if (stream.queue.length > 0) {return true;}
         }
     }
-    for (const {inputName, stream} of inputs) {
-        const resolved = stream && state.resolved.get(inputName)?.value;
+    for (const inputName of node.inputs) {
+        const resolved = state.resolved.get(inputName)?.value;
         if (resolved === undefined) {return false;}
     }
     return true;

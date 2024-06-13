@@ -12,9 +12,10 @@ export type ScriptCell = {
 export const eventType = "EventType";
 export const delayType = "DelayType";
 export const fbyType = "FbyType";
+export const promiseType = "PromiseType";
 
 export type EventType = 
-    typeof eventType | typeof delayType | typeof fbyType;
+    typeof eventType | typeof delayType | typeof fbyType | typeof promiseType;
 
 export type ResolveRecord = {
     value: any,
@@ -30,6 +31,10 @@ export interface Event {
 export interface DelayedEvent extends Event {
     delay: number,
     varName: VarName,
+}
+
+export interface PromiseEvent extends Event {
+    promise: Promise<any>,
 }
 
 export interface FbyStream<I, T> extends Event {
