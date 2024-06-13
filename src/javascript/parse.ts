@@ -4,13 +4,12 @@ import {checkAssignments} from "./assignments.js";
 import {findAwaits} from "./awaits.js";
 import {findDeclarations} from "./declarations.js";
 import type {ImportReference} from "./imports.js";
-import {findExports, findImports} from "./imports.js";
 import {findReferences} from "./references.js";
-import {syntaxError} from "./syntaxError.js";
+// import {syntaxError} from "./syntaxError.js";
 
 export interface ParseOptions {
   /** The path to the source within the source root. */
-  path: string;
+  // path: string;
   /** If true, treat the input as an inline expression instead of a fenced code block. */
   inline?: boolean;
 }
@@ -36,21 +35,21 @@ export interface JavaScriptNode {
  * the specified inline JavaScript expression.
  */
 export function parseJavaScript(input: string, options: ParseOptions): JavaScriptNode {
-  const {inline = false, path} = options;
+  const {inline = false} = options;
   let expression = maybeParseExpression(input); // first attempt to parse as expression
   if (expression?.type === "ClassExpression" && expression.id) expression = null; // treat named class as program
   if (expression?.type === "FunctionExpression" && expression.id) expression = null; // treat named function as program
   if (!expression && inline) throw new SyntaxError("invalid expression"); // inline code must be an expression
   const body = expression ?? parseProgram(input); // otherwise parse as a program
-  const exports = findExports(body);
-  if (exports.length) throw syntaxError("Unexpected token 'export'", exports[0], input); // disallow exports
+  // const exports = findExports(body);
+  // if (exports.length) throw syntaxError("Unexpected token 'export'", exports[0], input); // disallow exports
   const references = findReferences(body);
   checkAssignments(body, references, input);
   return {
     body,
     declarations: expression ? null : findDeclarations(body as Program, input),
     references,
-    imports: findImports(body, path, input),
+    imports: [],
     expression: !!expression,
     async: findAwaits(body).length > 0,
     inline,

@@ -3,7 +3,6 @@ import type {Node} from "acorn";
 import {simple} from "acorn-walk";
 // import {isPathImport, relativePath, resolvePath, resolveRelativePath} from "../path.js";
 import {Sourcemap} from "../sourcemap.js";
-import {hasImportDeclaration} from "./imports.js";
 import type {JavaScriptNode} from "./parse.js";
 import {defaultGlobals} from "./globals";
 import {renkonGlobals} from "./renkonGlobals";
@@ -19,7 +18,7 @@ export function transpileJavaScript(node: JavaScriptNode, {id}: TranspileOptions
   const outputs = Array.from(new Set<string>(node.declarations?.map((r) => r.name)));
   const display = node.expression && !inputs.includes("display") && !inputs.includes("view");
   if (display) inputs.push("display"), (async = true);
-  if (hasImportDeclaration(node.body)) async = true;
+  // if (hasImportDeclaration(node.body)) async = true;
   const output = new Sourcemap(node.input).trim();
   // rewriteImportDeclarations(output, node.body, resolveImport);
   // rewriteImportExpressions(output, node.body, resolveImport);

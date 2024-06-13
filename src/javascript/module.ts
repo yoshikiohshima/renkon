@@ -1,3 +1,4 @@
+/*
 import {createHash} from "node:crypto";
 import {accessSync, constants, readFileSync, statSync} from "node:fs";
 import {join} from "node:path/posix";
@@ -6,7 +7,7 @@ import {resolvePath} from "../path.js";
 import {findFiles} from "./files.js";
 import {findImports} from "./imports.js";
 import {parseProgram} from "./parse.js";
-
+*/
 export type FileInfo = {
   /** The last-modified time of the file; used to invalidate the cache. */
   mtimeMs: number;

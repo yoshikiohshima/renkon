@@ -32,7 +32,7 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
 
     // compile code and sort them.
     const codes = new Map(scripts.map((script, i) => ([script.id !== "" ? script.id : `${i}`, script.textContent || ""])));
-    const jsNodes = [...codes].map(([id, code]) => ({id, jsNode: parseJavaScript(code, {path:''})}))
+    const jsNodes = [...codes].map(([id, code]) => ({id, jsNode: parseJavaScript(code, {})}));
     const translated = jsNodes.map(({id, jsNode}) => transpileJavaScript(jsNode, {id}));
     const evaluated = translated.map((tr) => evalCode(tr));
     const sorted = topologicalSort(evaluated);
