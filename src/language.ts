@@ -1,7 +1,11 @@
 import {parseJavaScript} from "./javascript/parse.ts"
 import {transpileJavaScript} from "./javascript/transpile.ts"
 
-import {ProgramState, ScriptCell, ObserveCallback, eventType, delayType, fbyType, promiseType, Event, DelayedEvent, Stream, FbyStream, PromiseEvent, VarName, NodeId, EventType} from "./types.ts"
+import {
+    ProgramState,
+    ScriptCell, ObserveCallback, eventType, delayType, fbyType, promiseType,
+    Event, DelayedEvent, FbyStream, PromiseEvent, VarName, NodeId, EventType
+} from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code">
 
@@ -123,6 +127,7 @@ export function evaluate(state:ProgramState) {
                     });
                     const e:PromiseEvent = {type: promiseType, promise, queue: []};
                     outputs[output] = e;
+                    state.streams.set(output, maybePromise);
                 }
             }
             state.outputs.set(id, outputs);
@@ -191,8 +196,8 @@ export function evaluate(state:ProgramState) {
                     maybeValue.current = value;
                 }
             } else if (maybeValue.type === promiseType) {
-                maybeValue = maybeValue as PromiseEvent;
-                state.streams.set(output, maybeValue);
+                // maybeValue = maybeValue as PromiseEvent;
+                // state.streams.set(output, maybeValue);
                 /*
                 maybeValue.then((value:any) => {
                     const wasResolved = state.resolved.get(output)?.value;

@@ -80,7 +80,7 @@ function update(renkon:HTMLElement, editorView:EditorView) {
 function toggleDock(dock:HTMLElement, force?:boolean) {
     const toOpen = force !== undefined ? force : !dock.classList.contains("opened");
     const width = dock.getBoundingClientRect().width;
-    dock.classList.toggle("opened");
+    dock.classList.toggle("opened", toOpen);
     if (toOpen) {
         dock.style.left = `${window.innerWidth - width}px`;
     } else {

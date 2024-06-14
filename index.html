@@ -10,7 +10,9 @@
       <script type="reactive">
         const b = Events.input(document.querySelector("#slider"));
         const delay = 200;
-
+      </script>
+      <script type="reactive">
+        const promise = new Promise((resolve) => setTimeout(() => resolve(2000), 2000));
       </script>
       <script type="reactive">
         const b1 = Events.delay(b, delay);

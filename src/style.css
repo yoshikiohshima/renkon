@@ -19,10 +19,6 @@ body {
     width: 100%;
 }
 
-.galley {
-    
-}
-
 .editor {
     flex-grow: 1;
     margin-left: 20px;
