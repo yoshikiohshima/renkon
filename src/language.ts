@@ -190,7 +190,7 @@ export function evaluate(state:ProgramState) {
                 maybeValue = maybeValue as FbyStream<typeof maybeValue.current, ArgTypes[1]>;
                 const inputIndex = node.inputs.indexOf(maybeValue.varName);
                 const inputValue = inputArray[inputIndex];
-                if (inputValue !== undefined && inputValue !== lastInputArray![inputIndex]) {
+                if (inputValue !== undefined && (!lastInputArray || inputValue !== lastInputArray[inputIndex])) {
                     const value = maybeValue.updater(maybeValue.current, inputValue);
                     if (value !== undefined) {
                         // this is dubious as it crosses the event/behavior type bridge.
