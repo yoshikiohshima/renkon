@@ -194,6 +194,10 @@ export function evaluate(state:ProgramState) {
                     // this is dubious as it crosses the event/behavior type bridge.
                     state.resolved.set(output, {value, time: state.time});
                     maybeValue.current = value;
+                } else if (state.resolved.get(output) === undefined) {
+                    // input is undefined and then resolved does not have a value,
+                    // then, make it resolved to the initial value
+                    state.resolved.set(output, {value: maybeValue.init, time: state.time});
                 }
             } else if (maybeValue.type === promiseType) {
                 // maybeValue = maybeValue as PromiseEvent;
@@ -365,7 +369,7 @@ function ready(node: ScriptCell, state: ProgramState) {
     }
     for (const inputName of node.inputs) {
         const resolved = state.resolved.get(inputName)?.value;
-        if (resolved === undefined) {return false;}
+        if (resolved === undefined && !node.forceVars.includes(inputName)) {return false;}
     }
     return true;
 }

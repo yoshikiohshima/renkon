@@ -9,7 +9,9 @@
     <div id="renkon">
       <script type="reactive">
         const b = Events.input(document.querySelector("#slider"));
-        const delay = 200;
+      </script>
+      <script type="reactive">
+        const delay = Events.fby(200, promise, (a, b) => b);
       </script>
       <script type="reactive">
         const promise = new Promise((resolve) => setTimeout(() => resolve(2000), 2000));

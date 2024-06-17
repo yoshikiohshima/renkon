@@ -15,6 +15,8 @@ export function transpileJavaScript(node: JavaScriptNode, {id}: TranspileOptions
   let async = node.async;
   const inputs = Array.from(new Set<string>(node.references.map((r) => r.name)))
     .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
+  const forceVars = Array.from(new Set<string>(node.forceVars.map((r) => r.name)))
+    .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
   const outputs = Array.from(new Set<string>(node.declarations?.map((r) => r.name)));
   const display = node.expression && !inputs.includes("display") && !inputs.includes("view");
   if (display) inputs.push("display"), (async = true);
@@ -28,6 +30,7 @@ export function transpileJavaScript(node: JavaScriptNode, {id}: TranspileOptions
   output.insertLeft(0, `, body: ${async ? "async " : ""}(${inputs}) => {\n`);
   output.insertLeft(0, `, outputs: ${JSON.stringify(outputs)}`);
   output.insertLeft(0, `, inputs: ${JSON.stringify(inputs)}`);
+  output.insertLeft(0, `, forceVars: ${JSON.stringify(forceVars)}`);
   if (node.inline) output.insertLeft(0, ", inline: true");
   output.insertLeft(0, `define({id: ${JSON.stringify(id)}`);
   output.insertRight(node.input.length, `\nreturn {${outputs}};`);
@@ -46,11 +49,9 @@ function rewriteFollowedByCalls(
       && node.callee.object.name === "Events"
       && node.callee.property.type === "Identifier") {
         if (node.callee.property.name === "fby") {
-          console.log("fby found");
           output.insertLeft(node.arguments[1].start, '"');
           output.insertRight(node.arguments[1].end, '"');
          } else if (node.callee.property.name === "delay") {
-          console.log("delay found");
           output.insertLeft(node.arguments[0].start, '"');
           output.insertRight(node.arguments[0].end, '"');
          }

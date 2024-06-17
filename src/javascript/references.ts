@@ -14,7 +14,7 @@ import type {
   Pattern,
   Program
 } from "acorn";
-import {ancestor} from "acorn-walk";
+import {ancestor, simple} from "acorn-walk";
 import {defaultGlobals} from "./globals.js";
 
 // Based on https://github.com/ForbesLindesay/acorn-globals
@@ -53,7 +53,7 @@ export function findReferences(
     globals?: Set<string>;
     filterDeclaration?: (identifier: {name: string}) => any;
   } = {}
-): Identifier[] {
+): [Identifier[], Identifier[]] {
   const locals = new Map<Node, Set<string>>();
   const references: Identifier[] = [];
 
@@ -163,5 +163,23 @@ export function findReferences(
     Identifier: identifier
   });
 
-  return references;
+  const forceVars:Identifier[] = [];
+
+  simple(node, {
+    CallExpression(node) {
+      if (node.callee.type === "MemberExpression" 
+      && node.callee.object.type === "Identifier"
+      && node.callee.object.name === "Events"
+      && node.callee.property.type === "Identifier") {
+        if (node.callee.property.name === "fby") {
+          console.log("fby found", node);
+          const arg = node.arguments[1];
+          if (arg.type === "Identifier") {
+            forceVars.push(arg);
+          }
+        }
+      }
+    }
+  })
+  return [references, forceVars]
 }

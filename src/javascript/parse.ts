@@ -23,6 +23,7 @@ export interface JavaScriptNode {
   body: Program | Expression;
   declarations: Identifier[] | null; // null for expressions that can’t declare top-level variables, a.k.a outputs
   references: Identifier[]; // the unbound references, a.k.a. inputs
+  forceVars: Identifier[]; // reactive variable names that should still trigger evaluation when it is undefined.
   imports: ImportReference[];
   expression: boolean; // is this an expression or a program cell?
   async: boolean; // does this use top-level await?
@@ -43,12 +44,13 @@ export function parseJavaScript(input: string, options: ParseOptions): JavaScrip
   const body = expression ?? parseProgram(input); // otherwise parse as a program
   // const exports = findExports(body);
   // if (exports.length) throw syntaxError("Unexpected token 'export'", exports[0], input); // disallow exports
-  const references = findReferences(body);
+  const [references, forceVars] = findReferences(body);
   checkAssignments(body, references, input);
   return {
     body,
     declarations: expression ? null : findDeclarations(body as Program, input),
     references,
+    forceVars,
     imports: [],
     expression: !!expression,
     async: findAwaits(body).length > 0,

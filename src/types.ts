@@ -6,6 +6,7 @@ export type ScriptCell = {
     body: (...args: any[]) => Array<any>,
     id: NodeId,
     inputs: Array<string>,
+    forceVars: Array<string>,
     outputs: Array<string>
 }
 
