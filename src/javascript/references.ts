@@ -172,7 +172,6 @@ export function findReferences(
       && node.callee.object.name === "Events"
       && node.callee.property.type === "Identifier") {
         if (node.callee.property.name === "fby") {
-          console.log("fby found", node);
           const arg = node.arguments[1];
           if (arg.type === "Identifier") {
             forceVars.push(arg);

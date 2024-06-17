@@ -7,7 +7,7 @@ import {
     Event, DelayedEvent, FbyStream, PromiseEvent, VarName, NodeId, EventType
 } from "./types.ts"
 
-type ScriptCellForSort = Omit<ScriptCell, "body" | "code">
+type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
 
 export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
    /* if (window.setupProgramCalled === undefined) {
@@ -114,11 +114,10 @@ export function evaluate(state:ProgramState) {
                 inputArray
             );
             state.inputArray.set(id, inputArray);
-
             for (const output in outputs) {
-                const maybePromise = outputs[output];
-                if (maybePromise.then) {
-                    const promise = maybePromise;
+                const maybeValue = outputs[output];
+                if (maybeValue.then) {
+                    const promise = maybeValue;
                     promise.then((value:any) => {
                         const wasResolved = state.resolved.get(output)?.value;
                         if (!wasResolved) {
@@ -127,7 +126,14 @@ export function evaluate(state:ProgramState) {
                     });
                     const e:PromiseEvent = {type: promiseType, promise, queue: []};
                     outputs[output] = e;
-                    state.streams.set(output, maybePromise);
+                    state.streams.set(output, maybeValue);
+                } else if ((maybeValue as Event).type === fbyType) {
+                    if (!state.streams.get(output)) {
+                        state.streams.set(output, maybeValue);
+                        state.resolved.set(output, {value: (maybeValue as any).init, time: state.time});
+                    } else {
+                        outputs[output] = state.streams.get(output);
+                    }
                 }
             }
             state.outputs.set(id, outputs);
@@ -179,25 +185,18 @@ export function evaluate(state:ProgramState) {
                     }
                 }
             } else if ((maybeValue as Event).type === fbyType) {
+                // if (maybeValue.current === 1) {debugger};
                 type ArgTypes = Parameters<typeof maybeValue.updater>;
                 maybeValue = maybeValue as FbyStream<typeof maybeValue.current, ArgTypes[1]>;
-                const oldStream = state.streams.get(output);
-                if (!oldStream) {
-                    state.streams.set(output, maybeValue);
-                } else {
-                    maybeValue = oldStream;
-                }
-
                 const inputIndex = node.inputs.indexOf(maybeValue.varName);
-                const value = maybeValue.updater(maybeValue.current, inputArray[inputIndex]);
-                if (value !== undefined) {
-                    // this is dubious as it crosses the event/behavior type bridge.
-                    state.resolved.set(output, {value, time: state.time});
-                    maybeValue.current = value;
-                } else if (state.resolved.get(output) === undefined) {
-                    // input is undefined and then resolved does not have a value,
-                    // then, make it resolved to the initial value
-                    state.resolved.set(output, {value: maybeValue.init, time: state.time});
+                const inputValue = inputArray[inputIndex];
+                if (inputValue !== undefined && inputValue !== lastInputArray![inputIndex]) {
+                    const value = maybeValue.updater(maybeValue.current, inputValue);
+                    if (value !== undefined) {
+                        // this is dubious as it crosses the event/behavior type bridge.
+                        state.resolved.set(output, {value, time: state.time});
+                        maybeValue.current = value;
+                    }
                 }
             } else if (maybeValue.type === promiseType) {
                 // maybeValue = maybeValue as PromiseEvent;
