@@ -7,12 +7,15 @@
   <body>
     <div id="renkon">
       <script type="reactive">
-        const llama = import("./lib/llama.js");
+        const llamaModule = import("./lib/llama.js");
+      </script>
+      <script type="reactive">
+        const llama = Behaviors.keep(llamaModule);
       </script>
       <script type="reactive">
         console.log("calling test");
         console.log(enter);
-        const result = new Promise((resolve) => setTimeout(() => resolve(enter + enter), 1000));
+        const result = llama.test(enter);
       </script>
       <script type="reactive">
         console.log("kept");
