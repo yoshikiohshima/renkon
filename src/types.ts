@@ -14,38 +14,45 @@ export const eventType = "EventType";
 export const delayType = "DelayType";
 export const fbyType = "FbyType";
 export const promiseType = "PromiseType";
+export const behaviorType = "BehaviorType";
 
 export type EventType = 
-    typeof eventType | typeof delayType | typeof fbyType | typeof promiseType;
+    typeof eventType |
+    typeof delayType |
+    typeof fbyType |
+    typeof promiseType |
+    typeof behaviorType;
 
 export type ResolveRecord = {
     value: any,
     time: number
 }
 
-export interface Event {
+export interface Stream {
     type: EventType,
     cleanup?: (() => void) | null, 
+}
+
+export interface DelayedEvent extends Stream {
+    delay: number,
+    varName: VarName,
     queue: Array<{value:any, time:number}>
 }
 
-export interface DelayedEvent extends Event {
-    delay: number,
-    varName: VarName,
-}
-
-export interface PromiseEvent extends Event {
+export interface PromiseEvent extends Stream {
     promise: Promise<any>,
 }
 
-export interface FbyStream<I, T> extends Event {
+export interface FbyStream<I, T> extends Stream {
     init: I,
     current: I,
     updater: (c: I, v: T) => I,
     varName: VarName,
 }
 
-export type Stream = Event | DelayedEvent | Promise<any>;
+export interface Behavior extends Stream {
+    value: any
+}
 
 export type ProgramState = {
     order: Array<NodeId>;

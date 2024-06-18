@@ -104,7 +104,7 @@ export function findReferences(
   }
 
   ancestor(node, {
-    VariableDeclaration(node, state, parents) {
+    VariableDeclaration(node, _state, parents) {
       let parent: Node | null = null;
       for (let i = parents.length - 1; i >= 0 && parent === null; --i) {
         if (node.kind === "var" ? isScope(parents[i]) : isBlockScope(parents[i])) {
@@ -113,7 +113,7 @@ export function findReferences(
       }
       node.declarations.forEach((declaration) => declarePattern(declaration.id, parent!));
     },
-    FunctionDeclaration(node, state, parents) {
+    FunctionDeclaration(node, _state, parents) {
       let parent: Node | null = null;
       for (let i = parents.length - 2; i >= 0 && parent === null; --i) {
         if (isScope(parents[i])) {
@@ -125,7 +125,7 @@ export function findReferences(
     },
     FunctionExpression: declareFunction,
     ArrowFunctionExpression: declareFunction,
-    ClassDeclaration(node, state, parents) {
+    ClassDeclaration(node, _state, parents) {
       let parent: Node | null = null;
       for (let i = parents.length - 2; i >= 0 && parent === null; --i) {
         if (isScope(parents[i])) {
@@ -136,12 +136,12 @@ export function findReferences(
     },
     ClassExpression: declareClass,
     CatchClause: declareCatchClause,
-    ImportDeclaration(node, state, [root]) {
+    ImportDeclaration(node, _state, [root]) {
       node.specifiers.forEach((specifier) => declareLocal(root, specifier.local));
     }
   });
 
-  function identifier(node: Identifier, state: never, parents: Node[]) {
+  function identifier(node: Identifier, _state: never, parents: Node[]) {
     const name = node.name;
     if (name === "undefined") return;
     for (let i = parents.length - 2; i >= 0; --i) {

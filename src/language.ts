@@ -3,8 +3,9 @@ import {transpileJavaScript} from "./javascript/transpile.ts"
 
 import {
     ProgramState,
-    ScriptCell, ObserveCallback, eventType, delayType, fbyType, promiseType,
-    Event, DelayedEvent, FbyStream, PromiseEvent, VarName, NodeId, EventType
+    ScriptCell, ObserveCallback, eventType, delayType, fbyType, 
+    promiseType, behaviorType, Stream,
+    DelayedEvent, FbyStream, PromiseEvent, Behavior, VarName, NodeId, EventType
 } from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
@@ -23,7 +24,7 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
 
     for (let [varName, stream] of state.streams) {
         if ((stream as Event).type === eventType) {
-            stream = stream as Event;
+            stream = stream as Stream;
             if (stream.cleanup && typeof stream.cleanup === "function") {
                 stream.cleanup();
                 stream.cleanup = null;
@@ -124,9 +125,9 @@ export function evaluate(state:ProgramState) {
                             state.resolved.set(output, {value, time: state.time});
                         }
                     });
-                    const e:PromiseEvent = {type: promiseType, promise, queue: []};
+                    const e:PromiseEvent = {type: promiseType, promise};
                     outputs[output] = e;
-                    state.streams.set(output, maybeValue);
+                    state.streams.set(output, e);
                 } else if ((maybeValue as Event).type === fbyType) {
                     if (!state.streams.get(output)) {
                         state.streams.set(output, maybeValue);
@@ -210,7 +211,7 @@ export function evaluate(state:ProgramState) {
                 });
                 */
             } else {
-                let stream = Promise.resolve(maybeValue);
+                let stream:Behavior = {type: behaviorType, value: maybeValue}
                 state.streams.set(output, stream)
                 state.resolved.set(output, {value: maybeValue, time: state.time});
             }
@@ -221,9 +222,10 @@ export function evaluate(state:ProgramState) {
 
     for (let [varName, stream] of state.streams) {
         const type = (stream as Event).type;
-        if (type === eventType) {
-            stream = stream as Event;
+        if (type === eventType || type === promiseType) {
+            stream = stream as Stream;
             if (state.resolved.get(varName)?.value !== undefined) {
+                console.log("deleting", varName);
                 state.resolved.delete(varName);
             }
         }
@@ -278,14 +280,17 @@ const Events = {
         return eventBody({forObserve: false, dom, type: eventType});
     },
     fby<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):FbyStream<I, T> {
-        return {type: fbyType, init, updater, varName, current: init, queue: []};
+        return {type: fbyType, init, updater, varName, current: init};
     },
     delay(varName:VarName, delay: number):DelayedEvent {
         return {type: delayType, delay, varName, queue: []};
-    }
+    },
 };
 
 const Behaviors = {
+    keep(value:any) {
+        return value
+    }
 }
 
 function evalCode(str:string):ScriptCell {
@@ -402,7 +407,7 @@ function spliceDelayedQueued(event:DelayedEvent, t:number) {
     return value;
 }
 
-function getEventValue(event:Event, _t:number) {
+function getEventValue(event:DelayedEvent, _t:number) {
     if (event.queue.length >= 1) {
         const value = event.queue[event.queue.length - 1].value;
         event.queue = [];

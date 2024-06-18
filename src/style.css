@@ -29,7 +29,7 @@ body {
 
 .dock {
     position: fixed;
-    top: 60px;
+    top: 300px;
     display: flex;
     box-shadow: 10px 10px 5px #4d4d4d, -10px -10px 5px #dddddd;
     left: 0px;

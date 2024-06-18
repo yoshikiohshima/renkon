@@ -18,3 +18,77 @@
           The lecture is a video. It’s shown full screen on her secondary monitor.
         </div>
       </scene>
+
+            <script type="reactive">
+        const b = Events.input(document.querySelector("#slider"));
+      </script>
+      <script type="reactive">
+        const delay = Events.fby(200, promise, (a, b) => b);
+      </script>
+      <script type="reactive">
+        const promise = new Promise((resolve) => setTimeout(() => resolve(2000), 2000));
+      </script>
+      <script type="reactive">
+        const b1 = Events.delay(b, delay);
+      </script>
+      <script type="reactive">
+        const b2 = Events.delay(b1, delay);
+      </script>
+      <script type="reactive">
+        const b3 = Events.delay(b2, delay);
+      </script>
+      <script type="reactive">
+        const b4 = Events.delay(b3, delay);
+      </script>
+      <script type="reactive">
+        document.querySelector("#slider1").value = b1;
+        document.querySelector("#slider2").value = b2;
+        document.querySelector("#slider3").value = b3;
+        document.querySelector("#slider4").value = b4;
+      </script>
+      <script type="reactive">
+        document.querySelector("#bar").textContent = `${[b1, b2, b3 ,b4]}`;
+      </script>
+      <script type="reactive">
+        document.querySelector("#pointermove").textContent = `${pointer}`;
+        document.querySelector("#changes").textContent = `${changes}`;
+      </script>
+      <script type="reactive">
+        const pointer = Events.observe((change) => {
+          const pointerMoved = (evt) => {
+            change([evt.clientX, evt.clientY]);
+          };
+          document.addEventListener("pointermove", pointerMoved);
+          return () => {document.removeEventListener("pointermove", pointerMoved)};
+        })
+      </script>
+      <script type="reactive">
+        const changes = Events.fby(0, b, (a, c) => a + 1);
+      </script>
+      <script type="reactive">
+        const p1 = Events.delay(pointer, delay);
+
+      </script>
+      <script type="reactive">
+        const p2 = Events.delay(pointer, delay * 2);
+
+      </script>
+      <script type="reactive">
+        document.querySelector("#cursor1").style.left = `${p1[0]-8}px`;
+        document.querySelector("#cursor1").style.top = `${p1[1]-8}px`;
+      </script>
+      <script type="reactive">
+        document.querySelector("#cursor2").style.left = `${p2[0]-8}px`;
+        document.querySelector("#cursor2").style.top = `${p2[1]-8}px`;
+      </script>
+
+
+            <script type="reactive">
+        // const llama = import("./lib/llama.js");
+      </script>
+      <script type="reactive">
+        const result = llama.test("hi");
+      </script>
+      <script type="reactive">
+        console.log(result);
+      </script>
