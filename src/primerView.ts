@@ -73,8 +73,7 @@ function update(renkon:HTMLElement, editorView:EditorView) {
     renkon.innerHTML = editorView.state.doc.toString();
     let scripts = [...renkon.querySelectorAll("script[type='reactive']")];
 
-    setupProgram(scripts as Array<HTMLScriptElement>, programState);
-    // evaluate(programState, performance.now(), requestEvaluation);
+    setupProgram(scripts as HTMLScriptElement[], programState);
 }
 
 function toggleDock(dock:HTMLElement, force?:boolean) {

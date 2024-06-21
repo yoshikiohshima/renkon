@@ -11,28 +11,23 @@ export interface TranspileOptions {
   id: string;
 }
 
-export function transpileJavaScript(node: JavaScriptNode, {id}: TranspileOptions): string {
-  let async = node.async;
+export function transpileJavaScript(node: JavaScriptNode): string {
+  const outputs = Array.from(new Set<string>(node.declarations?.map((r) => r.name)));
   const inputs = Array.from(new Set<string>(node.references.map((r) => r.name)))
     .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
   const forceVars = Array.from(new Set<string>(node.forceVars.map((r) => r.name)))
     .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
-  const outputs = Array.from(new Set<string>(node.declarations?.map((r) => r.name)));
-  const display = node.expression && !inputs.includes("display") && !inputs.includes("view");
-  if (display) inputs.push("display"), (async = true);
   // if (hasImportDeclaration(node.body)) async = true;
   const output = new Sourcemap(node.input).trim();
   // rewriteImportDeclarations(output, node.body, resolveImport);
   // rewriteImportExpressions(output, node.body, resolveImport);
   rewriteFollowedByCalls(output, node.body);
   // rewriteFileExpressions(output, node.files, path);
-  if (display) output.insertLeft(0, "display(await(\n").insertRight(node.input.length, "\n))");
-  output.insertLeft(0, `, body: ${async ? "async " : ""}(${inputs}) => {\n`);
+  output.insertLeft(0, `, body: (${inputs}) => {\n`);
   output.insertLeft(0, `, outputs: ${JSON.stringify(outputs)}`);
   output.insertLeft(0, `, inputs: ${JSON.stringify(inputs)}`);
   output.insertLeft(0, `, forceVars: ${JSON.stringify(forceVars)}`);
-  if (node.inline) output.insertLeft(0, ", inline: true");
-  output.insertLeft(0, `define({id: ${JSON.stringify(id)}`);
+  output.insertLeft(0, `define({id: "${node.id}"`); // at the moment we assume there is only one
   output.insertRight(node.input.length, `\nreturn {${outputs}};`);
   output.insertRight(node.input.length, "\n}});\n");
   return String(output);

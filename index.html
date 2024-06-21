@@ -7,38 +7,17 @@
   <body>
     <div id="renkon">
       <script type="reactive">
-        const llamaModule = import("./lib/llama.js");
+        const a = 3 + 4;
+        const b = a + 4;
+        const c = new Promise((resolve) => setTimeout(() => resolve(100), 1000));
+        const d = b + c;
+        const e = Events.fby(20, c, (x, y) => y);
+        document.querySelector("#output").textContent = e;
       </script>
-      <script type="reactive">
-        const llama = Behaviors.keep(llamaModule);
+      <script type="reactiveOutput">
+        document.querySelector("#output").textContent = e;
       </script>
-      <script type="reactive">
-        console.log("calling test");
-        console.log(enter);
-        const result = llama.test(enter);
-      </script>
-      <script type="reactive">
-        console.log("kept");
-        const result2 = Behaviors.keep(result);
-      </script>
-      <script type="reactive">
-        document.querySelector("#output").textContent = result2;
-      </script>
-
-      <script type="reactive">
-        const enter = Events.observe((notify) => {
-          const keyDown = (evt) => {
-            if (evt.key === "Enter") {
-              console.log("enter");
-              notify(evt.target.textContent);
-		        }
-	        };
-          document.querySelector("#input").addEventListener("keydown", keyDown);
-          return () => {document.querySelector("#input").removeEventListener("keydown", keyDown)}
-        });
-      </script>
-      <div id="input" style="border: 1px solid black; width:600px" contenteditable></div>
-      <div style="height: 20px;"></div>
+      <div id="input" style="border: 1px solid black; width:600px;margin-bottom: 16px" contenteditable></div>
       <div id="output" style="border: 1px solid brown; width:600px; height: 60px"></div>
     </div>
     <script type="module">

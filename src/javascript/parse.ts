@@ -1,7 +1,6 @@
 import {Parser, tokTypes} from "acorn";
 import type {Expression, Identifier, Options, Program} from "acorn";
 import {checkAssignments} from "./assignments.js";
-import {findAwaits} from "./awaits.js";
 import {findDeclarations} from "./declarations.js";
 import type {ImportReference} from "./imports.js";
 import {findReferences} from "./references.js";
@@ -20,43 +19,47 @@ export const acornOptions: Options = {
 };
 
 export interface JavaScriptNode {
-  body: Program | Expression;
-  declarations: Identifier[] | null; // null for expressions that can’t declare top-level variables, a.k.a outputs
+  id: string,
+  body: Program;
+  declarations: Identifier[]; // null for expressions that can’t declare top-level variables, a.k.a outputs
   references: Identifier[]; // the unbound references, a.k.a. inputs
   forceVars: Identifier[]; // reactive variable names that should still trigger evaluation when it is undefined.
   imports: ImportReference[];
-  expression: boolean; // is this an expression or a program cell?
-  async: boolean; // does this use top-level await?
-  inline: boolean;
   input: string;
+}
+
+function findDecls(input:string) {
+  const body = parseProgram(input);
+  const list = (body as Program).body;
+
+  return list.map((decl) => input.slice(decl.start, decl.end));
 }
 
 /**
  * Parses the specified JavaScript code block, or if the inline option is true,
  * the specified inline JavaScript expression.
  */
-export function parseJavaScript(input: string, options: ParseOptions): JavaScriptNode {
-  const {inline = false} = options;
-  let expression = maybeParseExpression(input); // first attempt to parse as expression
-  if (expression?.type === "ClassExpression" && expression.id) expression = null; // treat named class as program
-  if (expression?.type === "FunctionExpression" && expression.id) expression = null; // treat named function as program
-  if (!expression && inline) throw new SyntaxError("invalid expression"); // inline code must be an expression
-  const body = expression ?? parseProgram(input); // otherwise parse as a program
-  // const exports = findExports(body);
-  // if (exports.length) throw syntaxError("Unexpected token 'export'", exports[0], input); // disallow exports
-  const [references, forceVars] = findReferences(body);
-  checkAssignments(body, references, input);
-  return {
-    body,
-    declarations: expression ? null : findDeclarations(body as Program, input),
-    references,
-    forceVars,
-    imports: [],
-    expression: !!expression,
-    async: findAwaits(body).length > 0,
-    inline,
-    input
-  };
+export function parseJavaScript(input: string, initialId = 0): JavaScriptNode[] {
+  const decls = findDecls(input);
+
+  const allReferences = decls.map((decl) => {
+    const b = parseProgram(decl);
+    const [references, forceVars] = findReferences(b);
+    checkAssignments(b, references, input);
+    const declarations = findDeclarations(b, input);
+    const id = declarations.length > 0 ? declarations[0].name : `${initialId++}`
+    return {
+      id,
+      body: b,
+      declarations,
+      references,
+      forceVars,
+      imports: [],
+      expression: false,
+      input: decl
+    };
+  });
+  return allReferences as JavaScriptNode[];
 }
 
 export function parseProgram(input: string): Program {

@@ -1,4 +1,4 @@
-import {parseJavaScript} from "./javascript/parse.ts"
+import {JavaScriptNode, parseJavaScript} from "./javascript/parse.ts"
 import {transpileJavaScript} from "./javascript/transpile.ts"
 
 import {
@@ -16,6 +16,7 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
     }
     window.setupProgramCalled++;
     */
+
    (window as any).programState = state;
     const invalidatedStreamNames:Set<VarName> = new Set();
 
@@ -36,9 +37,18 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
     }
 
     // compile code and sort them.
-    const codes = new Map(scripts.map((script, i) => ([script.id !== "" ? script.id : `${i}`, script.textContent || ""])));
-    const jsNodes = [...codes].map(([id, code]) => ({id, jsNode: parseJavaScript(code, {})}));
-    const translated = jsNodes.map(({id, jsNode}) => transpileJavaScript(jsNode, {id}));
+    const jsNodes: Array<JavaScriptNode> = [];
+
+    let id = 0;
+    for (const script of scripts) {
+        if (!script.textContent) {continue;}
+        const nodes = parseJavaScript(script.textContent, id);
+        for (const n of nodes) {
+            jsNodes.push(n);
+        }
+        id += nodes.length;
+    }
+    const translated = jsNodes.map((jsNode) => transpileJavaScript(jsNode));
     const evaluated = translated.map((tr) => evalCode(tr));
     const sorted = topologicalSort(evaluated);
 
@@ -213,7 +223,10 @@ export function evaluate(state:ProgramState) {
             } else {
                 let stream:Behavior = {type: behaviorType, value: maybeValue}
                 state.streams.set(output, stream)
-                state.resolved.set(output, {value: maybeValue, time: state.time});
+                const resolved = state.resolved.get(output);
+                if (!resolved || resolved.value !== maybeValue) {
+                    state.resolved.set(output, {value: maybeValue, time: state.time});
+                }
             }
         }
     }
