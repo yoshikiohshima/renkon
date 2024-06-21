@@ -7,11 +7,7 @@
   <body>
     <div id="renkon">
       <script type="reactive">
-        const a = 3 + 4;
-        const b = a + 4;
-        const c = new Promise((resolve) => setTimeout(() => resolve(100), 1000));
-        const d = b + c;
-        const e = Events.fby(20, c, (x, y) => y);
+        const e = 3 + Events.fby(20, Events.input("#slider"), (x, y) => y);
         document.querySelector("#output").textContent = e;
       </script>
       <script type="reactiveOutput">
@@ -19,6 +15,7 @@
       </script>
       <div id="input" style="border: 1px solid black; width:600px;margin-bottom: 16px" contenteditable></div>
       <div id="output" style="border: 1px solid brown; width:600px; height: 60px"></div>
+      <input id="slider" type="range"/>
     </div>
     <script type="module">
       import {primerView} from "./src/main.js";

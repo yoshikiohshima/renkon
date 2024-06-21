@@ -42,7 +42,7 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
     let id = 0;
     for (const script of scripts) {
         if (!script.textContent) {continue;}
-        const nodes = parseJavaScript(script.textContent, id);
+        const nodes = parseJavaScript(script.textContent, id, false);
         for (const n of nodes) {
             jsNodes.push(n);
         }
@@ -252,7 +252,7 @@ function define(spec:ScriptCell) {
 type EventBodyType = {
     forObserve: boolean;
     callback?: ObserveCallback;
-    dom?: HTMLInputElement;
+    dom?: HTMLInputElement | string;
     type: EventType;
 };
 
@@ -260,8 +260,20 @@ function eventBody(options:EventBodyType) {
     let {forObserve, callback, dom, type} = options;
     let returnValue:any = {type, queue: []};
 
+    let realDom:HTMLInputElement|undefined;
+    if (typeof dom === "string") {
+        if (dom.startsWith("#")) {
+            realDom = document.querySelector(dom) as HTMLInputElement;
+        } else {
+            realDom = document.getElementById(dom) as HTMLInputElement;
+        }
+    } else {
+        realDom = dom;
+    }
+
     let handler = (evt:any) => {
         const value = evt.target.value;
+        console.log("value", value);
         returnValue.queue.push({value, time: 0});
     };
 
@@ -269,8 +281,8 @@ function eventBody(options:EventBodyType) {
         returnValue.queue.push({value, time: 0});
     };
 
-    if (dom && !forObserve) {
-        dom.addEventListener("input", handler);
+    if (realDom && !forObserve) {
+        realDom.addEventListener("input", handler);
     }
 
     if (forObserve && callback) {
@@ -278,7 +290,9 @@ function eventBody(options:EventBodyType) {
     }
     if (!forObserve && dom) {
         returnValue.cleanup = () => {
-            dom.removeEventListener("input", handler);
+            if (realDom) {
+                realDom.removeEventListener("input", handler);
+            }
         }
     }
 
