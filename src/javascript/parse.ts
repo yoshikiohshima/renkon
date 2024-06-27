@@ -40,22 +40,25 @@ function findDecls(input:string) {
  * Parses the specified JavaScript code block, or if the inline option is true,
  * the specified inline JavaScript expression.
  */
-export function parseJavaScript(input: string, initialId = 0, flattened: boolean = false): JavaScriptNode[] {
+export function parseJavaScript(input:string, initialId:number, flattened: boolean = false): JavaScriptNode[] {
   const decls = findDecls(input);
 
   const allReferences = [];
+
+  let id = initialId;
 
   for (const decl of decls) {
     const b = parseProgram(decl);
     const [references, forceVars] = findReferences(b);
     checkAssignments(b, references, input);
     const declarations = findDeclarations(b, input);
-    const id = declarations.length > 0 ? declarations[0].name : `${initialId++}`;
+    
     const rewriteSpecs = flattened ? [] : checkNested(b, id);
 
     if (rewriteSpecs.length === 0) {
+      const myId = declarations[0]?.name || `${id++}`;
       allReferences.push({
-        id,
+        id: myId,
         body: b,
         declarations,
         references,
@@ -67,9 +70,11 @@ export function parseJavaScript(input: string, initialId = 0, flattened: boolean
     } else {
       let newInput = decl;
       let newPart = "";
-      for (const spec of rewriteSpecs) {
+      for (let i = 0; i < rewriteSpecs.length; i++) {
+        const spec = rewriteSpecs[i];
         const sub = newInput.slice(spec.start, spec.end);
-        newPart += `const ${spec.name} = ${sub};\n`;
+        const varName = spec.name
+        newPart += `const ${varName} = ${sub};\n`;
         let length = spec.end - spec.start;
         const newNewInput = `${newInput.slice(0, spec.start)}${spec.name.padEnd(length, " ")}${newInput.slice(spec.end)}`;
         if (newNewInput.length !== decl.length) {debugger}

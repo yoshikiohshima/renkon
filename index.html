@@ -7,15 +7,47 @@
   <body>
     <div id="renkon">
       <script type="reactive">
-        const e = 3 + Events.fby(20, Events.input("#slider"), (x, y) => y);
-        document.querySelector("#output").textContent = e;
-      </script>
-      <script type="reactiveOutput">
-        document.querySelector("#output").textContent = e;
+        const promise = new Promise((resolve) => setTimeout(() => resolve(2000), 2000));
+        const delay = Events.fby(200, promise, (a, b) => b);
+        const b = Events.input(document.querySelector("#slider"));
+        const b1 = Events.delay(b, delay);
+        const b2 = Events.delay(b1, delay);
+        const b3 = Events.delay(b2, delay);
+        const b4 = Events.delay(b3, delay);
+        document.querySelector("#slider1").value = b1;
+        document.querySelector("#slider2").value = b2;
+        document.querySelector("#slider3").value = b3;
+        document.querySelector("#slider4").value = b4;
+        document.querySelector("#bar").textContent = `${[b1, b2, b3 ,b4]}`;
+        document.querySelector("#pointermove").textContent = `${pointer}`;
+        document.querySelector("#changes").textContent = `${changes}`;
+        const pointer = Events.observe((change) => {
+          const pointerMoved = (evt) => {
+            change([evt.clientX, evt.clientY]);
+          };
+          document.addEventListener("pointermove", pointerMoved);
+          return () => {document.removeEventListener("pointermove", pointerMoved)};
+        })
+        const changes = Events.fby(0, b, (a, c) => a + 1);
+        const p1 = Events.delay(pointer, delay);
+        const p2 = Events.delay(pointer, delay * 2);
+        document.querySelector("#cursor1").style.left = `${p1[0]-8}px`;
+        document.querySelector("#cursor1").style.top = `${p1[1]-8}px`;
+        document.querySelector("#cursor2").style.left = `${p2[0]-8}px`;
+        document.querySelector("#cursor2").style.top = `${p2[1]-8}px`;
       </script>
       <div id="input" style="border: 1px solid black; width:600px;margin-bottom: 16px" contenteditable></div>
       <div id="output" style="border: 1px solid brown; width:600px; height: 60px"></div>
-      <input id="slider" type="range"/>
+      <div>sliders <span id="bar"></span></div>
+      <div id="cursor1" style="width: 16px; height; 16px; background-color: red; position; absolute;"></div>
+      <div id="cursor2" style="width: 16px; height; 16px; background-color: green; position; absolute;"></div>
+      <div id="container" style="display: flex; flex-direction: column">
+        <input id="slider" type="range"/>
+        <input id="slider1" type="range"/>
+        <input id="slider2" type="range"/>
+        <input id="slider3" type="range"/>
+        <input id="slider4" type="range"/>
+      </div>
     </div>
     <script type="module">
       import {primerView} from "./src/main.js";

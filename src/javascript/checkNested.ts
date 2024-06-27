@@ -1,9 +1,5 @@
-import type {CallExpression, Expression, Identifier, Node, Pattern, VariableDeclaration} from "acorn";
+import type {CallExpression, Node} from "acorn";
 import {ancestor} from "acorn-walk";
-import {defaultGlobals} from "./globals.js";
-import {syntaxError} from "./syntaxError.js";
-import { Sourcemap } from "../sourcemap.js";
-import { JavaScriptNode } from "./parse.js";
 
 type RewriteSpec = {
     start: number; 
@@ -12,19 +8,19 @@ type RewriteSpec = {
 };
 
 /** Throws a SyntaxError for any illegal assignments. */
-export function checkNested(node: Node, baseId: string){
-    return rewriteNestedCalls(node);
+export function checkNested(node: Node, baseId: number){
+    return rewriteNestedCalls(node, baseId);
 }
 
 function rewriteNestedCalls(
     body: Node,
+    baseId: number
 ): Array<RewriteSpec> {
     const rewriteSpecs:Array<RewriteSpec> = [];
-    let nextId = 0;
     ancestor(body, {
         CallExpression(node) {
             if (isEvent(node)) {
-                rewriteSpecs.push({start: node.start, end: node.end, name: `_${nextId++}`});
+                rewriteSpecs.push({start: node.start, end: node.end, name: `_${baseId}_${rewriteSpecs.length}`});
             }
         }
     });
@@ -34,8 +30,9 @@ function rewriteNestedCalls(
 function isEvent(node:Node) {
     if (node.type !== "CallExpression") {return false;}
     const call = node = node as CallExpression;
-    return call.callee.type === "MemberExpression" 
-        && call.callee.object.type === "Identifier"
-        && call.callee.object.name === "Events"
-        && call.callee.property.type === "Identifier";
+    const callee = call.callee;
+    return callee.type === "MemberExpression" 
+        && callee.object.type === "Identifier"
+        && (callee.object.name === "Events" || callee.object.name === "Behaviors")
+        && callee.property.type === "Identifier";
 }

@@ -45,8 +45,8 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
         const nodes = parseJavaScript(script.textContent, id, false);
         for (const n of nodes) {
             jsNodes.push(n);
+            id++;
         }
-        id += nodes.length;
     }
     const translated = jsNodes.map((jsNode) => transpileJavaScript(jsNode));
     const evaluated = translated.map((tr) => evalCode(tr));
