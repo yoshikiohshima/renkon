@@ -18,8 +18,9 @@ function rewriteNestedCalls(
 ): Array<RewriteSpec> {
     const rewriteSpecs:Array<RewriteSpec> = [];
     ancestor(body, {
-        CallExpression(node) {
-            if (isEvent(node)) {
+        CallExpression(node, ancestors:Array<Node>) {
+            const isEvent = isNonTopEvent(node, ancestors);
+            if (isEvent) {
                 rewriteSpecs.push({start: node.start, end: node.end, name: `_${baseId}_${rewriteSpecs.length}`});
             }
         }
@@ -27,12 +28,14 @@ function rewriteNestedCalls(
     return rewriteSpecs;
 }
 
-function isEvent(node:Node) {
+function isNonTopEvent(node:Node, ancestors:Array<Node>) {
     if (node.type !== "CallExpression") {return false;}
     const call = node = node as CallExpression;
     const callee = call.callee;
     return callee.type === "MemberExpression" 
         && callee.object.type === "Identifier"
         && (callee.object.name === "Events" || callee.object.name === "Behaviors")
-        && callee.property.type === "Identifier";
+        && callee.property.type === "Identifier"
+        && ancestors.length > 2
+        && ancestors[ancestors.length - 2].type !== "VariableDeclarator";
 }

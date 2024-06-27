@@ -274,7 +274,7 @@ function eventBody(options:EventBodyType) {
 
     let handler = (evt:any) => {
         const value = evt.target.value;
-        console.log("value", value);
+        // console.log("value", value);
         returnValue.queue.push({value, time: 0});
     };
 
