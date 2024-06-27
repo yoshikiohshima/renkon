@@ -48,6 +48,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
   let id = initialId;
 
   for (const decl of decls) {
+    id++;
     const b = parseProgram(decl);
     const [references, forceVars] = findReferences(b);
     checkAssignments(b, references, input);
@@ -56,7 +57,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
     const rewriteSpecs = flattened ? [] : checkNested(b, id);
 
     if (rewriteSpecs.length === 0) {
-      const myId = declarations[0]?.name || `${id++}`;
+      const myId = declarations[0]?.name || `${id}`;
       allReferences.push({
         id: myId,
         body: b,

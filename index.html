@@ -39,8 +39,10 @@
       <div id="input" style="border: 1px solid black; width:600px;margin-bottom: 16px" contenteditable></div>
       <div id="output" style="border: 1px solid brown; width:600px; height: 60px"></div>
       <div>sliders <span id="bar"></span></div>
-      <div id="cursor1" style="width: 16px; height; 16px; background-color: red; position; absolute;"></div>
-      <div id="cursor2" style="width: 16px; height; 16px; background-color: green; position; absolute;"></div>
+      <div>pointermove <span id="pointermove"></span></div>
+      <div>changes <span id="changes"></span></div>
+      <div id="cursor1" style="pointer-events: none; width: 16px; height: 16px; background-color: red; position: absolute"></div>
+      <div id="cursor2" style="pointer-events: none; width: 16px; height: 16px; background-color: green; position: absolute"></div>
       <div id="container" style="display: flex; flex-direction: column">
         <input id="slider" type="range"/>
         <input id="slider1" type="range"/>

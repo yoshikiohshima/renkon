@@ -48,6 +48,7 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
             id++;
         }
     }
+
     const translated = jsNodes.map((jsNode) => transpileJavaScript(jsNode));
     const evaluated = translated.map((tr) => evalCode(tr));
     const sorted = topologicalSort(evaluated);
@@ -238,7 +239,7 @@ export function evaluate(state:ProgramState) {
         if (type === eventType || type === promiseType) {
             stream = stream as Stream;
             if (state.resolved.get(varName)?.value !== undefined) {
-                console.log("deleting", varName);
+                // console.log("deleting", varName);
                 state.resolved.delete(varName);
             }
         }
