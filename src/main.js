@@ -1,1 +1,1 @@
-export {primerView} from './primerView';
+export {view} from './system';

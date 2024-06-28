@@ -37,6 +37,10 @@ body {
     background-color: white;
 }
 
+#buttonRow {
+    display: flex;
+}
+
 #drawerButton {
     align-self: center;
     padding-top: 40px;
@@ -47,6 +51,18 @@ body {
 
 #updateButton {
     margin-left: 40px;
+}
+
+#fileName {
+    border: 1px black solid;
+    min-width: 160px;
+    margin-bottom: 10px;
+    margin-top: 10px;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.button {
     margin-bottom: 10px;
     margin-top: 10px;
 }
