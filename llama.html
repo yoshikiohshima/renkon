@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"> 
+    <link id="style" rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+   <div id="renkon">
+      <script type="reactive">
+        const llamaModule = import("../lib/llama-generator.js");
+        const llama = Behaviors.keep(llamaModule);
+
+        const config = {
+          params: {model: '/res/model/huggingface/local', max_tokens: 1000},
+          url: "http://substrate.home.arpa/llama-3-8b-instruct/v1/completions"
+        };
+
+        const gen = Events.observe(async (notify) => {
+	  console.log("in");
+          for await (const r of llama.llama(enter, {...config.params}, config)) {
+            notify(r.data.choices ? r.data.choices[0]?.text : r.data.content)
+          }
+        });
+
+        console.log(enter);
+
+        console.log(gen);
+
+        /*
+        const result = llama.test(enter);
+        const result2 = Behaviors.keep(result);
+        document.querySelector("#output").textContent = result2;
+        */
+
+        const enter = Events.observe((notify) => {
+          const keyDown = (evt) => {
+            if (evt.key === "Enter") {
+              console.log("enter");
+              notify(evt.target.textContent);
+                        }
+                };
+          document.querySelector("#input").addEventListener("keydown", keyDown);
+          return () => {document.querySelector("#input").removeEventListener("keydown", keyDown)}
+        });
+      </script>
+      <div id="input" style="border: 1px solid black; width:600px" contenteditable></div>
+      <div style="height: 20px;"></div>
+      <div id="output" style="border: 1px solid brown; width:600px; height: 60px"></div>
+   </div>
+   <script type="module">
+     import("./src/main.js").then((mod) => mod.view());
+    </script>
+  </body>
+</html>
