@@ -37,7 +37,8 @@ export function makeHTMLFromContent(text:string) {
   <body>
 `;
 
-  const footer = `<script type="module">
+  const footer = `
+  <script type="module">
   import("./src/main.js").then((mod) => mod.view());
     </script>
   </body>
