@@ -79,6 +79,18 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
         }
     }
 
+    for (const old of state.order) {
+        const oldNode = state.nodes.get(old);
+        const newNode = newNodes.get(old);
+        if (newNode && oldNode && oldNode.code !== newNode.code) {
+            oldNode.outputs.forEach((out) => removedVariableNames.add(out));
+        }
+        if (!newNodes.get(old)) {
+            removedNodes.add(old);
+        }
+    }
+
+
     state.order = sorted;
     state.nodes = newNodes;
 
@@ -128,6 +140,7 @@ export function evaluate(state:ProgramState) {
             state.inputArray.set(id, inputArray);
             for (const output in outputs) {
                 const maybeValue = outputs[output];
+                if (maybeValue === undefined) {continue;}
                 if (maybeValue.then) {
                     const promise = maybeValue;
                     promise.then((value:any) => {
@@ -159,6 +172,8 @@ export function evaluate(state:ProgramState) {
 
         for (const output in outputs) {
             let maybeValue = outputs[output];
+
+            if (maybeValue === undefined) {continue;}
 
             if ((maybeValue as Event).type === delayType) {
                 const oldStream = state.streams.get(output) as DelayedEvent;
@@ -317,7 +332,7 @@ const Events = {
 
 const Behaviors = {
     keep(value:any) {
-        return value
+       return value;
     }
 }
 

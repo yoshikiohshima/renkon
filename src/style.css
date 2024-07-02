@@ -1,3 +1,6 @@
+html, body, #renkon {
+    height: 100%;
+}
 body {
     margin: 0px;
 }
