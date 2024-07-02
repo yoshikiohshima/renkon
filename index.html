@@ -36,10 +36,9 @@
         document.querySelector("#cursor2").style.left = `${p2[0]-8}px`;
         document.querySelector("#cursor2").style.top = `${p2[1]-8}px`;
 
-        const htmlMod = import('https://unpkg.com/htm/preact/standalone.module.js').then((mod) => mod.html);
-        const renderMod = import('https://unpkg.com/htm/preact/standalone.module.js').then((mod) => mod.render);
-        const html = Behaviors.keep(htmlMod);
-        const render = Behaviors.keep(renderMod);
+        const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
+        const html = Behaviors.keep(preactModule.html);
+        const render = Behaviors.keep(preactModule.render);
 
         const allChanges = Events.fby([], changes, (a, b) => {const newA = [...a, b]; if (newA.length > 30) newA.shift(); return newA;});
 	      const last = render(html`<div style="display: flex; flex-direction: column">${allChanges.map((c) => html`<span>${c}</span>`)}</div>`, document.querySelector("#out"));
