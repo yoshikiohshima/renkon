@@ -15,13 +15,15 @@ export const delayType = "DelayType";
 export const fbyType = "FbyType";
 export const promiseType = "PromiseType";
 export const behaviorType = "BehaviorType";
+export const generatorType = "GeneratorType"
 
 export type EventType = 
     typeof eventType |
     typeof delayType |
     typeof fbyType |
     typeof promiseType |
-    typeof behaviorType;
+    typeof behaviorType |
+    typeof generatorType;
 
 export type ResolveRecord = {
     value: any,
@@ -52,6 +54,11 @@ export interface FbyStream<I, T> extends Stream {
 
 export interface Behavior extends Stream {
     value: any
+}
+
+export interface GeneratorEvent<T> extends Stream {
+    promise: IteratorResult<Promise<T>>,
+    generator: Iterator<Promise<T>>
 }
 
 export type ProgramState = {

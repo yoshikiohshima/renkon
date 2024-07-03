@@ -5,7 +5,9 @@ import {
     ProgramState,
     ScriptCell, ObserveCallback, eventType, delayType, fbyType, 
     promiseType, behaviorType, Stream,
-    DelayedEvent, FbyStream, PromiseEvent, Behavior, VarName, NodeId, EventType
+    DelayedEvent, FbyStream, PromiseEvent, Behavior, VarName, NodeId, EventType,
+    GeneratorEvent,
+    generatorType
 } from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
@@ -159,6 +161,15 @@ export function evaluate(state:ProgramState) {
                     } else {
                         outputs[output] = state.streams.get(output);
                     }
+                } else if ((maybeValue as Event).type === generatorType) {
+                    const promise = maybeValue.promise;
+                    promise.then((value:any) => {
+                        const wasResolved = state.resolved.get(output)?.value;
+                        if (!wasResolved) {
+                            state.resolved.set(output, {value, time: state.time});
+                        }
+                    });
+                    state.streams.set(output, maybeValue);
                 }
             }
             state.outputs.set(id, outputs);
@@ -226,16 +237,7 @@ export function evaluate(state:ProgramState) {
                     }
                 }
             } else if (maybeValue.type === promiseType) {
-                // maybeValue = maybeValue as PromiseEvent;
-                // state.streams.set(output, maybeValue);
-                /*
-                maybeValue.then((value:any) => {
-                    const wasResolved = state.resolved.get(output)?.value;
-                    if (!wasResolved) {
-                        state.resolved.set(output, {value, time: t});
-                    }
-                });
-                */
+            } else if (maybeValue.type === generatorType) {
             } else {
                 let stream:Behavior = {type: behaviorType, value: maybeValue}
                 state.streams.set(output, stream)
@@ -252,10 +254,25 @@ export function evaluate(state:ProgramState) {
     for (let [varName, stream] of state.streams) {
         const type = (stream as Event).type;
         if (type === eventType || type === promiseType) {
-            stream = stream as Stream;
             if (state.resolved.get(varName)?.value !== undefined) {
                 // console.log("deleting", varName);
                 state.resolved.delete(varName);
+            }
+        }
+        else if (type === generatorType) {
+            const value = state.resolved.get(varName)?.value;
+            if (value !== undefined) {
+                if (!value.done) {
+                    const promise = stream.generator.next();
+                    promise.then((value:any) => {
+                        const wasResolved = state.resolved.get(varName)?.value;
+                        if (!wasResolved) {
+                            state.resolved.set(varName, {value, time: state.time});
+                        }
+                    });
+                    stream.promise = promise;
+                }
+                state.resolved.delete(varName);               
             }
         }
     }
@@ -328,6 +345,10 @@ const Events = {
     delay(varName:VarName, delay: number):DelayedEvent {
         return {type: delayType, delay, varName, queue: []};
     },
+    next<T>(generator:Iterator<Promise<T>>):GeneratorEvent<T> {
+        const value = generator.next();
+        return {type: generatorType, promise: value, generator};
+    }
 };
 
 const Behaviors = {
