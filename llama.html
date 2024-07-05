@@ -7,7 +7,7 @@
   <body>
    <div id="renkon">
       <script type="reactive">
-        const llamaModule = import("./lib/llama-generator.js");
+        const llamaModule = import("../lib/llama-generator.js");
         const llama = Behaviors.keep(llamaModule);
 
         const config = {
@@ -30,8 +30,8 @@
             if (evt.key === "Enter") {
               console.log("enter");
               notify(evt.target.textContent);
-                        }
-                };
+            }
+          };
           document.querySelector("#input").addEventListener("keydown", keyDown);
           return () => {document.querySelector("#input").removeEventListener("keydown", keyDown)}
         });
