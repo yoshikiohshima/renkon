@@ -38,7 +38,7 @@ export interface Stream {
 export interface DelayedEvent extends Stream {
     delay: number,
     varName: VarName,
-    queue: Array<{value:any, time:number}>
+    queue: Array<ResolveRecord>
 }
 
 export interface PromiseEvent extends Stream {
@@ -57,8 +57,9 @@ export interface Behavior extends Stream {
 }
 
 export interface GeneratorEvent<T> extends Stream {
-    promise: IteratorResult<Promise<T>>,
-    generator: Iterator<Promise<T>>
+    promise: Promise<IteratorResult<T>>,
+    generator: AsyncGenerator<T>,
+    value?: T;
 }
 
 export type ProgramState = {

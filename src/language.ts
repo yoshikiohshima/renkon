@@ -114,7 +114,6 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
             state.resolved.delete(removed);
             state.streams.delete(removed);
         }
-        state.streams.delete(removed);
     }
 }
 
@@ -253,7 +252,7 @@ export function evaluate(state:ProgramState) {
 
     for (let [varName, stream] of state.streams) {
         const type = (stream as Event).type;
-        if (type === eventType || type === promiseType) {
+        if (type === eventType) {
             if (state.resolved.get(varName)?.value !== undefined) {
                 // console.log("deleting", varName);
                 state.resolved.delete(varName);
@@ -263,14 +262,15 @@ export function evaluate(state:ProgramState) {
             const value = state.resolved.get(varName)?.value;
             if (value !== undefined) {
                 if (!value.done) {
-                    const promise = stream.generator.next();
+                    const gen = stream as GeneratorEvent<typeof value.value>;
+                    const promise = gen.generator.next();
                     promise.then((value:any) => {
                         const wasResolved = state.resolved.get(varName)?.value;
                         if (!wasResolved) {
                             state.resolved.set(varName, {value, time: state.time});
                         }
                     });
-                    stream.promise = promise;
+                    gen.promise = promise;
                 }
                 state.resolved.delete(varName);               
             }
@@ -334,10 +334,10 @@ function eventBody(options:EventBodyType) {
 
 const Events = {
     observe: (callback:ObserveCallback) => {
-        return eventBody({forObserve: true, callback, type: eventType});
+        return eventBody({type: eventType, forObserve: true, callback});
     },
     input: (dom:HTMLInputElement) => {
-        return eventBody({forObserve: false, dom, type: eventType});
+        return eventBody({type: eventType, forObserve: false, dom,});
     },
     fby<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):FbyStream<I, T> {
         return {type: fbyType, init, updater, varName, current: init};
@@ -345,7 +345,10 @@ const Events = {
     delay(varName:VarName, delay: number):DelayedEvent {
         return {type: delayType, delay, varName, queue: []};
     },
-    next<T>(generator:Iterator<Promise<T>>):GeneratorEvent<T> {
+    once(value:any) {
+        return {type: eventType, queue: [{value, time: 0}]};
+    },
+    next<T>(generator:AsyncGenerator<T>):GeneratorEvent<T> {
         const value = generator.next();
         return {type: generatorType, promise: value, generator};
     }
