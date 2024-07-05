@@ -10,12 +10,18 @@ export type ScriptCell = {
     outputs: Array<string>
 }
 
+export type ResolveRecord = {
+    value: any,
+    time: number
+}
+
 export const eventType = "EventType";
 export const delayType = "DelayType";
 export const fbyType = "FbyType";
 export const promiseType = "PromiseType";
 export const behaviorType = "BehaviorType";
-export const generatorType = "GeneratorType"
+export const generatorType = "GeneratorType";
+export const onceType = "OnceType"
 
 export type EventType = 
     typeof eventType |
@@ -23,18 +29,17 @@ export type EventType =
     typeof fbyType |
     typeof promiseType |
     typeof behaviorType |
-    typeof generatorType;
-
-export type ResolveRecord = {
-    value: any,
-    time: number
-}
+    typeof generatorType |
+    typeof onceType;
 
 export interface Stream {
     type: EventType,
-    cleanup?: (() => void) | null, 
 }
 
+export interface GenericEvent extends Stream {
+    queue: Array<ResolveRecord>,
+    cleanup?: (() => void) | null, 
+}
 export interface DelayedEvent extends Stream {
     delay: number,
     varName: VarName,
@@ -56,10 +61,13 @@ export interface Behavior extends Stream {
     value: any
 }
 
+export interface OnceEvent extends Stream {
+    value: any
+}
+
 export interface GeneratorEvent<T> extends Stream {
     promise: Promise<IteratorResult<T>>,
     generator: AsyncGenerator<T>,
-    value?: T;
 }
 
 export type ProgramState = {

@@ -3,34 +3,31 @@ import {transpileJavaScript} from "./javascript/transpile.ts"
 
 import {
     ProgramState,
-    ScriptCell, ObserveCallback, eventType, delayType, fbyType, 
-    promiseType, behaviorType, Stream,
+    ScriptCell, ObserveCallback, eventType, delayType, fbyType, Stream,
+    promiseType, behaviorType,
     DelayedEvent, FbyStream, PromiseEvent, Behavior, VarName, NodeId, EventType,
     GeneratorEvent,
-    generatorType
+    generatorType,
+    OnceEvent,
+    onceType,
+    GenericEvent
 } from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
 
 export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
-   /* if (window.setupProgramCalled === undefined) {
-        window.setupProgramCalled = 0;
-    }
-    window.setupProgramCalled++;
-    */
-
-   (window as any).programState = state;
+    (window as any).programState = state;
     const invalidatedStreamNames:Set<VarName> = new Set();
 
     // clear all output from events anyway, as re evaluation should not run a cell that depends on an event.
     // This should not be necessary if the DOM element that an event listener is attached stays the same.
 
     for (let [varName, stream] of state.streams) {
-        if ((stream as Event).type === eventType) {
-            stream = stream as Stream;
-            if (stream.cleanup && typeof stream.cleanup === "function") {
-                stream.cleanup();
-                stream.cleanup = null;
+        if (stream.type === eventType) {
+            const evt = stream as GenericEvent;
+            if (evt.cleanup && typeof evt.cleanup === "function") {
+                evt.cleanup();
+                evt.cleanup = null;
             }
             state.resolved.delete(varName);
             state.streams.delete(varName);
@@ -141,6 +138,7 @@ export function evaluate(state:ProgramState) {
             state.inputArray.set(id, inputArray);
             for (const output in outputs) {
                 const maybeValue = outputs[output];
+                const maybeStream:Stream = maybeValue as Stream;
                 if (maybeValue === undefined) {continue;}
                 if (maybeValue.then) {
                     const promise = maybeValue;
@@ -153,14 +151,14 @@ export function evaluate(state:ProgramState) {
                     const e:PromiseEvent = {type: promiseType, promise};
                     outputs[output] = e;
                     state.streams.set(output, e);
-                } else if ((maybeValue as Event).type === fbyType) {
+                } else if (maybeStream.type === fbyType) {
                     if (!state.streams.get(output)) {
                         state.streams.set(output, maybeValue);
                         state.resolved.set(output, {value: (maybeValue as any).init, time: state.time});
                     } else {
                         outputs[output] = state.streams.get(output);
                     }
-                } else if ((maybeValue as Event).type === generatorType) {
+                } else if (maybeStream.type === generatorType) {
                     const promise = maybeValue.promise;
                     promise.then((value:any) => {
                         const wasResolved = state.resolved.get(output)?.value;
@@ -169,6 +167,12 @@ export function evaluate(state:ProgramState) {
                         }
                     });
                     state.streams.set(output, maybeValue);
+                } else if (maybeStream.type === onceType) {
+                    const once = maybeValue as OnceEvent;
+                    if (!state.streams.get(output)) {
+                        state.streams.set(output, once);
+                        state.resolved.set(output, {value: once.value, time: state.time});
+                    }
                 }
             }
             state.outputs.set(id, outputs);
@@ -185,7 +189,9 @@ export function evaluate(state:ProgramState) {
 
             if (maybeValue === undefined) {continue;}
 
-            if ((maybeValue as Event).type === delayType) {
+            const maybeStream:Stream = maybeValue as Stream;
+
+            if (maybeStream.type === delayType) {
                 const oldStream = state.streams.get(output) as DelayedEvent;
                 if (!oldStream || 
                     oldStream.delay !== maybeValue.delay ||
@@ -211,17 +217,16 @@ export function evaluate(state:ProgramState) {
                     maybeValue.queue.push({time: state.time + maybeValue.delay, value: myInput});
                         // state.activeTimers.add(maybeValue);
                 }
-            } else if ((maybeValue as Event).type === eventType) {
-                maybeValue = maybeValue as Event;
-                state.streams.set(output, maybeValue);
-                const value = getEventValue(maybeValue, state.time);
+            } else if (maybeStream.type === eventType) {
+                state.streams.set(output, maybeStream);
+                const value = getEventValue(maybeStream as GenericEvent, state.time);
                 if (value !== undefined) {
                     const wasResolved = state.resolved.get(output)?.value;
                     if (wasResolved === undefined) {
                         state.resolved.set(output, {value, time: state.time});
                     }
                 }
-            } else if ((maybeValue as Event).type === fbyType) {
+            } else if (maybeStream.type === fbyType) {
                 // if (maybeValue.current === 1) {debugger};
                 type ArgTypes = Parameters<typeof maybeValue.updater>;
                 maybeValue = maybeValue as FbyStream<typeof maybeValue.current, ArgTypes[1]>;
@@ -237,6 +242,7 @@ export function evaluate(state:ProgramState) {
                 }
             } else if (maybeValue.type === promiseType) {
             } else if (maybeValue.type === generatorType) {
+            } else if (maybeValue.type === onceType) {
             } else {
                 let stream:Behavior = {type: behaviorType, value: maybeValue}
                 state.streams.set(output, stream)
@@ -252,8 +258,8 @@ export function evaluate(state:ProgramState) {
 
     const deleted:Set<VarName> = new Set();
     for (let [varName, stream] of state.streams) {
-        const type = (stream as Event).type;
-        if (type === eventType) {
+        const type = stream.type;
+        if (type === eventType || type === onceType) {
             if (state.resolved.get(varName)?.value !== undefined) {
                 // console.log("deleting", varName);
                 state.resolved.delete(varName);
@@ -360,8 +366,8 @@ const Events = {
     delay(varName:VarName, delay: number):DelayedEvent {
         return {type: delayType, delay, varName, queue: []};
     },
-    once(value:any) {
-        return {type: eventType, queue: [{value, time: 0}]};
+    once(value:any):OnceEvent{
+        return {type: onceType, value};
     },
     next<T>(generator:AsyncGenerator<T>):GeneratorEvent<T> {
         const value = generator.next();
@@ -489,7 +495,7 @@ function spliceDelayedQueued(event:DelayedEvent, t:number) {
     return value;
 }
 
-function getEventValue(event:DelayedEvent, _t:number) {
+function getEventValue(event:GenericEvent, _t:number) {
     if (event.queue.length >= 1) {
         const value = event.queue[event.queue.length - 1].value;
         event.queue = [];
