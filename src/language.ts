@@ -250,12 +250,14 @@ export function evaluate(state:ProgramState) {
     // for all streams, check if it is an event.
     // if it is resolved, its promise and resolved will be cleared
 
+    const deleted:Set<VarName> = new Set();
     for (let [varName, stream] of state.streams) {
         const type = (stream as Event).type;
         if (type === eventType) {
             if (state.resolved.get(varName)?.value !== undefined) {
                 // console.log("deleting", varName);
                 state.resolved.delete(varName);
+                deleted.add(varName);
             }
         }
         else if (type === generatorType) {
@@ -272,7 +274,20 @@ export function evaluate(state:ProgramState) {
                     });
                     gen.promise = promise;
                 }
-                state.resolved.delete(varName);               
+                state.resolved.delete(varName);      
+                deleted.add(varName);         
+            }
+        }
+    }
+
+    for (let varName of deleted) {
+        for (let [receipient, node] of state.nodes) {
+            const index = node.inputs.indexOf(varName);
+            if (index >= 0) {
+                const inputArray = state.inputArray.get(receipient);
+                if (inputArray) {
+                    inputArray[index] = undefined;
+                }
             }
         }
     }
