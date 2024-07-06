@@ -28,11 +28,11 @@
 
         document.querySelector("#output").textContent = logged;       
 
-        const abortPressed = Events.input("abort");
+        // const abortPressed = Events.input("abort");
 
         const abort = ((pressed) => {
           abortController.abort();
-        })(abortPressed);
+        })(Events.input("abort"));
 
         const enter = Events.observe((notify) => {
           const keyDown = (evt) => {
