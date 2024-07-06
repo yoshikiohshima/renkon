@@ -1,4 +1,5 @@
 export const defaultGlobals = new Set([
+  "AbortController",
   "Array",
   "ArrayBuffer",
   "atob",

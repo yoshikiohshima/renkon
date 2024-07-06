@@ -10,10 +10,13 @@
         const llamaModule = import("../lib/llama.js");
         const llama = Behaviors.keep(llamaModule);
 
+        const abortController = new AbortController();
+
         const config = {
           params: {model: '/res/model/huggingface/local', max_tokens: 1000},
           // url: "http://substrate.home.arpa/llama-3-8b-instruct/v1/completions"
-          url: "http://localhost:8080/completion"
+          url: "http://localhost:8080/completion",
+          controller: abortController
         };
 
         const gen = llama.llama(enter, {...config.params}, config);
@@ -24,6 +27,12 @@
           return a + b.value.data.content});
 
         document.querySelector("#output").textContent = logged;       
+
+        const abortPressed = Events.input("abort");
+
+        const abort = ((pressed) => {
+          abortController.abort();
+        })(abortPressed);
 
         const enter = Events.observe((notify) => {
           const keyDown = (evt) => {
@@ -36,6 +45,7 @@
           return () => {document.querySelector("#input").removeEventListener("keydown", keyDown)}
         });
       </script>
+      <button id="abort">Abort</button>
       <div id="input" style="border: 1px solid black; width:600px" contenteditable></div>
       <div style="height: 20px;"></div>
       <div id="output" style="height: fit-content; border: 1px solid brown; width:600px; min-height: 60px"></div>

@@ -325,9 +325,15 @@ function eventBody(options:EventBodyType) {
         realDom = dom;
     }
 
-    let handler = (evt:any) => {
+    let inputHandler = (evt:any) => {
         const value = evt.target.value;
-        // console.log("value", value);
+        console.log("value", value);
+        returnValue.queue.push({value, time: 0});
+    };
+
+    let buttonHandler = (evt:any) => {
+        const value = evt.target;
+        console.log("value", value);
         returnValue.queue.push({value, time: 0});
     };
 
@@ -336,7 +342,11 @@ function eventBody(options:EventBodyType) {
     };
 
     if (realDom && !forObserve) {
-        realDom.addEventListener("input", handler);
+        if (realDom.constructor.name === "HTMLButtonElement") {
+            realDom.addEventListener("click", buttonHandler);
+        } else {
+            realDom.addEventListener("input", inputHandler);
+        }
     }
 
     if (forObserve && callback) {
@@ -345,7 +355,11 @@ function eventBody(options:EventBodyType) {
     if (!forObserve && dom) {
         returnValue.cleanup = () => {
             if (realDom) {
-                realDom.removeEventListener("input", handler);
+                if (realDom.constructor.name === "HTMLButtonElement") {
+                    realDom.removeEventListener("click", buttonHandler);
+                } else {
+                    realDom.removeEventListener("input", inputHandler);
+                }
             }
         }
     }
