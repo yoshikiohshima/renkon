@@ -10,7 +10,7 @@
         const llamaModule = import("../lib/llama.js");
         const llama = Behaviors.keep(llamaModule);
 
-        const abortController = new AbortController();
+        const abortController = Events.fby(new AbortController(), abortHandler, (a, b) => {a.abort(); return new AbortController()});
 
         const config = {
           params: {model: '/res/model/huggingface/local', max_tokens: 1000},
@@ -28,11 +28,7 @@
 
         document.querySelector("#output").textContent = logged;       
 
-        // const abortPressed = Events.input("abort");
-
-        const abort = ((pressed) => {
-          abortController.abort();
-        })(Events.input("abort"));
+        const abortHandler = Events.input("abort");
 
         const enter = Events.observe((notify) => {
           const keyDown = (evt) => {
