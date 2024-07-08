@@ -2,15 +2,11 @@ import {JavaScriptNode, parseJavaScript} from "./javascript/parse.ts"
 import {transpileJavaScript} from "./javascript/transpile.ts"
 
 import {
-    ProgramState,
-    ScriptCell, ObserveCallback, eventType, delayType, fbyType, Stream,
-    promiseType, behaviorType,
-    DelayedEvent, FbyStream, PromiseEvent, Behavior, VarName, NodeId, EventType,
-    GeneratorEvent,
-    generatorType,
-    OnceEvent,
-    onceType,
-    GenericEvent
+    ProgramState, ScriptCell, VarName, NodeId, Stream,
+    eventType, delayType, fbyType, promiseType, behaviorType, generatorType, onceType,
+    DelayedEvent, FbyStream, PromiseEvent, Behavior, EventType,
+    GeneratorEvent, OnceEvent, GenericEvent,
+    orType
 } from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
@@ -240,6 +236,15 @@ export function evaluate(state:ProgramState) {
                         maybeValue.current = value;
                     }
                 }
+
+            } else if (maybeValue.type === orType) {
+                for (let i = 0; i < node.inputs.length; i++) {
+                    const myInput = inputArray[i];
+                    if (myInput !== undefined) {
+                        state.resolved.set(output, {value: myInput, time: state.time});
+                        break;
+                    }
+                }
             } else if (maybeValue.type === promiseType) {
             } else if (maybeValue.type === generatorType) {
             } else if (maybeValue.type === onceType) {
@@ -259,7 +264,7 @@ export function evaluate(state:ProgramState) {
     const deleted:Set<VarName> = new Set();
     for (let [varName, stream] of state.streams) {
         const type = stream.type;
-        if (type === eventType || type === onceType) {
+        if (type === eventType || type === onceType || type === orType) {
             if (state.resolved.get(varName)?.value !== undefined) {
                 // console.log("deleting", varName);
                 state.resolved.delete(varName);
@@ -303,15 +308,20 @@ function define(spec:ScriptCell) {
    return spec;
 }
 
+type UserEventType = "click" | "input";
+
+type ObserveCallback = (notifier:(v:any) => void) => () => void;
+
 type EventBodyType = {
     forObserve: boolean;
     callback?: ObserveCallback;
     dom?: HTMLInputElement | string;
     type: EventType;
+    eventType?: UserEventType
 };
 
 function eventBody(options:EventBodyType) {
-    let {forObserve, callback, dom, type} = options;
+    let {forObserve, callback, dom, type, eventType} = options;
     let returnValue:any = {type, queue: []};
 
     let realDom:HTMLInputElement|undefined;
@@ -325,28 +335,23 @@ function eventBody(options:EventBodyType) {
         realDom = dom;
     }
 
-    let inputHandler = (evt:any) => {
-        const value = evt.target.value;
-        console.log("value", value);
-        returnValue.queue.push({value, time: 0});
-    };
-
-    let buttonHandler = (evt:any) => {
-        const value = evt.target;
-        console.log("value", value);
-        returnValue.queue.push({value, time: 0});
+    const handlers = {
+        "input": (evt:any) => {
+            const value = evt.target.value;
+            returnValue.queue.push({value, time: 0});
+        },
+        "click": (evt:any) => {
+            const value = evt.target;
+            returnValue.queue.push({value, time: 0});
+        }
     };
 
     const notifier = (value:any) => {
         returnValue.queue.push({value, time: 0});
     };
 
-    if (realDom && !forObserve) {
-        if (realDom.constructor.name === "HTMLButtonElement") {
-            realDom.addEventListener("click", buttonHandler);
-        } else {
-            realDom.addEventListener("input", inputHandler);
-        }
+    if (realDom && !forObserve && eventType) {
+        realDom.addEventListener(eventType, handlers[eventType]);
     }
 
     if (forObserve && callback) {
@@ -354,12 +359,8 @@ function eventBody(options:EventBodyType) {
     }
     if (!forObserve && dom) {
         returnValue.cleanup = () => {
-            if (realDom) {
-                if (realDom.constructor.name === "HTMLButtonElement") {
-                    realDom.removeEventListener("click", buttonHandler);
-                } else {
-                    realDom.removeEventListener("input", inputHandler);
-                }
+            if (realDom && eventType) {
+                realDom.removeEventListener(eventType, handlers[eventType]);
             }
         }
     }
@@ -371,8 +372,11 @@ const Events = {
     observe: (callback:ObserveCallback) => {
         return eventBody({type: eventType, forObserve: true, callback});
     },
-    input: (dom:HTMLInputElement) => {
-        return eventBody({type: eventType, forObserve: false, dom,});
+    input: (dom:HTMLInputElement|string) => {
+        return eventBody({type: eventType, forObserve: false, dom, eventType: "input"});
+    },
+    click: (dom:HTMLInputElement|string) => {
+        return eventBody({type: eventType, forObserve: false, dom, eventType: "click"});
     },
     fby<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):FbyStream<I, T> {
         return {type: fbyType, init, updater, varName, current: init};
@@ -386,6 +390,9 @@ const Events = {
     next<T>(generator:AsyncGenerator<T>):GeneratorEvent<T> {
         const value = generator.next();
         return {type: generatorType, promise: value, generator};
+    },
+    or(...varNames:Array<VarName>) {
+        return {type: orType, varNames};
     }
 };
 
@@ -517,72 +524,3 @@ function getEventValue(event:GenericEvent, _t:number) {
     }
     return undefined;
 }
-
-/*
-  We follow some good ideas in the Observable Framework.
-
-  A block of code can have top-level variables that are by default reactive.
-
-  The declaration of a top level variable becomes known to it.
-
-  a top-level variable can contain a promise or generator or a regular value.
-
-  We figure out the dependency graph of the top level variables. We keep the idea of blocks and simply re-evaluate the block accordingly.
-
-  we also have the code edited and reloaded. The basic idea was to keep the values of behaviors but not events' .Can we do it?
-
-  Do we use the trick of using undefined as undefined, or rather, 
-
-  Let us make sure that basic combinators can be implemented.
-
-  The line between behaviors and events are murky. A normal value in program text is a behavior. A loading event or promise firing is an event. a cached value would be an event converted to a behavior. animation frame is an event.
-
-  implicit conversion between Bs and Es are ok. Unless it is explicitly prevented perhaps with a different combinator, a computed value would become a behavior upon storing into the state.
-
-  const y = new Promise((resolve) => setTimeout(() => resolve(42), 1000));
-  // y would be considered event
-  
-  const x = y + 3;
-  // x is undefined until 1000 ms passes. 3 is a behavior and the computed value is an event but the resulting x a behavior.
-
-  oneE: a normal value that is used on reload.
-  zeroE: if we use the undefined trick it is that.
-  mapE: a simple expression.
-  mergeE: it'd have to be combinator.
-
-  switchE: we will do things without this.
-  condE: a combinator (but probably not actually needed)
-
-  filterE: would need the undefined trick
-  ifE: would be easy to use ?:
-
-  collectE: this is interesting as it won't have the access to the previous value. perhaps we can have a $-prefixed variable to indicate the previous value.
-
-  andE, orE, notE: simple expressions
-  
-  delayE: will be a combinator, in a way, basically a syntax sugar of setTimeout
-
-  blineE: a combinator
-  calmE: a combinator
-
-  timeE: a syntax sugar of setInterval but returns a promise that would be replaced with a fresh one upon computing values.
-
-  
-  We can have a class called Stream. it represents a time varying value.
-
-  Observable Framework uses Acorn parser. I think we can do that too.
-
-  Another good feature is the integration with DOM input elements.
-  
-  */
-
-/*
-  Let us say we switch to a animationFrame-based evaluation.
-
-  For each animationFrame, we run evaluate() as many times as
-  needed. We should limit the timer-based event to known combinators,
-  then we can tell how many times we would need by keep track of that.
-
-  upon animationFrame, evaluate() checks all cells in order and if input is new we set value into "resolved". if a cell compares its previous input array and new one, and if any input is different, call the body.
-
-*/

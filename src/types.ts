@@ -21,7 +21,8 @@ export const fbyType = "FbyType";
 export const promiseType = "PromiseType";
 export const behaviorType = "BehaviorType";
 export const generatorType = "GeneratorType";
-export const onceType = "OnceType"
+export const onceType = "OnceType";
+export const orType = "OrType";
 
 export type EventType = 
     typeof eventType |
@@ -30,7 +31,8 @@ export type EventType =
     typeof promiseType |
     typeof behaviorType |
     typeof generatorType |
-    typeof onceType;
+    typeof onceType |
+    typeof orType;
 
 export interface Stream {
     type: EventType,
@@ -48,6 +50,10 @@ export interface DelayedEvent extends Stream {
 
 export interface PromiseEvent extends Stream {
     promise: Promise<any>,
+}
+
+export interface OrEvent extends Stream {
+    varNames: Array<VarName>;
 }
 
 export interface FbyStream<I, T> extends Stream {
@@ -79,5 +85,3 @@ export type ProgramState = {
     outputs: Map<NodeId, any>;
     time: number;
 }
-
-export type ObserveCallback = (notifier:(v:any) => void) => () => void;

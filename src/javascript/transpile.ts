@@ -39,18 +39,24 @@ function rewriteFollowedByCalls(
 ): void {
   simple(body, {
     CallExpression(node) {
-      if (node.callee.type === "MemberExpression" 
-      && node.callee.object.type === "Identifier"
-      && node.callee.object.name === "Events"
-      && node.callee.property.type === "Identifier") {
-        if (node.callee.property.name === "fby") {
+      const callee = node.callee;
+      if (callee.type === "MemberExpression" 
+      && callee.object.type === "Identifier"
+      && callee.object.name === "Events"
+      && callee.property.type === "Identifier") {
+        if (callee.property.name === "fby") {
           output.insertLeft(node.arguments[1].start, '"');
           output.insertRight(node.arguments[1].end, '"');
-         } else if (node.callee.property.name === "delay") {
+        } else if (callee.property.name === "delay") {
           output.insertLeft(node.arguments[0].start, '"');
           output.insertRight(node.arguments[0].end, '"');
-         }
+        } else if (callee.property.name === "or") {
+          for (const arg of node.arguments) {
+            output.insertLeft(arg.start, '"');
+            output.insertRight(arg.end, '"');            
+          }
         }
+      }
     }
   });
 }

@@ -167,14 +167,21 @@ export function findReferences(
 
   simple(node, {
     CallExpression(node) {
-      if (node.callee.type === "MemberExpression" 
-      && node.callee.object.type === "Identifier"
-      && node.callee.object.name === "Events"
-      && node.callee.property.type === "Identifier") {
-        if (node.callee.property.name === "fby") {
+      const callee = node.callee;
+      if (callee.type === "MemberExpression" 
+      && callee.object.type === "Identifier"
+      && callee.object.name === "Events"
+      && callee.property.type === "Identifier") {
+        if (callee.property.name === "fby") {
           const arg = node.arguments[1];
           if (arg.type === "Identifier") {
             forceVars.push(arg);
+          }
+        } else if (callee.property.name === "or") {
+          for (const arg of node.arguments) {
+            if (arg.type === "Identifier") {
+              forceVars.push(arg);
+            }
           }
         }
       }
