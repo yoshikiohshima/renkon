@@ -37,8 +37,8 @@
         document.querySelector("#cursor2").style.top = `${p2[1]-8}px`;
 
         const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
-        const html = Behaviors.keep(preactModule.html);
-        const render = Behaviors.keep(preactModule.render);
+        const html = preactModule.html;
+        const render = preactModule.render;
 
         const allChanges = Events.fby([], changes, (a, b) => {const newA = [...a, b]; if (newA.length > 30) newA.shift(); return newA;});
 	      const last = render(html`<div style="display: flex; flex-direction: column">${allChanges.map((c) => html`<span>${c}</span>`)}</div>`, document.querySelector("#out"));
