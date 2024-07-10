@@ -131,6 +131,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
 export function evaluate(state:ProgramState) {
     const now = Date.now();
     state.time = now - state.startTime;
+    let updated = false;
     for (let id of state.order) {
         // if (window.wasResolved) {debugger;}
         const node = state.nodes.get(id)!;
@@ -161,6 +162,7 @@ export function evaluate(state:ProgramState) {
                     promise.then((value:any) => {
                         const wasResolved = state.resolved.get(output)?.value;
                         if (!wasResolved) {
+                            updated = true;
                             state.resolved.set(output, {value, time: state.time});
                         }
                     });
@@ -170,6 +172,7 @@ export function evaluate(state:ProgramState) {
                 } else if (maybeStream.type === fbyType) {
                     if (!state.streams.get(output)) {
                         state.streams.set(output, maybeValue);
+                        updated = true;
                         state.resolved.set(output, {value: (maybeValue as any).init, time: state.time});
                     } else {
                         outputs[output] = state.streams.get(output);
@@ -179,6 +182,7 @@ export function evaluate(state:ProgramState) {
                     promise.then((value:any) => {
                         const wasResolved = state.resolved.get(output)?.value;
                         if (!wasResolved) {
+                            updated = true;
                             state.resolved.set(output, {value, time: state.time});
                         }
                     });
@@ -187,6 +191,7 @@ export function evaluate(state:ProgramState) {
                     const once = maybeValue as OnceEvent;
                     if (!state.streams.get(output)) {
                         state.streams.set(output, once);
+                        updated = true;
                         state.resolved.set(output, {value: once.value, time: state.time});
                     }
                 }
@@ -222,10 +227,8 @@ export function evaluate(state:ProgramState) {
                 const value = spliceDelayedQueued(maybeValue, state.time);
                 // console.log("value", value);
                 if (value !== undefined) {
+                    updated = true;
                     state.resolved.set(output, {value, time: state.time});
-                    if (maybeValue.queue.length === 0) {
-                        // state.activeTimers.delete(maybeValue);
-                    }
                 }
                 const inputIndex = node.inputs.indexOf(maybeValue.varName);
                 const myInput = inputArray[inputIndex];
@@ -239,6 +242,7 @@ export function evaluate(state:ProgramState) {
                 if (value !== undefined) {
                     const wasResolved = state.resolved.get(output)?.value;
                     if (wasResolved === undefined) {
+                        updated = true;
                         state.resolved.set(output, {value, time: state.time});
                     }
                 }
@@ -252,6 +256,7 @@ export function evaluate(state:ProgramState) {
                     const value = maybeValue.updater(maybeValue.current, inputValue);
                     if (value !== undefined) {
                         // this is dubious as it crosses the event/behavior type bridge.
+                        updated = true;
                         state.resolved.set(output, {value, time: state.time});
                         maybeValue.current = value;
                     }
@@ -261,6 +266,7 @@ export function evaluate(state:ProgramState) {
                 for (let i = 0; i < node.inputs.length; i++) {
                     const myInput = inputArray[i];
                     if (myInput !== undefined) {
+                        updated = true;
                         state.resolved.set(output, {value: myInput, time: state.time});
                         break;
                     }
@@ -273,6 +279,7 @@ export function evaluate(state:ProgramState) {
                 state.streams.set(output, stream)
                 const resolved = state.resolved.get(output);
                 if (!resolved || resolved.value !== maybeValue) {
+                    updated = true;
                     state.resolved.set(output, {value: maybeValue, time: state.time});
                 }
             }
@@ -300,6 +307,8 @@ export function evaluate(state:ProgramState) {
                     promise.then((value:any) => {
                         const wasResolved = state.resolved.get(varName)?.value;
                         if (!wasResolved) {
+                            updated = true;
+                            // probably wrong to set a flag outside from within a promise handler
                             state.resolved.set(varName, {value, time: state.time});
                         }
                     });
@@ -322,6 +331,7 @@ export function evaluate(state:ProgramState) {
             }
         }
     }
+    return updated;
 }
 
 function define(spec:ScriptCell) {
@@ -395,12 +405,28 @@ function renkonify(func:Function) {
     console.log(params, returnArray, output);
 
     setupProgram([output], programState);
-    evaluator(programState);
-    return `(${params}) => {
-        for (p of params) {programState.resolved.set(p, p)}
-        return async generator;
+
+
+    async function* renkonBody(...args:any[]) {
+        for (let i = 0; i < params.length; i++) {
+            programState.resolved.set(params[i], args[i]);
+        }
+        while (true) {
+            evaluate(programState);
+            const result:any = {};
+            if (returnArray) {
+                for (const n of returnArray) {
+                    
+                    const v = programState.resolved.get(n);
+                    if (v && v.value !== undefined) {
+                        result[n] = v;
+                    }
+                }
+            }
+            yield result;
+        }
     }
-    `;
+    return renkonBody;
 }
 
 const Events = {
