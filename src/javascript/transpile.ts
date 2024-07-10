@@ -1,9 +1,9 @@
 
-import type {Node} from "acorn";
+import type {FunctionDeclaration, Identifier, Node, Statement} from "acorn";
 import {simple} from "acorn-walk";
 // import {isPathImport, relativePath, resolvePath, resolveRelativePath} from "../path.js";
 import {Sourcemap} from "../sourcemap.js";
-import type {JavaScriptNode} from "./parse.js";
+import {JavaScriptNode, parseJavaScript} from "./parse.js";
 import {defaultGlobals} from "./globals";
 import {renkonGlobals} from "./renkonGlobals";
 
@@ -32,6 +32,41 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   output.insertRight(node.input.length, "\n}});\n");
   return String(output);
 }
+
+export function getFunctionBody(input: string) {
+  const compiled = parseJavaScript(input, 0, true);
+  const node = compiled[0].body.body[0] as FunctionDeclaration;
+  const params = node.params.map((p) => (p as Identifier).name);
+  const body = node.body.body;
+  const last = body[body.length - 1];
+  const returnArray = getArray(last);
+  const output = new Sourcemap(input).trim();
+
+  output.delete(0, body[0].start);
+  output.delete(last.start, input.length);
+
+  return {params, returnArray, output: String(output)}
+}
+
+function getArray(returnNode: Statement) {
+  if (returnNode.type !== "ReturnStatement") {
+    console.error("cannot convert");
+    return null;
+  }
+  const array = returnNode.argument;
+  if (!array || array.type !== "ArrayExpression") {
+    console.error("cannot convert");
+    return null;
+  }
+  for (const elem of array.elements) {
+    if (!elem || elem.type !== "Identifier") {
+      console.error("cannot convert");
+      return null;
+    }
+  }
+  return array.elements.map((e) => (e as Identifier).name);
+}
+
 
 function rewriteFollowedByCalls(
   output: Sourcemap,

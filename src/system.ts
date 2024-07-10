@@ -1,21 +1,9 @@
 import { basicSetup, EditorView } from "codemirror"
 //import { html, htmlLanguage } from "https://esm.sh/@codemirror/lang-html@v6.4.9"
 //import { javascript } from "https://esm.sh/@codemirror/lang-javascript@v6.0.1"
-import {setupProgram, evaluate} from "./language";
+import {setupProgram, newProgramState, evaluator} from "./language";
 import {ProgramState} from "./types";
 import { getContentFromHTML, loadFile, makeHTMLFromContent, saveFile } from "./load";
-
-let programState: ProgramState = {
-    order: [],
-    nodes: new Map(),
-    streams: new Map(),
-    resolved: new Map(),
-    inputArray: new Map(),
-    outputs: new Map(),
-    time: 0,
-}
-
-let evaluatorRunning:number|undefined = undefined;
 
 let myResizeHandler: (() => void) | null;
 
@@ -32,17 +20,11 @@ function resizeHandler() {
     }
 }
 
-const pageLoadTime = Date.now();
-function evaluator() {
-    const now = Date.now();
-    evaluatorRunning = window.requestAnimationFrame(evaluator);
-    programState.time = now - pageLoadTime;
-    evaluate(programState);
-}
-
 export function view() {
     const renkon:HTMLElement = document.body.querySelector("#renkon")!;
-    let {dock, editorView} = createEditorDock(renkon);
+    const programState = newProgramState(Date.now());
+    (window as any).programState = programState;
+    let {dock, editorView} = createEditorDock(renkon, programState);
     document.body.appendChild(dock);
 
     if (myResizeHandler) {
@@ -51,13 +33,13 @@ export function view() {
     myResizeHandler = resizeHandler;
     window.addEventListener("resize", myResizeHandler)
 
-    update(renkon, editorView);
-    if (evaluatorRunning === undefined) {
-        evaluator();
+    update(renkon, editorView, programState);
+    if (programState.evaluatorRunning === 0) {
+        evaluator(programState);
     }
 }
 
-function createEditorDock(renkon:HTMLElement) {
+function createEditorDock(renkon:HTMLElement, programState:ProgramState) {
     const div = document.createElement("div");
     div.innerHTML = `
 <div id="dock" class="dock">
@@ -87,15 +69,15 @@ function createEditorDock(renkon:HTMLElement) {
 
     const updateButton = dock.querySelector("#updateButton")! as HTMLButtonElement;
     updateButton.textContent = "Update";
-    updateButton.onclick = () => update(renkon, editorView);
+    updateButton.onclick = () => update(renkon, editorView, programState);
 
     const loadButton = dock.querySelector("#loadButton")! as HTMLButtonElement;
     loadButton.textContent = "Load";
-    loadButton.onclick = () => load(renkon, editorView);
+    loadButton.onclick = () => load(renkon, editorView, programState);
 
     const saveButton = dock.querySelector("#saveButton")! as HTMLButtonElement;
     saveButton.textContent = "Save";
-    saveButton.onclick = () => save(renkon, editorView);
+    saveButton.onclick = () => save(renkon, editorView, programState);
 
 
     const drawerButton = dock.querySelector("#drawerButton")! as HTMLButtonElement;
@@ -104,11 +86,11 @@ function createEditorDock(renkon:HTMLElement) {
     return {dock, editorView, updateButton};
 }   
 
-function update(renkon:HTMLElement, editorView:EditorView) {
+function update(renkon:HTMLElement, editorView:EditorView, programState: ProgramState) {
     renkon.innerHTML = editorView.state.doc.toString();
-    let scripts = [...renkon.querySelectorAll("script[type='reactive']")];
-
-    setupProgram(scripts as HTMLScriptElement[], programState);
+    let scripts = [...renkon.querySelectorAll("script[type='reactive']")] as HTMLScriptElement[];
+    let text = scripts.map((s) => s.textContent).filter((s) => s);
+    setupProgram(text as string[], programState);
 }
 
 function toggleDock(dock:HTMLElement, force?:boolean) {
@@ -122,7 +104,7 @@ function toggleDock(dock:HTMLElement, force?:boolean) {
     }
 }
 
-function save(_renkon:HTMLElement, editorView:EditorView) {
+function save(_renkon:HTMLElement, editorView:EditorView, _programState:ProgramState) {
     const fileName = document.querySelector("#fileName")!.textContent;
     if (!fileName) {return;}
     const content = editorView.state.doc.toString();
@@ -130,11 +112,11 @@ function save(_renkon:HTMLElement, editorView:EditorView) {
     saveFile(fileName, html);
 }
 
-async function load(renkon:HTMLElement, editorView:EditorView) {
+async function load(renkon:HTMLElement, editorView:EditorView, programState:ProgramState) {
     const fileName = document.querySelector("#fileName")!.textContent;
     if (!fileName) {return;}
     const html = await loadFile(fileName);
     const content = getContentFromHTML(html);
     editorView.dispatch({changes: {from: 0, to: editorView.state.doc.length, insert: content}});
-    update(renkon, editorView);
+    update(renkon, editorView, programState);
 }

@@ -1,5 +1,5 @@
 import {JavaScriptNode, parseJavaScript} from "./javascript/parse.ts"
-import {transpileJavaScript} from "./javascript/transpile.ts"
+import {getFunctionBody, transpileJavaScript} from "./javascript/transpile.ts"
 
 import {
     ProgramState, ScriptCell, VarName, NodeId, Stream,
@@ -11,8 +11,26 @@ import {
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
 
-export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
-    (window as any).programState = state;
+export function newProgramState(startTime:number) : ProgramState {
+    return {
+        order: [],
+        nodes: new Map(),
+        streams: new Map(),
+        resolved: new Map(),
+        inputArray: new Map(),
+        outputs: new Map(),
+        time: 0,
+        startTime,
+        evaluatorRunning: 0,
+    };
+}
+
+export function evaluator(state:ProgramState) {
+    state.evaluatorRunning = window.requestAnimationFrame(() => evaluator(state));
+    evaluate(state);
+}
+
+export function setupProgram(scripts:string[], state:ProgramState) {
     const invalidatedStreamNames:Set<VarName> = new Set();
 
     // clear all output from events anyway, as re evaluation should not run a cell that depends on an event.
@@ -36,8 +54,8 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
 
     let id = 0;
     for (const script of scripts) {
-        if (!script.textContent) {continue;}
-        const nodes = parseJavaScript(script.textContent, id, false);
+        if (!script) {continue;}
+        const nodes = parseJavaScript(script, id, false);
         for (const n of nodes) {
             jsNodes.push(n);
             id++;
@@ -111,6 +129,8 @@ export function setupProgram(scripts:HTMLScriptElement[], state:ProgramState) {
 }
 
 export function evaluate(state:ProgramState) {
+    const now = Date.now();
+    state.time = now - state.startTime;
     for (let id of state.order) {
         // if (window.wasResolved) {debugger;}
         const node = state.nodes.get(id)!;
@@ -368,6 +388,21 @@ function eventBody(options:EventBodyType) {
     return returnValue;
 }
 
+
+function renkonify(func:Function) {
+    const programState = newProgramState(Date.now());
+    const {params, returnArray, output} = getFunctionBody(func.toString());
+    console.log(params, returnArray, output);
+
+    setupProgram([output], programState);
+    evaluator(programState);
+    return `(${params}) => {
+        for (p of params) {programState.resolved.set(p, p)}
+        return async generator;
+    }
+    `;
+}
+
 const Events = {
     observe: (callback:ObserveCallback) => {
         return eventBody({type: eventType, forObserve: true, callback});
@@ -393,7 +428,8 @@ const Events = {
     },
     or(...varNames:Array<VarName>) {
         return {type: orType, varNames};
-    }
+    },
+    renkonify: renkonify
 };
 
 const Behaviors = {

@@ -84,4 +84,6 @@ export type ProgramState = {
     inputArray: Map<NodeId, Array<any>>;
     outputs: Map<NodeId, any>;
     time: number;
+    startTime: number;
+    evaluatorRunning: number;
 }
