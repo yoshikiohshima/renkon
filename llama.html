@@ -32,7 +32,7 @@
           return [...a, b.value];
         });
 
-	const last = render(
+	      const last = render(
           html`<div style="display: flex; flex-direction: column">
             ${chunks.map((c) => html`<span style="border: 1px black solid">${c}</span>`)}
           </div>`, document.querySelector("#out"));
