@@ -7,20 +7,24 @@
   <body>
     <div id="renkon">
       <script type="reactive">
-        const promise = new Promise((resolve) => setTimeout(() => resolve(2000), 2000));
+        const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
+        const html = Behaviors.keep(preactModule.html);
+        const render = Behaviors.keep(preactModule.render);
+
+        const promise = new Promise((resolve) => setTimeout(() => resolve(400), 2000));
         const delay = Events.fby(200, Events.fby(200, promise, (a, b) => b), (a, b) => b);
         const b = Events.input(document.querySelector("#slider"));
         const b1 = Events.delay(b, delay);
         const b2 = Events.delay(b1, delay);
         const b3 = Events.delay(b2, delay);
         const b4 = Events.delay(b3, delay);
+
+        // You can set values this way but also use HTM (see below)
         document.querySelector("#slider1").value = b1;
         document.querySelector("#slider2").value = b2;
         document.querySelector("#slider3").value = b3;
         document.querySelector("#slider4").value = b4;
-        document.querySelector("#bar").textContent = `${[b1, b2, b3 ,b4]}`;
-        document.querySelector("#pointermove").textContent = `${pointer}`;
-        document.querySelector("#changes").textContent = `${changes}`;
+
         const pointer = Events.observe((change) => {
           const pointerMoved = (evt) => {
             change([evt.clientX, evt.clientY]);
@@ -31,25 +35,35 @@
         const changes = Events.fby(0, b, (a, c) => a + 1);
         const p1 = Events.delay(pointer, delay);
         const p2 = Events.delay(pointer, delay * 2);
-        document.querySelector("#cursor1").style.left = `${p1[0]-8}px`;
-        document.querySelector("#cursor1").style.top = `${p1[1]-8}px`;
-        document.querySelector("#cursor2").style.left = `${p2[0]-8}px`;
-        document.querySelector("#cursor2").style.top = `${p2[1]-8}px`;
 
-        const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
-        const html = Behaviors.keep(preactModule.html);
-        const render = Behaviors.keep(preactModule.render);
+        const style1 = `
+          left: ${p1[0]-8}px;
+          top: ${p1[1]-8}px;
+          background-color: red;`;
+
+        const style2 = `
+          left: ${p2[0]-8}px;
+          top: ${p2[1]-8}px;
+          background-color: green;`;
+
+        render(html`<div class="cursor" style="${style1}"></div>`, document.querySelector("#cursor1"));
+        render(html`<div class="cursor" style="${style2}"></div>`, document.querySelector("#cursor2"));
+
+        render(html`${b1}, ${b2}, ${b3} ,${b4}`, document.querySelector("#bar"));
+        render(html`${pointer}`, document.querySelector("#pointermove"));
+        render(html`${changes}`, document.querySelector("#changes"));
 
         const allChanges = Events.fby([], changes, (a, b) => {const newA = [...a, b]; if (newA.length > 30) newA.shift(); return newA;});
-	      const last = render(html`<div style="display: flex; flex-direction: column">${allChanges.map((c) => html`<span>${c}</span>`)}</div>`, document.querySelector("#out"));
+        const changesHTM = allChanges.map((c) => html`<span>${c}</span>`);
+	      const last = render(html`<div style="display: flex; flex-direction: column">${changesHTM}</div>`, document.querySelector("#out"));
       </script>
       <div id="input" style="border: 1px solid black; width:600px;margin-bottom: 16px" contenteditable></div>
       <div id="output" style="border: 1px solid brown; width:600px; height: 60px"></div>
       <div>sliders <span id="bar"></span></div>
       <div>pointermove <span id="pointermove"></span></div>
       <div>changes <span id="changes"></span></div>
-      <div id="cursor1" style="pointer-events: none; width: 16px; height: 16px; background-color: red; position: absolute"></div>
-      <div id="cursor2" style="pointer-events: none; width: 16px; height: 16px; background-color: green; position: absolute"></div>
+      <div id="cursor1" style="position: absolute; top: 0; left: 0"></div>
+      <div id="cursor2" style="position: absolute; top: 0; left: 0"></div>
       <div id="container" style="display: flex; flex-direction: column">
         <input id="slider" type="range"/>
         <input id="slider1" type="range"/>
@@ -60,6 +74,12 @@
       <div id="out" style="display: flex; flex-direction: column"></div>
       <style>
         input[type="range"] {width: 200px}
+        .cursor {
+          pointer-events: none;
+          width: 16px;
+          height: 16px;
+          position: absolute;
+        }
       </style>
     </div>
     <script type="module">
