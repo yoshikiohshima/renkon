@@ -27,9 +27,9 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   output.insertLeft(0, `, outputs: ${JSON.stringify(outputs)}`);
   output.insertLeft(0, `, inputs: ${JSON.stringify(inputs)}`);
   output.insertLeft(0, `, forceVars: ${JSON.stringify(forceVars)}`);
-  output.insertLeft(0, `define({id: "${node.id}"`); // at the moment we assume there is only one
+  output.insertLeft(0, `{id: "${node.id}"`); // at the moment we assume there is only one
   output.insertRight(node.input.length, `\nreturn {${outputs}};`);
-  output.insertRight(node.input.length, "\n}});\n");
+  output.insertRight(node.input.length, "\n}};\n");
   return String(output);
 }
 

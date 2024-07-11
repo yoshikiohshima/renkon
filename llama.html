@@ -13,7 +13,7 @@
         const render = preactModule.render;
 
         const abortHandler = Events.click("abort");
-        const abortController = Events.fby(new AbortController(), abortHandler, (a, b) => {a.abort(); return new AbortController()});
+        const abortController = Events.fby(new AbortController(), Events.or(abortHandler, $chunks), (a, b) => {a.abort(); return new AbortController()});
 
         const config = {
           params: {model: '/res/model/huggingface/local', max_tokens: 1000},
@@ -28,11 +28,11 @@
         const chunks = Events.fby([], v, (a, b) => {
           if (!b.done) return a;
           // this is odd. but we have a cycle in dependency
-          document.querySelector("#abort").click();
+          // document.querySelector("#abort").click();
           return [...a, b.value];
         });
 
-	      const last = render(
+	const last = render(
           html`<div style="display: flex; flex-direction: column">
             ${chunks.map((c) => html`<span style="border: 1px black solid">${c}</span>`)}
           </div>`, document.querySelector("#out"));

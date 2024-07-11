@@ -103,7 +103,6 @@ export function setupProgram(scripts:string[], state:ProgramState) {
         }
     }
 
-
     state.order = sorted;
     state.nodes = newNodes;
 
@@ -128,7 +127,12 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     }
 }
 
+function baseVarName(varName:VarName) {
+    return varName[0] !== "$" ? varName : varName.slice(1);
+}
+
 export function evaluate(state:ProgramState) {
+    // if (state.resolved.get("chunks")?.value.length > 0) {debugger;}
     const now = Date.now();
     state.time = now - state.startTime;
     let updated = false;
@@ -138,7 +142,7 @@ export function evaluate(state:ProgramState) {
         const isReady = ready(node, state);
         if (!isReady) {continue;}
 
-        const inputArray = node.inputs.map((inputName) => state.resolved.get(inputName)?.value);
+        const inputArray = node.inputs.map((inputName) => state.resolved.get(baseVarName(inputName))?.value);
         // if (inputArray.length > 0) {console.log("inputArray", inputArray)};
         const lastInputArray = state.inputArray.get(id);
 
@@ -334,10 +338,6 @@ export function evaluate(state:ProgramState) {
     return updated;
 }
 
-function define(spec:ScriptCell) {
-   return spec;
-}
-
 type UserEventType = "click" | "input";
 
 type ObserveCallback = (notifier:(v:any) => void) => () => void;
@@ -397,7 +397,6 @@ function eventBody(options:EventBodyType) {
 
     return returnValue;
 }
-
 
 function renkonify(func:Function) {
     const programState = newProgramState(Date.now());
@@ -467,8 +466,8 @@ const Behaviors = {
 
 function evalCode(str:string):ScriptCell {
     let code = `return ${str}`;
-    let func = new Function("define", "Events", "Behaviors", code);
-    let val = func(define, Events, Behaviors);
+    let func = new Function("Events", "Behaviors", code);
+    let val = func(Events, Behaviors);
     val.code = str;
     return val;
 }
@@ -478,7 +477,7 @@ function topologicalSort(nodes:Array<ScriptCell>) {
 
     let workNodes:Array<ScriptCellForSort> = nodes.map((node) => ({
         id: node.id,
-        inputs: [...node.inputs],
+        inputs: [...node.inputs].filter((n) => n[0] !== "$"),
         outputs: [...node.outputs],
     }));
     
@@ -544,7 +543,8 @@ function ready(node: ScriptCell, state: ProgramState) {
         }
     }
     for (const inputName of node.inputs) {
-        const resolved = state.resolved.get(inputName)?.value;
+        const varName = baseVarName(inputName);
+        const resolved = state.resolved.get(varName)?.value;
         if (resolved === undefined && !node.forceVars.includes(inputName)) {return false;}
     }
     return true;
