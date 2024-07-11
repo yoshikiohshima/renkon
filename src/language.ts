@@ -406,7 +406,9 @@ function renkonify(func:Function) {
 
     setupProgram([output], programState);
 
-
+    function generator(...args:any[]) {
+        return Events.next(renkonBody(...args));
+    }
     async function* renkonBody(...args:any[]) {
         for (let i = 0; i < params.length; i++) {
             programState.resolved.set(params[i], args[i]);
@@ -416,17 +418,16 @@ function renkonify(func:Function) {
             const result:any = {};
             if (returnArray) {
                 for (const n of returnArray) {
-                    
                     const v = programState.resolved.get(n);
                     if (v && v.value !== undefined) {
-                        result[n] = v;
+                        result[n] = v.value;
                     }
                 }
             }
             yield result;
         }
     }
-    return renkonBody;
+    return generator;
 }
 
 const Events = {

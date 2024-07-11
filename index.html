@@ -9,9 +9,11 @@
       <script type="reactive">
 	const mod = import("./lib/test.js");
 	const renkon = Events.renkonify(mod.test);
-	const obj = Events.next(renkon(x, y));
+	const obj = renkon(x, y);
   const a = obj.value.m;
   const b = obj.value.n;
+
+  console.log(a);
 
 	const x = 3;
 	const y = 4;
