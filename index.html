@@ -8,8 +8,8 @@
     <div id="renkon">
       <script type="reactive">
         const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
-        const html = Behaviors.keep(preactModule.html);
-        const render = Behaviors.keep(preactModule.render);
+        const html = preactModule.html;
+        const render = preactModule.render;
 
         const promise = new Promise((resolve) => setTimeout(() => resolve(400), 2000));
         const delay = Events.fby(200, Events.fby(200, promise, (a, b) => b), (a, b) => b);
