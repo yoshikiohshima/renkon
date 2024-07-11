@@ -21,6 +21,9 @@ function resizeHandler() {
 }
 
 export function view() {
+    const url = new URL(window.location.toString());
+    const maybeDoc = url.searchParams.get("doc");
+
     const renkon:HTMLElement = document.body.querySelector("#renkon")!;
     const programState = newProgramState(Date.now());
     (window as any).programState = programState;
@@ -32,6 +35,15 @@ export function view() {
     }
     myResizeHandler = resizeHandler;
     window.addEventListener("resize", myResizeHandler)
+
+    if (maybeDoc) {
+        document.querySelector("#fileName")!.textContent = maybeDoc;
+        load(renkon, editorView, programState);
+        if (programState.evaluatorRunning === 0) {
+            evaluator(programState);
+        }
+        return;       
+    }
 
     update(renkon, editorView, programState);
     if (programState.evaluatorRunning === 0) {
