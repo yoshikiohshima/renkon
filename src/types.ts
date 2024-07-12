@@ -17,7 +17,7 @@ export type ResolveRecord = {
 
 export const eventType = "EventType";
 export const delayType = "DelayType";
-export const fbyType = "FbyType";
+export const collectType = "CollectType";
 export const promiseType = "PromiseType";
 export const behaviorType = "BehaviorType";
 export const generatorType = "GeneratorType";
@@ -27,7 +27,7 @@ export const orType = "OrType";
 export type EventType = 
     typeof eventType |
     typeof delayType |
-    typeof fbyType |
+    typeof collectType |
     typeof promiseType |
     typeof behaviorType |
     typeof generatorType |
@@ -56,7 +56,7 @@ export interface OrEvent extends Stream {
     varNames: Array<VarName>;
 }
 
-export interface FbyStream<I, T> extends Stream {
+export interface CollectStream<I, T> extends Stream {
     init: I,
     current: I,
     updater: (c: I, v: T) => I,

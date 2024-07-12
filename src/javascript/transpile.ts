@@ -75,20 +75,25 @@ function rewriteFollowedByCalls(
   simple(body, {
     CallExpression(node) {
       const callee = node.callee;
-      if (callee.type === "MemberExpression" 
-      && callee.object.type === "Identifier"
-      && callee.object.name === "Events"
-      && callee.property.type === "Identifier") {
-        if (callee.property.name === "fby") {
-          output.insertLeft(node.arguments[1].start, '"');
-          output.insertRight(node.arguments[1].end, '"');
-        } else if (callee.property.name === "delay") {
-          output.insertLeft(node.arguments[0].start, '"');
-          output.insertRight(node.arguments[0].end, '"');
-        } else if (callee.property.name === "or") {
-          for (const arg of node.arguments) {
-            output.insertLeft(arg.start, '"');
-            output.insertRight(arg.end, '"');            
+      if (callee.type === "MemberExpression" && callee.object.type === "Identifier") {
+        if (callee.object.name === "Events") {
+          if (callee.property.type === "Identifier") {
+            if (callee.property.name === "delay") {
+              output.insertLeft(node.arguments[0].start, '"');
+              output.insertRight(node.arguments[0].end, '"');
+            } else if (callee.property.name === "or") {
+              for (const arg of node.arguments) {
+                output.insertLeft(arg.start, '"');
+                output.insertRight(arg.end, '"');            
+              }
+            }
+          }
+        } else if (callee.object.name === "Behaviors") {
+          if (callee.property.type === "Identifier") {
+            if (callee.property.name === "collect") {
+              output.insertLeft(node.arguments[1].start, '"');
+              output.insertRight(node.arguments[1].end, '"');
+            }
           }
         }
       }

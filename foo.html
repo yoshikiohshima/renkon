@@ -24,7 +24,7 @@
         const b = Events.input(document.querySelector("#slider"));
       </script>
       <script type="reactive">
-        const delay = Events.fby(200, promise, (a, b) => b);
+        const delay = Behaviors.collect(200, promise, (a, b) => b);
       </script>
       <script type="reactive">
         const promise = new Promise((resolve) => setTimeout(() => resolve(2000), 2000));
@@ -64,7 +64,7 @@
         })
       </script>
       <script type="reactive">
-        const changes = Events.fby(0, b, (a, c) => a + 1);
+        const changes = Behaviors.collect(0, b, (a, c) => a + 1);
       </script>
       <script type="reactive">
         const p1 = Events.delay(pointer, delay);

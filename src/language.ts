@@ -3,8 +3,8 @@ import {getFunctionBody, transpileJavaScript} from "./javascript/transpile.ts"
 
 import {
     ProgramState, ScriptCell, VarName, NodeId, Stream,
-    eventType, delayType, fbyType, promiseType, behaviorType, generatorType, onceType,
-    DelayedEvent, FbyStream, PromiseEvent, Behavior, EventType,
+    eventType, delayType, collectType, promiseType, behaviorType, generatorType, onceType,
+    DelayedEvent, CollectStream, PromiseEvent, Behavior, EventType,
     GeneratorEvent, OnceEvent, GenericEvent,
     orType
 } from "./types.ts"
@@ -173,7 +173,7 @@ export function evaluate(state:ProgramState) {
                     const e:PromiseEvent = {type: promiseType, promise};
                     outputs[output] = e;
                     state.streams.set(output, e);
-                } else if (maybeStream.type === fbyType) {
+                } else if (maybeStream.type === collectType) {
                     if (!state.streams.get(output)) {
                         state.streams.set(output, maybeValue);
                         updated = true;
@@ -250,10 +250,10 @@ export function evaluate(state:ProgramState) {
                         state.resolved.set(output, {value, time: state.time});
                     }
                 }
-            } else if (maybeStream.type === fbyType) {
+            } else if (maybeStream.type === collectType) {
                 // if (maybeValue.current === 1) {debugger};
                 type ArgTypes = Parameters<typeof maybeValue.updater>;
-                maybeValue = maybeValue as FbyStream<typeof maybeValue.current, ArgTypes[1]>;
+                maybeValue = maybeValue as CollectStream<typeof maybeValue.current, ArgTypes[1]>;
                 const inputIndex = node.inputs.indexOf(maybeValue.varName);
                 const inputValue = inputArray[inputIndex];
                 if (inputValue !== undefined && (!lastInputArray || inputValue !== lastInputArray[inputIndex])) {
@@ -439,9 +439,6 @@ const Events = {
     click: (dom:HTMLInputElement|string) => {
         return eventBody({type: eventType, forObserve: false, dom, eventType: "click"});
     },
-    fby<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):FbyStream<I, T> {
-        return {type: fbyType, init, updater, varName, current: init};
-    },
     delay(varName:VarName, delay: number):DelayedEvent {
         return {type: delayType, delay, varName, queue: []};
     },
@@ -461,7 +458,10 @@ const Events = {
 const Behaviors = {
     keep(value:any) {
        return value;
-    }
+    },
+    collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
+        return {type: collectType, init, updater, varName, current: init};
+    },
 }
 
 function evalCode(str:string):ScriptCell {
