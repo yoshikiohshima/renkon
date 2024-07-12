@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"> 
+    <link id="style" rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="renkon">
+      <script type="reactive">
+        const bridgeModule = import("../bridge/bridge.js");
+
+        const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
+        const html = preactModule.html;
+        const render = preactModule.render;
+        const output = document.querySelector("#output");
+        
+        const bridge = bridgeModule.bridge;
+        const e = Events.next(bridge());
+
+        const transcript = e.value.filter(entry => entry.words).map((entry) => entry.words.map((w) => w.word));
+        console.log(transcript);
+        
+        const tr = transcript.map((t) => html`<span>${t}</span>`);
+
+        render(tr, output);
+      </script>
+      <div id="output"></div>
+  </body>
+</html>
+    
