@@ -8,7 +8,6 @@ import {
     GeneratorEvent, OnceEvent, GenericEvent,
     orType,
     sendType,
-    receiverType,
     OrEvent
 } from "./types.ts"
 
@@ -158,6 +157,7 @@ export function evaluate(state:ProgramState) {
         if (change === undefined && equals(inputArray, lastInputArray)) {
             outputs = state.outputs.get(id);
         } else {
+            if (id === "reset") {debugger}
             if (change === undefined) {
                 outputs = node.body.apply(
                     state,
@@ -165,7 +165,6 @@ export function evaluate(state:ProgramState) {
                 );
             } else {
                 outputs = {[id]: {type: onceType, value: change}};
-                state.outputs.set(id, outputs);
             }
             state.inputArray.set(id, inputArray);
             for (const output in outputs) {
@@ -321,11 +320,7 @@ export function evaluate(state:ProgramState) {
                 deleted.add(varName);
             }
             if (type === onceType) {
-                const output = state.outputs.get(varName);
-                if (output && output.value !== undefined) {debugger;}
-                if (output.value) {
-                    state.outputs.get(varName).value = undefined;
-                }
+                state.outputs.delete(varName);
             }
         }
         else if (type === generatorType) {
