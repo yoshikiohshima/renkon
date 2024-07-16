@@ -6,7 +6,10 @@ import {
     eventType, delayType, collectType, promiseType, behaviorType, generatorType, onceType,
     DelayedEvent, CollectStream, PromiseEvent, Behavior, EventType,
     GeneratorEvent, OnceEvent, GenericEvent,
-    orType
+    orType,
+    sendType,
+    receiverType,
+    OrEvent
 } from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
@@ -20,6 +23,7 @@ export function newProgramState(startTime:number) : ProgramState {
         inputArray: new Map(),
         outputs: new Map(),
         time: 0,
+        changeList: new Map(),
         startTime,
         evaluatorRunning: 0,
     };
@@ -140,6 +144,8 @@ export function evaluate(state:ProgramState) {
         // if (window.wasResolved) {debugger;}
         const node = state.nodes.get(id)!;
         const isReady = ready(node, state);
+        const change = state.changeList.get(id);
+
         if (!isReady) {continue;}
 
         const inputArray = node.inputs.map((inputName) => state.resolved.get(baseVarName(inputName))?.value);
@@ -149,13 +155,18 @@ export function evaluate(state:ProgramState) {
         let bodyEvaluated = false;
 
         let outputs:{[key:string]: any};
-        if (equals(inputArray, lastInputArray)) {
+        if (change === undefined && equals(inputArray, lastInputArray)) {
             outputs = state.outputs.get(id);
         } else {
-            outputs = node.body.apply(
-                window,
-                inputArray
-            );
+            if (change === undefined) {
+                outputs = node.body.apply(
+                    state,
+                    [...inputArray, state]
+                );
+            } else {
+                outputs = {[id]: {type: onceType, value: change}};
+                state.outputs.set(id, outputs);
+            }
             state.inputArray.set(id, inputArray);
             for (const output in outputs) {
                 const maybeValue = outputs[output];
@@ -197,6 +208,12 @@ export function evaluate(state:ProgramState) {
                         state.streams.set(output, once);
                         updated = true;
                         state.resolved.set(output, {value: once.value, time: state.time});
+                    }
+                } else if (maybeStream.type === orType) {
+                    const once = maybeValue as OrEvent;
+                    if (!state.streams.get(output)) {
+                        state.streams.set(output, once);
+                        updated = true;
                     }
                 }
             }
@@ -278,6 +295,8 @@ export function evaluate(state:ProgramState) {
             } else if (maybeValue.type === promiseType) {
             } else if (maybeValue.type === generatorType) {
             } else if (maybeValue.type === onceType) {
+                updated = true;
+                state.resolved.set(output, {value: maybeValue.value, time: state.time});                
             } else {
                 let stream:Behavior = {type: behaviorType, value: maybeValue}
                 state.streams.set(output, stream)
@@ -300,6 +319,13 @@ export function evaluate(state:ProgramState) {
                 // console.log("deleting", varName);
                 state.resolved.delete(varName);
                 deleted.add(varName);
+            }
+            if (type === onceType) {
+                const output = state.outputs.get(varName);
+                if (output && output.value !== undefined) {debugger;}
+                if (output.value) {
+                    state.outputs.get(varName).value = undefined;
+                }
             }
         }
         else if (type === generatorType) {
@@ -335,6 +361,7 @@ export function evaluate(state:ProgramState) {
             }
         }
     }
+    state.changeList.clear();
     return updated;
 }
 
@@ -398,6 +425,10 @@ function eventBody(options:EventBodyType) {
     return returnValue;
 }
 
+function registerEvent(state:ProgramState, receiver:VarName, value:any){
+    state.changeList.set(receiver, value);
+}
+
 function renkonify(func:Function) {
     const programState = newProgramState(Date.now());
     const {params, returnArray, output} = getFunctionBody(func.toString());
@@ -451,6 +482,13 @@ const Events = {
     },
     or(...varNames:Array<VarName>) {
         return {type: orType, varNames};
+    },
+    send(state:ProgramState, receiver:VarName, value:any) {
+        registerEvent(state, receiver, value);
+        return {type: sendType, receiver, value};
+    },
+    receiver() {
+        return {type: onceType, value: undefined};
     },
     renkonify: renkonify
 };

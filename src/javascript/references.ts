@@ -176,8 +176,13 @@ export function findReferences(
                   forceVars.push(arg);
                 }
               }
+            } else if (callee.property.type === "Identifier" && callee.property.name === "send") {
+              const arg = node.arguments[0];
+              if (arg.type === "Identifier") {
+                forceVars.push(arg);
+              }
             }
-          } else if (callee.object.name === "Events") {
+          } else if (callee.object.name === "Behaviors") {
             if (callee.property.type === "Identifier" && callee.property.name === "collect") {
               const arg = node.arguments[1];
               if (arg.type === "Identifier") {

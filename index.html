@@ -55,7 +55,7 @@
 
         const allChanges = Behaviors.collect([], changes, (a, b) => {const newA = [...a, b]; if (newA.length > 30) newA.shift(); return newA;});
         const changesHTM = allChanges.map((c) => html`<span>${c}</span>`);
-	      const last = render(html`<div style="display: flex; flex-direction: column">${changesHTM}</div>`, document.querySelector("#out"));
+        const last = render(html`<div style="display: flex; flex-direction: column">${changesHTM}</div>`, document.querySelector("#out"));
       </script>
       <div id="input" style="border: 1px solid black; width:600px;margin-bottom: 16px" contenteditable></div>
       <div id="output" style="border: 1px solid brown; width:600px; height: 60px"></div>

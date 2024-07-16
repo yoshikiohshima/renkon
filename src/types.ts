@@ -15,6 +15,11 @@ export type ResolveRecord = {
     time: number
 }
 
+type ChangeEntry = {
+    stream: VarName,
+    value: any
+}
+
 export const eventType = "EventType";
 export const delayType = "DelayType";
 export const collectType = "CollectType";
@@ -23,6 +28,8 @@ export const behaviorType = "BehaviorType";
 export const generatorType = "GeneratorType";
 export const onceType = "OnceType";
 export const orType = "OrType";
+export const sendType = "SendType";
+export const receiverType = "ReceiveType";
 
 export type EventType = 
     typeof eventType |
@@ -32,7 +39,9 @@ export type EventType =
     typeof behaviorType |
     typeof generatorType |
     typeof onceType |
-    typeof orType;
+    typeof orType |
+    typeof sendType |
+    typeof receiverType;
 
 export interface Stream {
     type: EventType,
@@ -54,6 +63,14 @@ export interface PromiseEvent extends Stream {
 
 export interface OrEvent extends Stream {
     varNames: Array<VarName>;
+}
+
+export interface SendEvent extends Stream {
+    value: any;
+}
+
+export interface ReceiverEvent extends Stream {
+    value: any;
 }
 
 export interface CollectStream<I, T> extends Stream {
@@ -83,6 +100,7 @@ export type ProgramState = {
     resolved: Map<VarName, ResolveRecord>;
     inputArray: Map<NodeId, Array<any>>;
     outputs: Map<NodeId, any>;
+    changeList: Map<VarName, any>,
     time: number;
     startTime: number;
     evaluatorRunning: number;

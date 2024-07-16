@@ -15,6 +15,7 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   const outputs = Array.from(new Set<string>(node.declarations?.map((r) => r.name)));
   const inputs = Array.from(new Set<string>(node.references.map((r) => r.name)))
     .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
+  const additional = `${inputs.length === 0 ? "" : ", "} _state`;
   const forceVars = Array.from(new Set<string>(node.forceVars.map((r) => r.name)))
     .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
   // if (hasImportDeclaration(node.body)) async = true;
@@ -23,7 +24,7 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   // rewriteImportExpressions(output, node.body, resolveImport);
   rewriteFollowedByCalls(output, node.body);
   // rewriteFileExpressions(output, node.files, path);
-  output.insertLeft(0, `, body: (${inputs}) => {\n`);
+  output.insertLeft(0, `, body: (${inputs}${additional}) => {\n`);
   output.insertLeft(0, `, outputs: ${JSON.stringify(outputs)}`);
   output.insertLeft(0, `, inputs: ${JSON.stringify(inputs)}`);
   output.insertLeft(0, `, forceVars: ${JSON.stringify(forceVars)}`);
@@ -67,7 +68,6 @@ function getArray(returnNode: Statement) {
   return array.elements.map((e) => (e as Identifier).name);
 }
 
-
 function rewriteFollowedByCalls(
   output: Sourcemap,
   body: Node,
@@ -86,6 +86,9 @@ function rewriteFollowedByCalls(
                 output.insertLeft(arg.start, '"');
                 output.insertRight(arg.end, '"');            
               }
+            } else if (callee.property.name === "send") {
+              output.insertLeft(node.arguments[0].start, '_state, "');
+              output.insertRight(node.arguments[0].end, '"');
             }
           }
         } else if (callee.object.name === "Behaviors") {

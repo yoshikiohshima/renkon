@@ -19,8 +19,9 @@ function rewriteNestedCalls(
     const rewriteSpecs:Array<RewriteSpec> = [];
     ancestor(body, {
         CallExpression(node, ancestors:Array<Node>) {
+            const inFunction = hasFunctionDeclaration(node, ancestors);
             const isEvent = isNonTopEvent(node, ancestors);
-            if (isEvent) {
+            if (isEvent && !inFunction) {
                 rewriteSpecs.push({start: node.start, end: node.end, name: `_${baseId}_${rewriteSpecs.length}`});
             }
         }
@@ -38,4 +39,8 @@ function isNonTopEvent(node:Node, ancestors:Array<Node>) {
         && callee.property.type === "Identifier"
         && ancestors.length > 2
         && ancestors[ancestors.length - 2].type !== "VariableDeclarator";
+}
+
+function hasFunctionDeclaration(node:Node, ancestors:Array<Node>) {
+    return !!ancestors.find((a) => a.type === "ArrowFunctionExpression");
 }
