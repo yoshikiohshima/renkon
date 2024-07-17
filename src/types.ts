@@ -5,19 +5,14 @@ export type ScriptCell = {
     code: string,
     body: (...args: any[]) => Array<any>,
     id: NodeId,
-    inputs: Array<string>,
-    forceVars: Array<string>,
-    outputs: Array<string>
+    inputs: Array<VarName>,
+    forceVars: Array<VarName>,
+    outputs: VarName
 }
 
 export type ResolveRecord = {
     value: any,
     time: number
-}
-
-type ChangeEntry = {
-    stream: VarName,
-    value: any
 }
 
 export const eventType = "EventType";
@@ -30,6 +25,7 @@ export const onceType = "OnceType";
 export const orType = "OrType";
 export const sendType = "SendType";
 export const receiverType = "ReceiveType";
+export const changeType = "ChangeType";
 
 export type EventType = 
     typeof eventType |
@@ -41,24 +37,24 @@ export type EventType =
     typeof onceType |
     typeof orType |
     typeof sendType |
-    typeof receiverType;
+    typeof receiverType |
+    typeof changeType;
 
 export interface Stream {
     type: EventType,
 }
 
 export interface GenericEvent extends Stream {
-    queue: Array<ResolveRecord>,
-    cleanup?: (() => void) | null, 
+    cleanup?: (() => void) | null
 }
+
 export interface DelayedEvent extends Stream {
     delay: number,
     varName: VarName,
-    queue: Array<ResolveRecord>
 }
 
 export interface PromiseEvent extends Stream {
-    promise: Promise<any>,
+    promise: Promise<any>
 }
 
 export interface OrEvent extends Stream {
@@ -66,26 +62,15 @@ export interface OrEvent extends Stream {
 }
 
 export interface SendEvent extends Stream {
-    value: any;
 }
 
 export interface ReceiverEvent extends Stream {
-    value: any;
 }
 
 export interface CollectStream<I, T> extends Stream {
     init: I,
-    current: I,
     updater: (c: I, v: T) => I,
     varName: VarName,
-}
-
-export interface Behavior extends Stream {
-    value: any
-}
-
-export interface OnceEvent extends Stream {
-    value: any
 }
 
 export interface GeneratorEvent<T> extends Stream {
@@ -93,10 +78,29 @@ export interface GeneratorEvent<T> extends Stream {
     generator: AsyncGenerator<T>,
 }
 
+export interface ValueRecord {}
+export interface SimpleValueRecord extends ValueRecord {
+    queue: Array<ResolveRecord>,
+    cleanup?: (() => void) | null
+}
+export interface CollectRecord<I> extends ValueRecord {
+    current: I,
+}
+
+export interface PromiseRecord extends ValueRecord {
+    promise: Promise<any>
+}
+
+export interface QueueRecord extends ValueRecord {
+    queue: Array<ResolveRecord>
+    cleanup?: (() => void) | null
+}
+
 export type ProgramState = {
     order: Array<NodeId>;
     nodes: Map<NodeId, ScriptCell>;
     streams: Map<VarName, Stream>;
+    scratch: Map<VarName, ValueRecord>;
     resolved: Map<VarName, ResolveRecord>;
     inputArray: Map<NodeId, Array<any>>;
     outputs: Map<NodeId, any>;

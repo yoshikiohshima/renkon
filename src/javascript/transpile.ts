@@ -13,6 +13,7 @@ export interface TranspileOptions {
 
 export function transpileJavaScript(node: JavaScriptNode): string {
   const outputs = Array.from(new Set<string>(node.declarations?.map((r) => r.name)));
+  const only = outputs.length === 0 ? "" : outputs[0];
   const inputs = Array.from(new Set<string>(node.references.map((r) => r.name)))
     .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
   const additional = `${inputs.length === 0 ? "" : ", "} _state`;
@@ -25,11 +26,11 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   rewriteFollowedByCalls(output, node.body);
   // rewriteFileExpressions(output, node.files, path);
   output.insertLeft(0, `, body: (${inputs}${additional}) => {\n`);
-  output.insertLeft(0, `, outputs: ${JSON.stringify(outputs)}`);
+  output.insertLeft(0, `, outputs: ${JSON.stringify(only)}`);
   output.insertLeft(0, `, inputs: ${JSON.stringify(inputs)}`);
   output.insertLeft(0, `, forceVars: ${JSON.stringify(forceVars)}`);
   output.insertLeft(0, `{id: "${node.id}"`); // at the moment we assume there is only one
-  output.insertRight(node.input.length, `\nreturn {${outputs}};`);
+  output.insertRight(node.input.length, `\nreturn ${only};`);
   output.insertRight(node.input.length, "\n}};\n");
   return String(output);
 }

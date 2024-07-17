@@ -8,7 +8,11 @@ import {
     GeneratorEvent, OnceEvent, GenericEvent,
     orType,
     sendType,
-    OrEvent
+    OrEvent,
+    QueueRecord,
+    SimpleValueRecord,
+    CollectRecord,
+    changeType
 } from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
@@ -18,6 +22,7 @@ export function newProgramState(startTime:number) : ProgramState {
         order: [],
         nodes: new Map(),
         streams: new Map(),
+        scratch: new Map(),
         resolved: new Map(),
         inputArray: new Map(),
         outputs: new Map(),
@@ -41,10 +46,10 @@ export function setupProgram(scripts:string[], state:ProgramState) {
 
     for (let [varName, stream] of state.streams) {
         if (stream.type === eventType) {
-            const evt = stream as GenericEvent;
-            if (evt.cleanup && typeof evt.cleanup === "function") {
-                evt.cleanup();
-                evt.cleanup = null;
+            const scratch = state.scratch.get(varName) as SimpleValueRecord;
+            if (scratch.cleanup && typeof scratch.cleanup === "function") {
+                scratch.cleanup();
+                scratch.cleanup = null;
             }
             state.resolved.delete(varName);
             state.streams.delete(varName);
@@ -77,13 +82,13 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     state.order.forEach((nodeId) => {
         const old = state.nodes.get(nodeId);
         if (old) {
-            old.outputs.forEach((varName) => oldVariableNames.add(varName));
+            oldVariableNames.add(old.outputs);
         }
     });
 
     evaluated.forEach((cell) => {
         newNodes.set(cell.id, cell);
-        cell.outputs.forEach((varName) => newVariableNames.add(varName));
+        newVariableNames.add(cell.outputs);
     });
 
     const removedVariableNames = difference(oldVariableNames, newVariableNames);
@@ -99,7 +104,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
         const oldNode = state.nodes.get(old);
         const newNode = newNodes.get(old);
         if (newNode && oldNode && oldNode.code !== newNode.code) {
-            oldNode.outputs.forEach((out) => removedVariableNames.add(out));
+            removedVariableNames.add(oldNode.outputs);
         }
         if (!newNodes.get(old)) {
             removedNodes.add(old);
@@ -118,6 +123,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
 
     for (const nodeId of removedNodes) {
         state.outputs.delete(nodeId);
+        state.scratch.delete(nodeId);
         state.inputArray.delete(nodeId);
     }
 
@@ -126,6 +132,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
         if (stream) {
             state.resolved.delete(removed);
             state.streams.delete(removed);
+            state.scratch.delete(removed);
         }
     }
 }
@@ -153,70 +160,93 @@ export function evaluate(state:ProgramState) {
 
         let bodyEvaluated = false;
 
-        let outputs:{[key:string]: any};
+        let outputs:any;
         if (change === undefined && equals(inputArray, lastInputArray)) {
-            outputs = state.outputs.get(id);
+            outputs = state.streams.get(id)!;
         } else {
-            if (id === "reset") {debugger}
             if (change === undefined) {
                 outputs = node.body.apply(
                     state,
                     [...inputArray, state]
                 );
             } else {
-                outputs = {[id]: {type: onceType, value: change}};
+                outputs = {type: onceType, value: change};
             }
             state.inputArray.set(id, inputArray);
-            for (const output in outputs) {
-                const maybeValue = outputs[output];
-                const maybeStream:Stream = maybeValue as Stream;
-                if (maybeValue === undefined) {continue;}
-                if (maybeValue.then) {
-                    const promise = maybeValue;
-                    promise.then((value:any) => {
-                        const wasResolved = state.resolved.get(output)?.value;
-                        if (!wasResolved) {
-                            updated = true;
-                            state.resolved.set(output, {value, time: state.time});
-                        }
-                    });
-                    const e:PromiseEvent = {type: promiseType, promise};
-                    outputs[output] = e;
-                    state.streams.set(output, e);
-                } else if (maybeStream.type === collectType) {
-                    if (!state.streams.get(output)) {
-                        state.streams.set(output, maybeValue);
+            const maybeValue = outputs;
+            const maybeStream:Stream = outputs as Stream;
+            if (maybeValue === undefined) {continue;}
+            if (maybeValue.then) {
+                const promise = maybeValue;
+                promise.then((value:any) => {
+                    const wasResolved = state.resolved.get(id)?.value;
+                    if (!wasResolved) {
                         updated = true;
-                        state.resolved.set(output, {value: (maybeValue as any).init, time: state.time});
-                    } else {
-                        outputs[output] = state.streams.get(output);
+                        state.resolved.set(id, {value, time: state.time});
                     }
-                } else if (maybeStream.type === generatorType) {
-                    const promise = maybeValue.promise;
-                    promise.then((value:any) => {
-                        const wasResolved = state.resolved.get(output)?.value;
-                        if (!wasResolved) {
-                            updated = true;
-                            state.resolved.set(output, {value, time: state.time});
-                        }
-                    });
-                    state.streams.set(output, maybeValue);
-                } else if (maybeStream.type === onceType) {
-                    const once = maybeValue as OnceEvent;
-                    if (!state.streams.get(output)) {
-                        state.streams.set(output, once);
+                });
+                const e:PromiseEvent = {type: promiseType, promise};
+                state.streams.set(id, e);
+                outputs = e;
+            } else if (maybeStream.type === collectType) {
+                if (!state.scratch.get(id)) {
+                    state.streams.set(id, maybeValue);
+                    updated = true;
+                    state.resolved.set(id, {value: (maybeValue as any).init, time: state.time});
+                    state.scratch.set(id, {current: (maybeValue as any).init});
+                }
+                outputs = maybeStream;
+            } else if (maybeStream.type === generatorType) {
+                const promise = maybeValue.promise;
+                promise.then((value:any) => {
+                    const wasResolved = state.resolved.get(id)?.value;
+                    if (!wasResolved) {
                         updated = true;
-                        state.resolved.set(output, {value: once.value, time: state.time});
+                        state.resolved.set(id, {value, time: state.time});
                     }
-                } else if (maybeStream.type === orType) {
-                    const once = maybeValue as OrEvent;
-                    if (!state.streams.get(output)) {
-                        state.streams.set(output, once);
-                        updated = true;
-                    }
+                });
+                state.streams.set(id, maybeValue);
+                outputs = maybeStream;
+            } else if (maybeStream.type === onceType) {
+                const once = maybeValue as OnceEvent;
+                if (!state.streams.get(id)) {
+                    state.streams.set(id, once);
+                    updated = true;
+                    state.resolved.set(id, {value: once.value, time: state.time});
+                }
+            } else if (maybeStream.type === orType) {
+                const once = maybeValue as OrEvent;
+                if (!state.streams.get(id)) {
+                    state.streams.set(id, once);
+                    updated = true;
+                }
+            } else if (maybeStream.type === delayType) {
+                const oldStream = state.streams.get(id) as DelayedEvent;
+                if (!oldStream || 
+                    oldStream.delay !== maybeValue.delay ||
+                    oldStream.varName !== maybeValue.varName
+                ) {
+                    state.streams.set(id, maybeValue);
+                    updated = true;
+                    state.scratch.set(id, {queue: []});
+                }
+            } else if (maybeStream.type === eventType) {
+                const ev = {type: maybeValue.type};
+                state.streams.set(id, ev);
+                state.scratch.set(id, maybeValue.record);
+            } else if (maybeStream.type === changeType) {
+                const ev = {type: maybeValue.type};
+                state.streams.set(id, ev);
+                state.scratch.set(id, maybeValue.value);
+            } else {
+                let stream:Behavior = {type: behaviorType}
+                state.streams.set(id, stream);
+                const resolved = state.resolved.get(id);
+                if (!resolved || resolved.value !== maybeValue) {
+                    updated = true;
+                    state.resolved.set(id, {value: maybeValue, time: state.time});
                 }
             }
-            state.outputs.set(id, outputs);
 
             // this is where the input values are available but not equal.
             // meaning that the Event returned from Behavior.delay 
@@ -225,86 +255,63 @@ export function evaluate(state:ProgramState) {
             bodyEvaluated = true;
         }
 
-        for (const output in outputs) {
-            let maybeValue = outputs[output];
-
-            if (maybeValue === undefined) {continue;}
-
-            const maybeStream:Stream = maybeValue as Stream;
-
-            if (maybeStream.type === delayType) {
-                const oldStream = state.streams.get(output) as DelayedEvent;
-                if (!oldStream || 
-                    oldStream.delay !== maybeValue.delay ||
-                    oldStream.varName !== maybeValue.varName
-                ) {
-                    state.streams.set(output, maybeValue);
-                } else {
-                    maybeValue = oldStream;
-                }
-                maybeValue = maybeValue as DelayedEvent;
-
-                const value = spliceDelayedQueued(maybeValue, state.time);
-                // console.log("value", value);
-                if (value !== undefined) {
-                    updated = true;
-                    state.resolved.set(output, {value, time: state.time});
-                }
-                const inputIndex = node.inputs.indexOf(maybeValue.varName);
-                const myInput = inputArray[inputIndex];
-                if (bodyEvaluated && myInput !== undefined) {
-                    maybeValue.queue.push({time: state.time + maybeValue.delay, value: myInput});
-                        // state.activeTimers.add(maybeValue);
-                }
-            } else if (maybeStream.type === eventType) {
-                state.streams.set(output, maybeStream);
-                const value = getEventValue(maybeStream as GenericEvent, state.time);
-                if (value !== undefined) {
-                    const wasResolved = state.resolved.get(output)?.value;
-                    if (wasResolved === undefined) {
-                        updated = true;
-                        state.resolved.set(output, {value, time: state.time});
-                    }
-                }
-            } else if (maybeStream.type === collectType) {
-                // if (maybeValue.current === 1) {debugger};
-                type ArgTypes = Parameters<typeof maybeValue.updater>;
-                maybeValue = maybeValue as CollectStream<typeof maybeValue.current, ArgTypes[1]>;
-                const inputIndex = node.inputs.indexOf(maybeValue.varName);
-                const inputValue = inputArray[inputIndex];
-                if (inputValue !== undefined && (!lastInputArray || inputValue !== lastInputArray[inputIndex])) {
-                    const value = maybeValue.updater(maybeValue.current, inputValue);
-                    if (value !== undefined) {
-                        // this is dubious as it crosses the event/behavior type bridge.
-                        updated = true;
-                        state.resolved.set(output, {value, time: state.time});
-                        maybeValue.current = value;
-                    }
-                }
-
-            } else if (maybeValue.type === orType) {
-                for (let i = 0; i < node.inputs.length; i++) {
-                    const myInput = inputArray[i];
-                    if (myInput !== undefined) {
-                        updated = true;
-                        state.resolved.set(output, {value: myInput, time: state.time});
-                        break;
-                    }
-                }
-            } else if (maybeValue.type === promiseType) {
-            } else if (maybeValue.type === generatorType) {
-            } else if (maybeValue.type === onceType) {
+        let maybeValue = outputs;
+        if (maybeValue === undefined) {continue;}
+        const maybeStream:Stream = maybeValue as Stream;
+        if (maybeStream.type === delayType) {
+            const value = spliceDelayedQueued(state.scratch.get(id) as QueueRecord, state.time);
+            // console.log("value", value);
+            if (value !== undefined) {
                 updated = true;
-                state.resolved.set(output, {value: maybeValue.value, time: state.time});                
-            } else {
-                let stream:Behavior = {type: behaviorType, value: maybeValue}
-                state.streams.set(output, stream)
-                const resolved = state.resolved.get(output);
-                if (!resolved || resolved.value !== maybeValue) {
+                state.resolved.set(id, {value, time: state.time});
+            }
+            const inputIndex = 0; node.inputs.indexOf(maybeValue.varName);
+            const myInput = inputArray[inputIndex];
+            if (bodyEvaluated && myInput !== undefined) {
+                const scratch:QueueRecord = state.scratch.get(id) as QueueRecord;
+                scratch.queue.push({time: state.time + maybeValue.delay, value: myInput});
+                // state.activeTimers.add(maybeValue);
+            }
+        } else if (maybeStream.type === eventType) {
+            const value = getEventValue(state.scratch.get(id) as QueueRecord, state.time);
+            if (value !== undefined) {
+                updated = true;
+                state.resolved.set(id, {value, time: state.time});
+            }
+        } else if (maybeStream.type === collectType) {
+            // if (maybeValue.current === 1) {debugger};
+            type ArgTypes = Parameters<typeof maybeValue.updater>;
+            const scratch = state.scratch.get(id) as CollectRecord<ArgTypes[1]>;
+            maybeValue = maybeValue as CollectStream<typeof scratch.current, ArgTypes[1]>;
+            const inputIndex = node.inputs.indexOf(maybeValue.varName);
+            const inputValue = inputArray[inputIndex];
+            if (inputValue !== undefined && (!lastInputArray || inputValue !== lastInputArray[inputIndex])) {
+                const value = maybeValue.updater(scratch.current, inputValue);
+                if (value !== undefined) {
                     updated = true;
-                    state.resolved.set(output, {value: maybeValue, time: state.time});
+                    state.resolved.set(id, {value, time: state.time});
+                    state.scratch.set(id, {current: value});
                 }
             }
+        } else if (maybeValue.type === orType) {
+            for (let i = 0; i < node.inputs.length; i++) {
+                const myInput = inputArray[i];
+                if (myInput !== undefined) {
+                    updated = true;
+                    state.resolved.set(id, {value: myInput, time: state.time});
+                    break;
+                }
+            }
+        } else if (maybeValue.type === promiseType) {
+        } else if (maybeValue.type === generatorType) {
+        } else if (maybeValue.type === onceType) {
+            updated = true;
+            state.resolved.set(id, {value: maybeValue.value, time: state.time});   
+        } else if (maybeValue.type === changeType) {
+            updated = true;
+            state.resolved.set(id, {value: maybeValue.value, time: state.time});
+            state.scratch.set(id, inputArray[0]);
+        } else if (maybeValue.type === behaviorType) {
         }
     }
     // for all streams, check if it is an event.
@@ -313,17 +320,15 @@ export function evaluate(state:ProgramState) {
     const deleted:Set<VarName> = new Set();
     for (let [varName, stream] of state.streams) {
         const type = stream.type;
-        if (type === eventType || type === onceType || type === orType) {
+        if (type === eventType || type === onceType || type === orType || type === changeType) {
             if (state.resolved.get(varName)?.value !== undefined) {
                 // console.log("deleting", varName);
                 state.resolved.delete(varName);
-                deleted.add(varName);
+                if (type !== changeType) {
+                    deleted.add(varName);
+                }
             }
-            if (type === onceType) {
-                state.outputs.delete(varName);
-            }
-        }
-        else if (type === generatorType) {
+        } else if (type === generatorType) {
             const value = state.resolved.get(varName)?.value;
             if (value !== undefined) {
                 if (!value.done) {
@@ -374,7 +379,9 @@ type EventBodyType = {
 
 function eventBody(options:EventBodyType) {
     let {forObserve, callback, dom, type, eventType} = options;
-    let returnValue:any = {type, queue: []};
+    let record:QueueRecord = {queue:[]};
+    let returnValue:any = {type, record};
+
 
     let realDom:HTMLInputElement|undefined;
     if (typeof dom === "string") {
@@ -390,16 +397,16 @@ function eventBody(options:EventBodyType) {
     const handlers = {
         "input": (evt:any) => {
             const value = evt.target.value;
-            returnValue.queue.push({value, time: 0});
+            record.queue.push({value, time: 0});
         },
         "click": (evt:any) => {
             const value = evt.target;
-            returnValue.queue.push({value, time: 0});
+            record.queue.push({value, time: 0});
         }
     };
 
     const notifier = (value:any) => {
-        returnValue.queue.push({value, time: 0});
+        record.queue.push({value, time: 0});
     };
 
     if (realDom && !forObserve && eventType) {
@@ -407,10 +414,10 @@ function eventBody(options:EventBodyType) {
     }
 
     if (forObserve && callback) {
-        returnValue.cleanup = callback(notifier);
+        record.cleanup = callback(notifier);
     }
     if (!forObserve && dom) {
-        returnValue.cleanup = () => {
+        record.cleanup = () => {
             if (realDom && eventType) {
                 realDom.removeEventListener(eventType, handlers[eventType]);
             }
@@ -471,6 +478,9 @@ const Events = {
     once(value:any):OnceEvent{
         return {type: onceType, value};
     },
+    change(value:any):OnceEvent{
+        return {type: changeType, value};
+    },
     next<T>(generator:AsyncGenerator<T>):GeneratorEvent<T> {
         const value = generator.next();
         return {type: generatorType, promise: value, generator};
@@ -493,7 +503,7 @@ const Behaviors = {
        return value;
     },
     collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
-        return {type: collectType, init, updater, varName, current: init};
+        return {type: collectType, init, updater, varName};
     },
 }
 
@@ -511,24 +521,17 @@ function topologicalSort(nodes:Array<ScriptCell>) {
     let workNodes:Array<ScriptCellForSort> = nodes.map((node) => ({
         id: node.id,
         inputs: [...node.inputs].filter((n) => n[0] !== "$"),
-        outputs: [...node.outputs],
+        outputs: node.outputs,
     }));
     
     function hasEdge(src:ScriptCellForSort, dst:ScriptCellForSort) {
-        for (let s of src.outputs) {
-            if (dst.inputs.includes(s)) {
-                return true;
-            }
-        }
-        return false;
+        return dst.inputs.includes(src.outputs);
     }
 
     function removeEdges(src:ScriptCellForSort, dst:ScriptCellForSort) {
         let edges = [];
-        for (let srcE of src.outputs) {
-            let index = dst.inputs.indexOf(srcE);
-            if (index >= 0) {edges.push(srcE);}
-        }
+        let index = dst.inputs.indexOf(src.outputs);
+        if (index >= 0) {edges.push(src.outputs);}
 
         dst.inputs = dst.inputs.filter((input) => !edges.includes(input));
     }
@@ -569,17 +572,22 @@ function difference(oldSet:Set<VarName>, newSet:Set<VarName>) {
 }
 
 function ready(node: ScriptCell, state: ProgramState) {
-    for (const output of node.outputs) {
-        const stream = state.streams.get(output) as DelayedEvent;
-        if (stream?.type === delayType) {
-            if (stream.queue.length > 0) {return true;}
-        }
+    const output = node.outputs;
+    const stream = state.streams.get(output) as DelayedEvent;
+    if (stream?.type === delayType) {
+        const scratch:QueueRecord = state.scratch.get(output) as QueueRecord;
+        if (scratch.queue.length > 0) {return true;}
+    }
+    if (stream?.type === changeType) {
+        const resolved = state.resolved.get(baseVarName(node.inputs[0]))?.value;
+        if (resolved !== undefined && resolved === state.scratch.get(node.id)) {return false;}
     }
     for (const inputName of node.inputs) {
         const varName = baseVarName(inputName);
         const resolved = state.resolved.get(varName)?.value;
         if (resolved === undefined && !node.forceVars.includes(inputName)) {return false;}
     }
+
     return true;
 }
 
@@ -594,10 +602,10 @@ function equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>) {
     return true;
 }
 
-function spliceDelayedQueued(event:DelayedEvent, t:number) {
+function spliceDelayedQueued(record:QueueRecord, t:number) {
     let last = -1;
-    for (let i = 0; i < event.queue.length; i++) {
-        if (event.queue[i].time >= t) {
+    for (let i = 0; i < record.queue.length; i++) {
+        if (record.queue[i].time >= t) {
             break;
         }
         last = i;
@@ -606,16 +614,16 @@ function spliceDelayedQueued(event:DelayedEvent, t:number) {
         return undefined;
     }
 
-    const value = event.queue[last].value;
-    const newQueue = event.queue.slice(last + 1);
-    event.queue = newQueue;
+    const value = record.queue[last].value;
+    const newQueue = record.queue.slice(last + 1);
+    record.queue = newQueue;
     return value;
 }
 
-function getEventValue(event:GenericEvent, _t:number) {
-    if (event.queue.length >= 1) {
-        const value = event.queue[event.queue.length - 1].value;
-        event.queue = [];
+function getEventValue(record:QueueRecord, _t:number) {
+    if (record.queue.length >= 1) {
+        const value = record.queue[record.queue.length - 1].value;
+        record.queue = [];
         return value;
     }
     return undefined;
