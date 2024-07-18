@@ -4,15 +4,17 @@ import {getFunctionBody, transpileJavaScript} from "./javascript/transpile.ts"
 import {
     ProgramState, ScriptCell, VarName, NodeId, Stream,
     eventType, delayType, collectType, promiseType, behaviorType, generatorType, onceType,
-    DelayedEvent, CollectStream, PromiseEvent, Behavior, EventType,
-    GeneratorEvent, OnceEvent, GenericEvent,
+    DelayedEvent, CollectStream, PromiseEvent, EventType,
+    GeneratorEvent,
     orType,
     sendType,
     OrEvent,
     QueueRecord,
     SimpleValueRecord,
     CollectRecord,
-    changeType
+    changeType,
+    OnceEvent,
+    Behavior
 } from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
@@ -25,7 +27,6 @@ export function newProgramState(startTime:number) : ProgramState {
         scratch: new Map(),
         resolved: new Map(),
         inputArray: new Map(),
-        outputs: new Map(),
         time: 0,
         changeList: new Map(),
         startTime,
@@ -122,7 +123,6 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     }
 
     for (const nodeId of removedNodes) {
-        state.outputs.delete(nodeId);
         state.scratch.delete(nodeId);
         state.inputArray.delete(nodeId);
     }
@@ -142,7 +142,7 @@ function baseVarName(varName:VarName) {
 }
 
 export function evaluate(state:ProgramState) {
-    // if (state.resolved.get("chunks")?.value.length > 0) {debugger;}
+    // if (state.resolved.get("chun ks")?.value.length > 0) {debugger;}
     const now = Date.now();
     state.time = now - state.startTime;
     let updated = false;
@@ -473,7 +473,7 @@ const Events = {
         return eventBody({type: eventType, forObserve: false, dom, eventType: "click"});
     },
     delay(varName:VarName, delay: number):DelayedEvent {
-        return {type: delayType, delay, varName, queue: []};
+        return {type: delayType, delay, varName};
     },
     once(value:any):OnceEvent{
         return {type: onceType, value};

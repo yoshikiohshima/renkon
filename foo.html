@@ -84,3 +84,31 @@
       </script>
 
       </div>
+
+      		const entryMapper = (attrs) => {
+	  html`
+<div class="entry" data-start=${entry.span.start} data-end=${attrs.span.end}>
+  <div class="left">
+    <div class="time">${attrs.start}-${attrs.end}
+      <div class="line" style="background-color: ${attrs.lineColor}">
+        <div class="right ${attrs.isAssistant ? 'assistant' : ''}">
+          <div class=text text-teal-500 space-x-4">${attrs.speakers.length === 0 ? 'unknown' : attrs.speakers.map(s => {return html`<span class="text-${s.color}" data-speaker-id="${s.id}"</span>`>${s.name}</div>
+	  <div class="text"> lang="${attrs.lang}">${attrs.words.map(w => {
+	                    return html`<span class="${w.colors.length === 0 ? '' : 'underline decoration' data-start="${w.start}" data-end="${w.end}"></span>`;})}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+ html`
+<div class="entry" data-start=${entry.span.start} data-end=${attrs.span.end}>
+  <div class="left">
+    <div class="time">${attrs.start}-${attrs.end}</div>
+    <div class="line" style="background-color: ${attrs.lineColor}">
+      <div class="right ${attrs.isAssistant ? 'assistant' : ''}">
+      </div>
+    </div>
+  </div>
+</div>`;};

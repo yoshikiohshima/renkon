@@ -3,7 +3,7 @@ import {LocalMedia} from "./localmedia.js";
 import {CBOR} from "./cbor.js";
 
 let webSocketURL = (() => {
-  const semi = ";sessions=sp-01J2M55XM671N5THEDAMXS46K5/sessions/cq8nrcori6qs73ci3qcg"
+  const semi = ";sessions=sp-01J31N42GG5KCJG7B32AYMKKDM/sessions/cqc6ds0ri6qs73ah4f20";
   // let u = new URL(`ws://${location.host}${location.pathname}`);
   let u = new URL(`ws://substrate.home.arpa/bridge2${semi}`);
   if (window.location.protocol == "https:" || true) {

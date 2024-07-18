@@ -61,6 +61,13 @@ export interface OrEvent extends Stream {
     varNames: Array<VarName>;
 }
 
+export interface OnceEvent extends Stream {
+    value: any;
+}
+
+export interface Behavior extends Stream {
+}
+
 export interface SendEvent extends Stream {
 }
 
@@ -103,7 +110,6 @@ export type ProgramState = {
     scratch: Map<VarName, ValueRecord>;
     resolved: Map<VarName, ResolveRecord>;
     inputArray: Map<NodeId, Array<any>>;
-    outputs: Map<NodeId, any>;
     changeList: Map<VarName, any>,
     time: number;
     startTime: number;
