@@ -3,7 +3,7 @@ import {LocalMedia} from "./localmedia.js";
 import {CBOR} from "./cbor.js";
 
 let webSocketURL = (() => {
-  const semi = ";sessions=sp-01J31N42GG5KCJG7B32AYMKKDM/sessions/cqc6ds0ri6qs73ah4f20";
+  const semi = ";sessions=sp-01J339YWF6JENBZ4X85WM8S9CS/sessions/cqcjuo0ri6qs73fb78fg";
   // let u = new URL(`ws://${location.host}${location.pathname}`);
   let u = new URL(`ws://substrate.home.arpa/bridge2${semi}`);
   if (window.location.protocol == "https:" || true) {
@@ -27,7 +27,7 @@ const initSession = () => {
 };
 
 let localMedia = null;
-const initLocalMedia = () => {
+export const initLocalMedia = () => {
   if (!localMedia) {
     localMedia = new LocalMedia({
       videoSource: false,
@@ -231,11 +231,19 @@ export async function* bridge() {
   }
 }
 
+export function formatTime(time) {
+  const timeFmt = new Intl.DateTimeFormat("en-us", {timeStyle: "medium"});
+  return timeFmt.format(time);
+}
+
+/*
+
 let div = document.createElement("div");
 div.textContent = "hello";
 div.onclick = initLocalMedia;
 
 document.body.appendChild(div);
+*/
 /*
 m.mount(document.body, {
   view: () => [

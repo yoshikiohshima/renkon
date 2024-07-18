@@ -12,19 +12,20 @@
         const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
         const html = preactModule.html;
         const render = preactModule.render;
-        const output = document.querySelector("#output");
+        const entries = document.querySelector("#entries");
         
         const bridge = bridgeModule.bridge;
+        const formatTime = bridgeModule.formatTime;
         const ev = Events.next(bridge());
-	console.log(ev);
+        console.log(ev);
 
         const transcript = ev.value.map(entryMapper);
         console.log(transcript);
 
-	const entryMapper = ((html) => (attrs) => {return html`
+        const entryMapper = ((html, formatTime) => (attrs) => {return html`
 <div class="entry" data-start="${attrs.span.start}" data-end="${attrs.span.end}">
   <div class="left">
-    <div class="time">${attrs.start}-${attrs.end}</div>
+    <div class="time">${formatTime(attrs.start)} - ${formatTime(attrs.end)}</div>
   </div>
   <div class="line" style="background-color: ${attrs.lineColor}">
     <div class="right ${attrs.isAssistant ? 'assistant' : ''}">
@@ -34,37 +35,48 @@
       <div class="text ${!attrs.final ? 'text-gray-400' : 'test-slate-300'}" lang="${attrs.lang}">
          ${attrs.words.map(w => {return html`<span class="" data-start="${w.start}" data-end="${w.end}">${w.word}</span>`})}
       </div>
+      ${attrs.translations.map(translation => {
+        return html`
+          <div class="text text-cyan-500" lang="${translation.lang}">${translation.text}</div>`;
+      })}
     </div>
   </div>
-</div>`})(html);
+</div>`})(html, formatTime);
 
-        render(transcript, output);
+        render(transcript, entries);
+
+        const scroll = (() => {
+          const elt = document.getElementById("entries");
+          if (elt && elt.lastChild) {
+            elt.lastChild.scrollIntoView({ block: "end", behavior: 'smooth' })
+          }
+	})(transcript);
       </script>
-      <div class="bg-gray-900 text-white antialiased flex flex-row">
-	<div id="sidebar" class="w-64 h-screen border-r-2 border-gray-800">
-	  <div class="flex flex-wrap align-center px-6 py-4">
-	    <h1 class="py-1 text-xl font-bold grow">bridge</h1>
-	    <a id="newSession" class="py-2">
-	      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-		   viewBox="0 0 24 24" fill="none" stroke="currentColor"
-		   stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-		   class="feather feather-plus-square">
-		<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-		<line x1="12" y1="8" x2="12" y2="16"></line>
-		<line x1="8" y1="12" x2="16" y2="12"></line>
-	      </svg>
-	    </a>
-	  </div>
-	</div>
-	<div class="flex flex-col h-screen grow">
-	  <div id="topbar" class="flex flex-wrap px-6 py-4">
-	    <div class="py-1 text-xl font-bold">2024/7/17</div>
-	    <div id="mic-controls" class="flex space-x-2">
-	      <select name="mic" id="mic" class="py-2 px-3 pr-9 border border-gray-600 rounded-md text-md focus:border-blue-500 focus:ring-blue-500 bg-gray-700 text-gray-400"></select>
-	    </div>
-	  </div>
-	  <div id="output"></div>
-	</div>
+      <div class="bg-gray-900 text-white antialiased flex flex-row" style="height: 100%">
+        <div id="sidebar" class="w-64 h-screen border-r-2 border-gray-800">
+          <div class="flex flex-wrap align-center px-6 py-4">
+            <h1 class="py-1 text-xl font-bold grow">bridge</h1>
+            <a id="newSession" class="py-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                   viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                   class="feather feather-plus-square">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+              </svg>
+            </a>
+          </div>
+        </div>
+        <div class="flex flex-col grow">
+          <div id="topbar" class="flex flex-wrap px-6 py-4">
+            <div class="py-1 text-xl font-bold">2024/7/17</div>
+            <div id="mic-controls" class="flex space-x-2">
+              <select name="mic" id="mic" class="py-2 px-3 pr-9 border border-gray-600 rounded-md text-md focus:border-blue-500 focus:ring-blue-500 bg-gray-700 text-gray-400"></select>
+            </div>
+          </div>
+          <div id="entries" style="height:100%; overflow: scroll"></div>
+        </div>
       </div>
     </div>
   </body>
