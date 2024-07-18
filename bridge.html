@@ -7,14 +7,27 @@
     <div id="renkon">
       <link rel="stylesheet" href="/renkon/bridge/session.css" />
       <script type="reactive">
-        const bridgeModule = import("../bridge/bridge.js");
-
+	const bridgeModule = import("../bridge/bridge.js");
         const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
         const html = preactModule.html;
         const render = preactModule.render;
         const entries = document.querySelector("#entries");
-        
-        const bridge = bridgeModule.bridge;
+
+	const spaceHash = bridgeModule.goIntoSessions();
+	const ws = ((_s) => bridgeModule.setupDataWS())(spaceHash);
+
+	const newButton = Events.click("newSession");
+
+	const newSession = ((bridgeModule, _b) => {
+	  return bridgeModule.createNewSession().then((url) => {
+	    if (url) {
+	      return bridgeModule.initLocalMedia();
+	    }
+	    return Promise.resolve(undefined);
+	  });
+	})(bridgeModule, newButton);
+
+        const bridge = (() => bridgeModule.bridge)(spaceHash);
         const formatTime = bridgeModule.formatTime;
         const ev = Events.next(bridge());
         console.log(ev);
@@ -81,4 +94,3 @@
     </div>
   </body>
 </html>
-    

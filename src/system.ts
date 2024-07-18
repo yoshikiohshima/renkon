@@ -22,7 +22,11 @@ function resizeHandler() {
 
 export function view() {
     const url = new URL(window.location.toString());
-    const maybeDoc = url.searchParams.get("doc");
+    let maybeDoc = url.searchParams.get("doc");
+    let semi = maybeDoc.indexOf(";");
+    if (semi >= 0) {
+      maybeDoc = maybeDoc.slice(0, semi);
+    }
 
     const renkon:HTMLElement = document.body.querySelector("#renkon")!;
     const programState = newProgramState(Date.now());
