@@ -7,7 +7,7 @@
     <div id="renkon">
       <link rel="stylesheet" href="/renkon/bridge/session.css" />
       <script type="reactive">
-	      const bridgeModule = import("../bridge/bridge.js");
+        const bridgeModule = import("../bridge/bridge.js");
         const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
         const html = preactModule.html;
         const render = preactModule.render;
@@ -27,7 +27,7 @@
           return bridgeModule.createNewSession();
         })(bridgeModule, newButton); // Events.or(newButton, Events.change(spaceHash))
 
-	      const ws = ((s) => {
+              const ws = ((s) => {
           if (s) {
             console.log("webcoket");
             return bridgeModule.setupDataWS()};

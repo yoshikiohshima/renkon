@@ -35,7 +35,7 @@ function findDecls(input:string) {
     const list = (body as Program).body;
     return list.map((decl) => input.slice(decl.start, decl.end));
   } catch (error) {
-    console.log("parse error occured around", input.slice(error.pos - 30, error.pos + 30));
+    console.log(error.message, ": error around -> ", `"${input.slice(error.pos - 30, error.pos + 30)}"`);
     return [];
   }
 }
