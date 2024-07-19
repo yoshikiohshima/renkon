@@ -7,26 +7,33 @@
     <div id="renkon">
       <link rel="stylesheet" href="/renkon/bridge/session.css" />
       <script type="reactive">
-	const bridgeModule = import("../bridge/bridge.js");
+	      const bridgeModule = import("../bridge/bridge.js");
         const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
         const html = preactModule.html;
         const render = preactModule.render;
         const entries = document.querySelector("#entries");
 
-	const spaceHash = bridgeModule.goIntoSessions();
+        const spaceHash = bridgeModule.goIntoSessions();
 
-	const newButton = Events.click("newSession");
-	const newSession = ((bridgeModule, _b) => {
-	  return bridgeModule.createNewSession();
-	})(bridgeModule, newButton);
+        const newButton = Events.click("newSession");
+        const mySession = ((bridgeModule, _b) => {
+          console.log("newSession body");
+          return bridgeModule.createNewSession();
+        })(bridgeModule, Events.or(newButton, Events.change(spaceHash)));
 
-	const ws = ((_s) => bridgeModule.setupDataWS())(newSession);
+	      const ws = ((s) => {
+          if (s) {
+            console.log("webcoket");
+            return bridgeModule.setupDataWS()};
+          })(Events.change(mySession));
 
-	const localMedia = (
-	  (ws, bridgeModule, _b) => {return bridgeModule.initLocalMedia();}
-	)(ws, bridgeModule, newButton)
+	      const localMedia = (
+	        (ws, bridgeModule, _b) => {return bridgeModule.initLocalMedia();}
+	      )(ws, bridgeModule, newButton);
 
-	const myLocalMedia = ((bridgeModule) => {return bridgeModule.initLocalMedia()})(bridgeModule, Events.click("logo"))
+        const myLocalMedia = ((bridgeModule) => {
+          return bridgeModule.initLocalMedia();
+        })(bridgeModule, Events.click("logo"));
 
         const bridge = (() => bridgeModule.bridge)(ws);
         const formatTime = bridgeModule.formatTime;
@@ -37,25 +44,25 @@
         console.log(transcript);
 
         const entryMapper = ((html, formatTime) => (attrs) => {return html`
-<div class="entry" data-start="${attrs.span.start}" data-end="${attrs.span.end}">
-  <div class="left">
-    <div class="time">${formatTime(attrs.start)} - ${formatTime(attrs.end)}</div>
-  </div>
-  <div class="line" style="background-color: ${attrs.lineColor}">
-    <div class="right ${attrs.isAssistant ? 'assistant' : ''}">
-      <div class="text text-teal-500 space-x-4">
-        ${attrs.speakers.length === 0 ? 'unknown' : attrs.speakers.map(s => html`<span class="text-${s.color} data-speaker-id="${s.id}>${s.name}</span>`)}
-      </div>
-      <div class="text ${!attrs.final ? 'text-gray-400' : 'test-slate-300'}" lang="${attrs.lang}">
-         ${attrs.words.map(w => {return html`<span class="" data-start="${w.start}" data-end="${w.end}">${w.word}</span>`})}
-      </div>
-      ${attrs.translations.map(translation => {
-        return html`
-          <div class="text text-cyan-500" lang="${translation.lang}">${translation.text}</div>`;
-      })}
-    </div>
-  </div>
-</div>`})(html, formatTime);
+          <div class="entry" data-start="${attrs.span.start}" data-end="${attrs.span.end}">
+            <div class="left">
+              <div class="time">${formatTime(attrs.start)} - ${formatTime(attrs.end)}</div>
+            </div>
+            <div class="line" style="background-color: ${attrs.lineColor}">
+              <div class="right ${attrs.isAssistant ? 'assistant' : ''}">
+                <div class="text text-teal-500 space-x-4">
+                  ${attrs.speakers.length === 0 ? 'unknown' : attrs.speakers.map(s => html`<span class="text-${s.color} data-speaker-id="${s.id}>${s.name}</span>`)}
+                </div>
+              <div class="text ${!attrs.final ? 'text-gray-400' : 'test-slate-300'}" lang="${attrs.lang}">
+                ${attrs.words.map(w => {return html`<span class="" data-start="${w.start}" data-end="${w.end}">${w.word}</span>`})}
+              </div>
+                ${attrs.translations.map(translation => {
+                  return html`
+                    <div class="text text-cyan-500" lang="${translation.lang}">${translation.text}</div>`;
+                })}
+              </div>
+            </div>
+          </div>`})(html, formatTime);
 
         render(transcript, entries);
 
@@ -64,7 +71,7 @@
           if (elt && elt.lastChild) {
             elt.lastChild.scrollIntoView({ block: "end", behavior: 'smooth' })
           }
-	})(transcript);
+        })(transcript);
       </script>
       <div class="bg-gray-900 text-white antialiased flex flex-row" style="height: 100%">
         <div id="sidebar" class="w-64 h-screen border-r-2 border-gray-800">

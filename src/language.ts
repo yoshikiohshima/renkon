@@ -14,7 +14,8 @@ import {
     CollectRecord,
     changeType,
     OnceEvent,
-    Behavior
+    Behavior,
+    PromiseRecord
 } from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
@@ -177,11 +178,16 @@ export function evaluate(state:ProgramState) {
             const maybeStream:Stream = outputs as Stream;
             if (maybeValue === undefined) {continue;}
             if (maybeValue.then) {
+                const oldPromise = (state.scratch.get(id) as PromiseRecord)?.promise;
                 const promise = maybeValue;
+                if (oldPromise && promise !== oldPromise) {
+                    state.resolved.delete(id);
+                }
                 promise.then((value:any) => {
                     const wasResolved = state.resolved.get(id)?.value;
                     if (!wasResolved) {
                         updated = true;
+                        state.scratch.set(id, {promise});
                         state.resolved.set(id, {value, time: state.time});
                     }
                 });
