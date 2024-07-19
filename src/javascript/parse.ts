@@ -30,10 +30,14 @@ export interface JavaScriptNode {
 }
 
 function findDecls(input:string) {
-  const body = parseProgram(input);
-  const list = (body as Program).body;
-
-  return list.map((decl) => input.slice(decl.start, decl.end));
+  try {
+    const body = parseProgram(input);
+    const list = (body as Program).body;
+    return list.map((decl) => input.slice(decl.start, decl.end));
+  } catch (error) {
+    console.log("parse error occured around", input.slice(error.pos - 30, error.pos + 30));
+    return [];
+  }
 }
 
 /**
