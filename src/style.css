@@ -5,23 +5,6 @@ body {
     margin: 0px;
 }
 
-.subtitles {
-    position: relative;
-    color: yellow;
-    bottom: 40px;
-    left: 20px;
-    
-}
-
-.timeSlider {
-    width: 960px;
-}
-
-.topContainer {
-    display: flex;
-    width: 100%;
-}
-
 .editor {
     flex-grow: 1;
     margin-left: 20px;
@@ -40,11 +23,11 @@ body {
     background-color: white;
 }
 
-#buttonRow {
+.dock #buttonRow {
     display: flex;
 }
 
-#drawerButton {
+.dock #drawerButton {
     align-self: center;
     padding-top: 40px;
     padding-bottom: 40px;
@@ -52,11 +35,11 @@ body {
     padding-left: 8px;
 }
 
-#updateButton {
+.dock #updateButton {
     margin-left: 40px;
 }
 
-#fileName {
+.dock #fileName {
     border: 1px black solid;
     min-width: 160px;
     margin-bottom: 10px;
@@ -65,7 +48,7 @@ body {
     margin-right: 10px;
 }
 
-.button {
+.dock .button {
     margin-bottom: 10px;
     margin-top: 10px;
 }
