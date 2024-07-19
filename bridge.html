@@ -14,20 +14,21 @@
         const entries = document.querySelector("#entries");
 
 	const spaceHash = bridgeModule.goIntoSessions();
-	const ws = ((_s) => bridgeModule.setupDataWS())(spaceHash);
 
 	const newButton = Events.click("newSession");
-
 	const newSession = ((bridgeModule, _b) => {
-	  return bridgeModule.createNewSession().then((url) => {
-	    if (url) {
-	      return bridgeModule.initLocalMedia();
-	    }
-	    return Promise.resolve(undefined);
-	  });
+	  return bridgeModule.createNewSession();
 	})(bridgeModule, newButton);
 
-        const bridge = (() => bridgeModule.bridge)(spaceHash);
+	const ws = ((_s) => bridgeModule.setupDataWS())(newSession);
+
+	const localMedia = (
+	  (ws, bridgeModule, _b) => {return bridgeModule.initLocalMedia();}
+	)(ws, bridgeModule, newButton)
+
+	const myLocalMedia = ((bridgeModule) => {return bridgeModule.initLocalMedia()})(bridgeModule, Events.click("logo"))
+
+        const bridge = (() => bridgeModule.bridge)(ws);
         const formatTime = bridgeModule.formatTime;
         const ev = Events.next(bridge());
         console.log(ev);
@@ -68,7 +69,7 @@
       <div class="bg-gray-900 text-white antialiased flex flex-row" style="height: 100%">
         <div id="sidebar" class="w-64 h-screen border-r-2 border-gray-800">
           <div class="flex flex-wrap align-center px-6 py-4">
-            <h1 class="py-1 text-xl font-bold grow">bridge</h1>
+            <h1 id="logo" class="py-1 text-xl font-bold grow">bridge</h1>
             <a id="newSession" class="py-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                    viewBox="0 0 24 24" fill="none" stroke="currentColor"

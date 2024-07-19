@@ -5,7 +5,10 @@ import {CBOR} from "./cbor.js";
 function webSocketURL() {
   const loc = window.location.toString();
   const index = loc.indexOf(";");
-  const semi =  loc.slice(index);
+  let semi =  loc.slice(index);
+  if (semi.endsWith("/")) {
+    semi = semi.slice(0, semi.length - 1);
+  }
   let u = new URL(`ws://substrate.home.arpa/bridge2${semi}`);
   if (window.location.protocol == "https:" || true) {
     u.protocol = 'wss:'
