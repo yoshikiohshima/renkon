@@ -169,10 +169,13 @@
     padding-right: 1.5rem;
 }
 
+.p-2 {
+    padding: 0.5rem;
+}
+
 .font-bold {
     font-weight: 700;
 }
-
 
 .text-xl {
     font-size: 1.25rem;

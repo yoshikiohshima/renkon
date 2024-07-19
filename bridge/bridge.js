@@ -35,9 +35,6 @@ export const initLocalMedia = () => {
   if (!localMedia) {
     localMedia = new LocalMedia({
       videoSource: false,
-      ondevicechange: () => {
-        console.log("device change");
-      }, // m.redraw(),
       onstreamchange: (stream) => {
         if (micSess == null) {
           micSess = initSession();
@@ -46,7 +43,7 @@ export const initLocalMedia = () => {
       },
     });
   }
-  return localMedia;
+  return Promise.resolve(localMedia);
 };
 
 let screenMedia = null;
@@ -86,7 +83,7 @@ let colorScheme = [
   "indigo-500",
 ];
 
-const shareScreen = () => {
+export const shareScreen = () => {
   if (screenMedia) {
     screenMedia.updateStream();
     return;

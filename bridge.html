@@ -13,13 +13,19 @@
         const render = preactModule.render;
         const entries = document.querySelector("#entries");
 
+        const deviceChange = Events.receiver();
         const spaceHash = bridgeModule.goIntoSessions();
 
         const newButton = Events.click("newSession");
-        const mySession = ((bridgeModule, _b) => {
+        const muteButton = Events.click("mic-mute");
+        const systemAudioButton = Events.click("system-audio");
+
+        const audioEnabled = Behaviors.collect(true, muteButton, (a, b) => !a);
+
+        const mySession = ((bridgeModule, trigger) => {
           console.log("newSession body");
           return bridgeModule.createNewSession();
-        })(bridgeModule, Events.or(newButton, Events.change(spaceHash)));
+        })(bridgeModule, newButton); // Events.or(newButton, Events.change(spaceHash))
 
 	      const ws = ((s) => {
           if (s) {
@@ -27,12 +33,11 @@
             return bridgeModule.setupDataWS()};
           })(Events.change(mySession));
 
-	      const localMedia = (
-	        (ws, bridgeModule, _b) => {return bridgeModule.initLocalMedia();}
-	      )(ws, bridgeModule, newButton);
-
-        const myLocalMedia = ((bridgeModule) => {
-          return bridgeModule.initLocalMedia();
+        const localMedia = ((bridgeModule) => {
+          return bridgeModule.initLocalMedia().then((media) => {
+            media.ondevicechange = () => Events.send(deviceChange, media.audioDevices);
+            return media;
+          });
         })(bridgeModule, Events.click("logo"));
 
         const bridge = (() => bridgeModule.bridge)(ws);
@@ -72,6 +77,26 @@
             elt.lastChild.scrollIntoView({ block: "end", behavior: 'smooth' })
           }
         })(transcript);
+
+        const audioChange = ((localMedia) => (evt) => localMedia.setAudioSource(evt.target.value))(localMedia);
+
+        const audioSelect = ((localMedia, deviceChange) => {
+          return html`<select onchange=${audioChange} name="mic" id="mic" class="py-2 px-3 pr-9 border border-gray-600 rounded-md text-md focus:border-blue-500 focus:ring-blue-500 bg-gray-700 text-gray-400">
+            ${deviceChange.map(device => html`<option value="${device.deviceId}">${device.label}</option>`)}
+          </select>`;
+        })(localMedia, deviceChange);
+
+        const muteChange = ((localMedia, audioEnabled) => {
+          localMedia.audioEnabled = audioEnabled;
+          document.querySelector("#mic-mute").textContent = audioEnabled ? "Mute" : "Unmute";
+        })(localMedia, audioEnabled);
+
+        const systemAudioChange = ((bridgeModule, localMedia, _button) => {
+          bridgeModule.shareScreen();
+        })(bridgeModule, localMedia, systemAudioButton);
+
+        render(audioSelect, document.querySelector("#mic-container"));
+
       </script>
       <div class="bg-gray-900 text-white antialiased flex flex-row" style="height: 100%">
         <div id="sidebar" class="w-64 h-screen border-r-2 border-gray-800">
@@ -92,8 +117,11 @@
         <div class="flex flex-col grow">
           <div id="topbar" class="flex flex-wrap px-6 py-4">
             <div class="py-1 text-xl font-bold">2024/7/17</div>
+            <div class="grow">&nbsp;</div>
             <div id="mic-controls" class="flex space-x-2">
-              <select name="mic" id="mic" class="py-2 px-3 pr-9 border border-gray-600 rounded-md text-md focus:border-blue-500 focus:ring-blue-500 bg-gray-700 text-gray-400"></select>
+              <div id="mic-container"></div>
+              <button name="mic-mute" id="mic-mute" class="p-2 border border-gray-600 rounded-md text-md focus:border-blue-500 focus:ring-blue-500 bg-gray-700 text-gray-400">Mute</button>
+              <button id="system-audio" class="p-2 border border-gray-600 rounded-md text-md focus:border-blue-500 focus:ring-blue-500 bg-gray-700 text-gray-400">Send System Audio</button>
             </div>
           </div>
           <div id="entries" style="height:100%; overflow: scroll"></div>
