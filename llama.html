@@ -42,7 +42,7 @@
         const tokenId = Behaviors.collect(0, v, (old, v) => old + 1);
 
         const startPosition = Behaviors.keep(pointer);
-        const wordsTrigger = Events.or(v, Events.timer(100));
+        const wordsTrigger = Events.or(v, Events.timer(50));
         const lerp = (pe, ps, r) => {
           return [(pe[0] - ps[0]) * r + ps[0], (pe[1] - ps[1]) * r + ps[1]]; 
         }
@@ -67,8 +67,6 @@
           const result = [...acc, {startTime: time, targetTime, startPosition, currentPosition: startPosition, targetPosition, word: v.value.data.content, tokenId}];
           return result;
         }))(startPosition, output, tokenId);
-
-        words.filter((w) => w.tokenId === 1).length > 0 ? console.log(words.filter((w) => w.tokenId === 1)) : undefined;
 
         const flies = words.map((w) => html`<div key="${w.tokenId}" class="fly" style="transform: translate(${w.currentPosition[0]}px, ${w.currentPosition[1]}px)">${w.word}</div>`);
 
