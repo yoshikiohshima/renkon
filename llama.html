@@ -11,6 +11,7 @@
         const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
         const html = preactModule.html;
         const render = preactModule.render;
+        const output = document.querySelector("#output");
 
         const abortHandler = Events.click("abort");
         const abortController = Behaviors.collect(new AbortController(), Events.or(abortHandler, Events.change($chunks)), (a, b) => {console.log("reset"); a.abort(); return new AbortController()});
@@ -27,8 +28,6 @@
 
         const chunks = Behaviors.collect([], v, (a, b) => {
           if (!b.done) return a;
-          // this is odd. but we have a cycle in dependency
-          // document.querySelector("#abort").click();
           return [...a, b.value];
         });
 
@@ -40,16 +39,40 @@
           return () => {document.removeEventListener("pointermove", pointerMoved)};
         });
 
-        const startPosition = Behaviors.keep(pointer);
+        const tokenId = Behaviors.collect(0, v, (old, v) => old + 1);
 
-        const words = ((startPosition) => Behaviors.collect([], v, (acc, v) => {
+        const startPosition = Behaviors.keep(pointer);
+        const wordsTrigger = Events.or(v, Events.timer(100));
+        const lerp = (pe, ps, r) => {
+          return [(pe[0] - ps[0]) * r + ps[0], (pe[1] - ps[1]) * r + ps[1]]; 
+        }
+        const words = ((startPosition, output, tokenId) => Behaviors.collect([], wordsTrigger, (acc, v) => {
+          if (typeof v === "number") {
+            return acc.filter((elem) => elem.targetTime > v).map((elem) => {
+              const ratio = (v - elem.startTime) / 1000;
+              const currentPosition = lerp(elem.targetPosition, elem.startPosition,ratio);
+              return {
+                ...elem,
+                currentPosition,
+              }
+            });
+          }
+
           if (v.done) {return acc;}
           const time = _state.time;
           const targetTime = time + 1000;
-          const result = [...acc, {time, targetTime, startPosition, currentPosition: startPosition, word: v.value.data.content}];
-          console.log(result);
+
+          const rect = output.getBoundingClientRect();
+          const targetPosition = [rect.left, rect.bottom];
+          const result = [...acc, {startTime: time, targetTime, startPosition, currentPosition: startPosition, targetPosition, word: v.value.data.content, tokenId}];
           return result;
-        }))(startPosition);
+        }))(startPosition, output, tokenId);
+
+        words.filter((w) => w.tokenId === 1).length > 0 ? console.log(words.filter((w) => w.tokenId === 1)) : undefined;
+
+        const flies = words.map((w) => html`<div key="${w.tokenId}" class="fly" style="transform: translate(${w.currentPosition[0]}px, ${w.currentPosition[1]}px)">${w.word}</div>`);
+
+        render(html`<div>${flies}</div>`, document.querySelector("#words"));
 
 	      const last = render(
           html`<div style="display: flex; flex-direction: column">
@@ -73,11 +96,19 @@
           return () => {document.querySelector("#input").removeEventListener("keydown", keyDown)}
         });
       </script>
+      <div id="words" style="height:0px;"></div>
       <button id="abort">Abort</button>
       <div id="input" style="border: 1px solid black; width:600px" contenteditable></div>
       <div style="height: 20px;"></div>
       <div id="output" style="height: fit-content; border: 1px solid brown; width:600px; min-height: 60px"></div>
       <div id="out" style="height: fit-content; border: 1px solid brown; width:600px; min-height: 60px"></div>
+      <style>
+        .fly {
+          position: absolute;
+          top: 0px;
+          left: 0px;
+        }
+      </style>
    </div>
    <script type="module">
      import("./src/main.js").then((mod) => mod.view());
