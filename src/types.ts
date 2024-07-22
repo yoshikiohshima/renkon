@@ -17,6 +17,7 @@ export type ResolveRecord = {
 
 export const eventType = "EventType";
 export const delayType = "DelayType";
+export const timerType = "TimerType";
 export const collectType = "CollectType";
 export const promiseType = "PromiseType";
 export const behaviorType = "BehaviorType";
@@ -30,6 +31,7 @@ export const changeType = "ChangeType";
 export type EventType = 
     typeof eventType |
     typeof delayType |
+    typeof timerType |
     typeof collectType |
     typeof promiseType |
     typeof behaviorType |
@@ -51,6 +53,10 @@ export interface GenericEvent extends Stream {
 export interface DelayedEvent extends Stream {
     delay: number,
     varName: VarName,
+}
+
+export interface TimerEvent extends Stream {
+    interval: number,
 }
 
 export interface PromiseEvent extends Stream {

@@ -1,4 +1,5 @@
 export const renkonGlobals = new Set([
   "Events",
-  "Behaviors"
+  "Behaviors",
+  "_state"
 ]);

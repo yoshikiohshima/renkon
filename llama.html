@@ -32,6 +32,25 @@
           return [...a, b.value];
         });
 
+        const pointer = Events.observe((change) => {
+          const pointerMoved = (evt) => {
+            change([evt.clientX, evt.clientY]);
+          };
+          document.addEventListener("pointermove", pointerMoved);
+          return () => {document.removeEventListener("pointermove", pointerMoved)};
+        });
+
+        const startPosition = Behaviors.keep(pointer);
+
+        const words = ((startPosition) => Behaviors.collect([], v, (acc, v) => {
+          if (v.done) {return acc;}
+          const time = _state.time;
+          const targetTime = time + 1000;
+          const result = [...acc, {time, targetTime, startPosition, currentPosition: startPosition, word: v.value.data.content}];
+          console.log(result);
+          return result;
+        }))(startPosition);
+
 	      const last = render(
           html`<div style="display: flex; flex-direction: column">
             ${chunks.map((c) => html`<span style="border: 1px black solid">${c}</span>`)}
@@ -41,7 +60,7 @@
           if (b.done) return "";
           return a + b.value.data.content});
 
-        document.querySelector("#output").textContent = logged;       
+        document.querySelector("#output").textContent = Events.delay(Events.change(logged), 1000);  
 
         const enter = Events.observe((notify) => {
           const keyDown = (evt) => {

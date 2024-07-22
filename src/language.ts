@@ -15,7 +15,9 @@ import {
     changeType,
     OnceEvent,
     Behavior,
-    PromiseRecord
+    PromiseRecord,
+    TimerEvent,
+    timerType
 } from "./types.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
@@ -236,6 +238,8 @@ export function evaluate(state:ProgramState) {
                     updated = true;
                     state.scratch.set(id, {queue: []});
                 }
+            } else if (maybeStream.type === timerType) {
+                state.streams.set(id, maybeValue);
             } else if (maybeStream.type === eventType) {
                 const ev = {type: maybeValue.type};
                 state.streams.set(id, ev);
@@ -278,6 +282,11 @@ export function evaluate(state:ProgramState) {
                 scratch.queue.push({time: state.time + maybeValue.delay, value: myInput});
                 // state.activeTimers.add(maybeValue);
             }
+        } else if (maybeStream.type === timerType) {
+            const interval = (maybeStream as TimerEvent).interval;
+            const logicalTrigger = interval * Math.floor(state.time / interval);
+            state.resolved.set(id, {value: logicalTrigger, time: state.time});
+            state.scratch.set(id, logicalTrigger);
         } else if (maybeStream.type === eventType) {
             const value = getEventValue(state.scratch.get(id) as QueueRecord, state.time);
             if (value !== undefined) {
@@ -481,6 +490,9 @@ const Events = {
     delay(varName:VarName, delay: number):DelayedEvent {
         return {type: delayType, delay, varName};
     },
+    timer(interval:number):TimerEvent {
+        return {type: timerType, interval};
+    },
     once(value:any):OnceEvent{
         return {type: onceType, value};
     },
@@ -579,10 +591,16 @@ function difference(oldSet:Set<VarName>, newSet:Set<VarName>) {
 
 function ready(node: ScriptCell, state: ProgramState) {
     const output = node.outputs;
-    const stream = state.streams.get(output) as DelayedEvent;
+    const stream = state.streams.get(output);
     if (stream?.type === delayType) {
         const scratch:QueueRecord = state.scratch.get(output) as QueueRecord;
         if (scratch.queue.length > 0) {return true;}
+    }
+    if (stream?.type === timerType) {
+        const myStream = stream as TimerEvent;
+        const last = state.scratch.get(output) as number;
+        const interval = myStream.interval;
+        return last === undefined || last + interval < state.time;
     }
     if (stream?.type === changeType) {
         const resolved = state.resolved.get(baseVarName(node.inputs[0]))?.value;

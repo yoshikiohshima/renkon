@@ -27,7 +27,7 @@
           return bridgeModule.createNewSession();
         })(bridgeModule, newButton); // Events.or(newButton, Events.change(spaceHash))
 
-              const ws = ((s) => {
+        const ws = ((s) => {
           if (s) {
             console.log("webcoket");
             return bridgeModule.setupDataWS()};
@@ -43,10 +43,9 @@
         const bridge = (() => bridgeModule.bridge)(ws);
         const formatTime = bridgeModule.formatTime;
         const ev = Events.next(bridge());
-        console.log(ev);
 
         const transcript = ev.value.map(entryMapper);
-        console.log(transcript);
+        //console.log(transcript);
 
         const entryMapper = ((html, formatTime) => (attrs) => {return html`
           <div class="entry" data-start="${attrs.span.start}" data-end="${attrs.span.end}">
