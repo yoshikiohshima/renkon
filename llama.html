@@ -72,7 +72,7 @@
 
         render(html`<div>${flies}</div>`, document.querySelector("#words"));
 
-	render(
+        render(
           html`<div style="display: flex; flex-direction: column">
             ${chunks.map((c) => html`<span class="log">${c}</span>`)}
           </div>`, document.querySelector("#out"));
@@ -86,8 +86,8 @@
         const enter = Events.observe((notify) => {
           const keyDown = (evt) => {
             if (evt.key === "Enter") {
-	      evt.preventDefault();
-	      evt.stopPropagation();
+              evt.preventDefault();
+              evt.stopPropagation();
               console.log("enter");
               notify(evt.target.textContent);
             }
@@ -97,65 +97,65 @@
         });
       </script>
       <div id="words" style="height:0px;"></div>
-      <div id="inputRow">
-	<div id="input" style="border: 1px solid black; width:600px" contenteditable></div>
-	<button id="abort">X</button>
-      </div>
       <div style="height: 20px;"></div>
-      <div id="output"></div>
       <div id="out"></div>
+      <div id="output"></div>
+      <div id="inputRow">
+        <div id="input" style="border: 1px solid black; width:600px" contenteditable></div>
+        <button id="abort">X</button>
+      </div>
       <style>
-	#inputRow {
-	    display:flex;
-	    align-items: center;
-	}
+        #inputRow {
+            display:flex;
+            align-items: center;
+        }
         #input {
             border: 1px solid #ddd;
             border-radius: 24px;
             width:600px;
             min-height: 48px;
             height: fit-content;
-	    padding: 10px;
+            padding: 10px;
             padding-right: 40px;
-	}
+        }
 
-	#abort {
-	    border-radius: 50%;
-	    border: 1px outset #888;
-	    width: 24px;
-	    height: 24px;
-	    position: relative;
-	    left: -36px;
-	}
+        #abort {
+            border-radius: 50%;
+            border: 1px outset #888;
+            width: 24px;
+            height: 24px;
+            position: relative;
+            left: -36px;
+        }
 
-	#output {
-	    border: 1px solid #eee;
-	    border-radius: 24px;
-	    width: 600px;
-	    min-height: 48px;
-	    height: fit-content;
-	    padding: 10px;
+        #output {
+            border: 1px solid #eee;
+            border-radius: 24px;
+            width: 600px;
+            min-height: 48px;
+            height: fit-content;
+            padding: 10px;
             padding-right: 40px;
-	}
+        }
 
-	#out {
-	    width: 600px;
-	    min-height: 48px;
-	    height: fit-content;
-	    padding-top: 10px;
-	}
+        #out {
+            width: 600px;
+            min-height: 48px;
+            height: fit-content;
+            padding-top: 10px;
+        }
 
-	.log {
-	    border: 1px solid #eee;
-	    border-radius: 24px;
-	    background-color:#eee;
-	    width: 600px;
-	    min-height: 48px;
-	    height: fit-content;
-	    padding: 10px;
+        .log {
+            border: 1px solid #eee;
+            border-radius: 24px;
+            background-color:#eee;
+            width: 600px;
+            min-height: 48px;
+            height: fit-content;
+            padding: 10px;
             padding-right: 40px;
-	}
-	
+        }
+        
         .fly {
           position: absolute;
           top: 0px;
