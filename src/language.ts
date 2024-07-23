@@ -48,7 +48,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     // clear all output from events anyway, as re evaluation should not run a cell that depends on an event.
     // This should not be necessary if the DOM element that an event listener is attached stays the same.
 
-    for (let [varName, stream] of state.streams) {
+    for (const [varName, stream] of state.streams) {
         if (stream.type === eventType) {
             const scratch = state.scratch.get(varName) as SimpleValueRecord;
             if (scratch.cleanup && typeof scratch.cleanup === "function") {
@@ -57,7 +57,16 @@ export function setupProgram(scripts:string[], state:ProgramState) {
             }
             state.resolved.delete(varName);
             state.streams.delete(varName);
+            state.inputArray.delete(varName);
             invalidatedStreamNames.add(varName);
+        }
+    }
+
+    // this is a terrible special case hack to render something after live edit
+    for (const [varName, node] of state.nodes) {
+        if (node.inputs.includes("render")) {
+            debugger;
+            state.inputArray.delete(varName);
         }
     }
 
@@ -80,38 +89,19 @@ export function setupProgram(scripts:string[], state:ProgramState) {
 
     const newNodes = new Map<NodeId, ScriptCell>();
 
-    const oldVariableNames:Set<VarName> = new Set();
-    const newVariableNames:Set<VarName> = new Set();
-
-    state.order.forEach((nodeId) => {
-        const old = state.nodes.get(nodeId);
-        if (old) {
-            oldVariableNames.add(old.outputs);
-        }
-    });
-
-    evaluated.forEach((cell) => {
-        newNodes.set(cell.id, cell);
-        newVariableNames.add(cell.outputs);
-    });
-
-    const removedVariableNames = difference(oldVariableNames, newVariableNames);
-    const removedNodes:Set<NodeId> = new Set(state.order);
-
-    for (const old of state.order) {
-        if (!newNodes.get(old)) {
-            removedNodes.add(old);
-        }
+    for (const newNode of evaluated) {
+        newNodes.set(newNode.id, newNode);
     }
+
+    const oldVariableNames:Set<VarName> = new Set(state.order);
+    const newVariableNames:Set<VarName> = new Set(sorted);
+    const removedVariableNames = difference(oldVariableNames, newVariableNames);
 
     for (const old of state.order) {
         const oldNode = state.nodes.get(old);
         const newNode = newNodes.get(old);
         if (newNode && oldNode && oldNode.code !== newNode.code) {
-            removedVariableNames.add(oldNode.outputs);
-        }
-        if (!newNodes.get(old)) {
-            removedNodes.add(old);
+            invalidatedStreamNames.add(old);
         }
     }
 
@@ -123,11 +113,6 @@ export function setupProgram(scripts:string[], state:ProgramState) {
         if (invalidatedInput(newNode, invalidatedStreamNames)) {
             state.inputArray.delete(newNode.id);
         }
-    }
-
-    for (const nodeId of removedNodes) {
-        state.scratch.delete(nodeId);
-        state.inputArray.delete(nodeId);
     }
 
     for (const removed of removedVariableNames) {

@@ -31,7 +31,7 @@
           return [...a, b.value];
         });
 
-	const delayedChunks = Behaviors.keep(Events.delay(Events.change(chunks), 1000));
+        const delayedChunks = Behaviors.keep(Events.delay(Events.change(chunks), 1000));
 
         const pointer = Events.observe((change) => {
           const pointerMoved = (evt) => {
@@ -68,7 +68,7 @@
           const targetPosition = [rect.left, rect.bottom + window.scrollY];
           const result = [...acc, {startTime: time, targetTime, startPosition, currentPosition: startPosition, targetPosition, word: v.value.data.content, tokenId}];
           return result;
-        }))(startPosition, output, tokenId);
+        }))(startPosition, document.querySelector("#output"), tokenId);
 
         const flies = words.map((w) => html`<div key="${w.tokenId}" class="fly" style="transform: translate(${w.currentPosition[0]}px, ${w.currentPosition[1]}px)">${w.word}</div>`);
 
@@ -83,7 +83,7 @@
           if (b.done) return "";
           return a + b.value.data.content});
 
-        output.textContent = Events.delay(Events.change(logged), 1000);  
+        document.querySelector("#output").textContent = Events.delay(Events.change(logged), 1000);  
 
         const enter = Events.observe((notify) => {
           const keyDown = (evt) => {
