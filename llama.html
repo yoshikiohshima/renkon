@@ -33,7 +33,7 @@
 
         const pointer = Events.observe((change) => {
           const pointerMoved = (evt) => {
-            change([evt.clientX, evt.clientY]);
+            change([evt.clientX, evt.clientY + window.scrollY]);
           };
           document.addEventListener("pointermove", pointerMoved);
           return () => {document.removeEventListener("pointermove", pointerMoved)};
@@ -63,7 +63,7 @@
           const targetTime = time + 1000;
 
           const rect = output.getBoundingClientRect();
-          const targetPosition = [rect.left, rect.bottom];
+          const targetPosition = [rect.left, rect.bottom + window.scrollY];
           const result = [...acc, {startTime: time, targetTime, startPosition, currentPosition: startPosition, targetPosition, word: v.value.data.content, tokenId}];
           return result;
         }))(startPosition, output, tokenId);
