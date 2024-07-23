@@ -74,7 +74,7 @@
 
         render(
           html`<div style="display: flex; flex-direction: column">
-            ${chunks.map((c) => html`<span class="log">${c}</span>`)}
+            ${chunks.map((c) => html`<div class="log">${c}</div>`)}
           </div>`, document.querySelector("#out"));
 
         const logged = Behaviors.collect("", v, (a, b) => {
@@ -110,13 +110,15 @@
             align-items: center;
         }
         #input {
-            border: 1px solid #ddd;
+            border: 1px solid #aaa;
             border-radius: 24px;
+            background-color: #eee;
             width:600px;
             min-height: 48px;
             height: fit-content;
             padding: 10px;
             padding-right: 40px;
+            margin-top: 20px;
         }
 
         #abort {
@@ -148,12 +150,13 @@
         .log {
             border: 1px solid #eee;
             border-radius: 24px;
-            background-color:#eee;
+            background-color:#e8e8e8;
             width: 600px;
             min-height: 48px;
             height: fit-content;
             padding: 10px;
             padding-right: 40px;
+            margin-top: 5px;
         }
         
         .fly {

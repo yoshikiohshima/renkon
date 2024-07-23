@@ -594,7 +594,7 @@ function ready(node: ScriptCell, state: ProgramState) {
     const stream = state.streams.get(output);
     if (stream?.type === delayType) {
         const scratch:QueueRecord = state.scratch.get(output) as QueueRecord;
-        if (scratch.queue.length > 0) {return true;}
+        if (scratch?.queue.length > 0) {return true;}
     }
     if (stream?.type === timerType) {
         const myStream = stream as TimerEvent;
