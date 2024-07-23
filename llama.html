@@ -31,6 +31,8 @@
           return [...a, b.value];
         });
 
+	const delayedChunks = Behaviors.keep(Events.delay(Events.change(chunks), 1000));
+
         const pointer = Events.observe((change) => {
           const pointerMoved = (evt) => {
             change([evt.clientX, evt.clientY + window.scrollY]);
@@ -74,7 +76,7 @@
 
         render(
           html`<div style="display: flex; flex-direction: column">
-            ${chunks.map((c) => html`<div class="log">${c}</div>`)}
+            ${delayedChunks.map((c) => html`<div class="log">${c}</div>`)}
           </div>`, document.querySelector("#out"));
 
         const logged = Behaviors.collect("", v, (a, b) => {
@@ -101,7 +103,7 @@
       <div id="out"></div>
       <div id="output"></div>
       <div id="inputRow">
-        <div id="input" style="border: 1px solid black; width:600px" contenteditable></div>
+        <div id="input" contenteditable></div>
         <button id="abort">X</button>
       </div>
       <style>
