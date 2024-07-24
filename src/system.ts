@@ -1,8 +1,8 @@
 import { basicSetup, EditorView } from "codemirror"
 //import { html, htmlLanguage } from "https://esm.sh/@codemirror/lang-html@v6.4.9"
 //import { javascript } from "https://esm.sh/@codemirror/lang-javascript@v6.0.1"
-import {setupProgram, newProgramState, evaluator} from "./language";
-import {ProgramState} from "./types";
+import {setupProgram, evaluator} from "./language";
+import {ProgramState} from "./combinators";
 import { getContentFromHTML, loadFile, makeHTMLFromContent, saveFile } from "./load";
 
 let myResizeHandler: (() => void) | null;
@@ -32,7 +32,7 @@ export function view() {
     }
 
     const renkon:HTMLElement = document.body.querySelector("#renkon")!;
-    const programState = newProgramState(Date.now());
+    const programState = new ProgramState(Date.now());
     (window as any).programState = programState;
     let {dock, editorView} = createEditorDock(renkon, programState);
     document.body.appendChild(dock);

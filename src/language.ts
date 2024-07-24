@@ -3,39 +3,21 @@ import {getFunctionBody, transpileJavaScript} from "./javascript/transpile.ts"
 
 import {
     ProgramState, ScriptCell, VarName, NodeId, Stream,
-    eventType, delayType, collectType, promiseType, behaviorType, generatorType, onceType,
+    eventType, generatorType, onceType,
     DelayedEvent, CollectStream, PromiseEvent, EventType,
     GeneratorEvent,
     orType,
     sendType,
-    OrEvent,
     QueueRecord,
-    SimpleValueRecord,
-    CollectRecord,
     changeType,
-    OnceEvent,
     Behavior,
-    PromiseRecord,
     TimerEvent,
-    timerType
-} from "./types.ts"
+    ChangeEvent,
+    ReceiverEvent,
+    UserEvent
+} from "./combinators.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
-
-export function newProgramState(startTime:number) : ProgramState {
-    return {
-        order: [],
-        nodes: new Map(),
-        streams: new Map(),
-        scratch: new Map(),
-        resolved: new Map(),
-        inputArray: new Map(),
-        time: 0,
-        changeList: new Map(),
-        startTime,
-        evaluatorRunning: 0,
-    };
-}
 
 export function evaluator(state:ProgramState) {
     state.evaluatorRunning = window.requestAnimationFrame(() => evaluator(state));
@@ -49,11 +31,11 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     // This should not be necessary if the DOM element that an event listener is attached stays the same.
 
     for (const [varName, stream] of state.streams) {
-        if (stream.type === eventType) {
-            const scratch = state.scratch.get(varName) as SimpleValueRecord;
+        if (stream._streamType === eventType) {
+            const scratch = state.scratch.get(varName) as QueueRecord;
             if (scratch.cleanup && typeof scratch.cleanup === "function") {
                 scratch.cleanup();
-                scratch.cleanup = null;
+                scratch.cleanup = undefined;
             }
             state.resolved.delete(varName);
             state.streams.delete(varName);
@@ -65,7 +47,6 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     // this is a terrible special case hack to render something after live edit
     for (const [varName, node] of state.nodes) {
         if (node.inputs.includes("render")) {
-            debugger;
             state.inputArray.delete(varName);
         }
     }
@@ -93,6 +74,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
         newNodes.set(newNode.id, newNode);
     }
 
+    // nested ones also have to be checked?
     const oldVariableNames:Set<VarName> = new Set(state.order);
     const newVariableNames:Set<VarName> = new Set(sorted);
     const removedVariableNames = difference(oldVariableNames, newVariableNames);
@@ -130,12 +112,10 @@ function baseVarName(varName:VarName) {
 }
 
 export function evaluate(state:ProgramState) {
-    // if (state.resolved.get("chun ks")?.value.length > 0) {debugger;}
     const now = Date.now();
     state.time = now - state.startTime;
     let updated = false;
     for (let id of state.order) {
-        // if (window.wasResolved) {debugger;}
         const node = state.nodes.get(id)!;
         const isReady = ready(node, state);
         const change = state.changeList.get(id);
@@ -143,13 +123,10 @@ export function evaluate(state:ProgramState) {
         if (!isReady) {continue;}
 
         const inputArray = node.inputs.map((inputName) => state.resolved.get(baseVarName(inputName))?.value);
-        // if (inputArray.length > 0) {console.log("inputArray", inputArray)};
         const lastInputArray = state.inputArray.get(id);
 
-        let bodyEvaluated = false;
-
         let outputs:any;
-        if (change === undefined && equals(inputArray, lastInputArray)) {
+        if (change === undefined && state.equals(inputArray, lastInputArray)) {
             outputs = state.streams.get(id)!;
         } else {
             if (change === undefined) {
@@ -162,26 +139,21 @@ export function evaluate(state:ProgramState) {
             }
             state.inputArray.set(id, inputArray);
             const maybeValue = outputs;
-            const maybeStream:Stream = outputs as Stream;
             if (maybeValue === undefined) {continue;}
             if (maybeValue.then) {
-                const oldPromise = (state.scratch.get(id) as PromiseRecord)?.promise;
-                const promise = maybeValue;
-                if (oldPromise && promise !== oldPromise) {
-                    state.resolved.delete(id);
-                }
-                promise.then((value:any) => {
-                    const wasResolved = state.resolved.get(id)?.value;
-                    if (!wasResolved) {
-                        updated = true;
-                        state.scratch.set(id, {promise});
-                        state.resolved.set(id, {value, time: state.time});
-                    }
-                });
-                const e:PromiseEvent = {type: promiseType, promise};
-                state.streams.set(id, e);
-                outputs = e;
-            } else if (maybeStream.type === collectType) {
+                const ev = new PromiseEvent<any>(maybeValue);
+                const [newStream, streamUpdated] = ev.created(state, id); 
+                state.streams.set(id, newStream);
+                outputs = newStream;
+                updated = streamUpdated;
+            } else if (maybeValue._streamType) {
+                const [newStream, streamUpdated] = maybeValue.created(state, id);
+                state.streams.set(id, newStream);
+                updated = streamUpdated;
+                outputs = newStream;
+            /*
+            } else if (maybeValue._streamType) {
+                maybeValue.created(state);
                 if (!state.scratch.get(id)) {
                     state.streams.set(id, maybeValue);
                     updated = true;
@@ -200,13 +172,6 @@ export function evaluate(state:ProgramState) {
                 });
                 state.streams.set(id, maybeValue);
                 outputs = maybeStream;
-            } else if (maybeStream.type === onceType) {
-                const once = maybeValue as OnceEvent;
-                if (!state.streams.get(id)) {
-                    state.streams.set(id, once);
-                    updated = true;
-                    state.resolved.set(id, {value: once.value, time: state.time});
-                }
             } else if (maybeStream.type === orType) {
                 const once = maybeValue as OrEvent;
                 if (!state.streams.get(id)) {
@@ -233,26 +198,24 @@ export function evaluate(state:ProgramState) {
                 const ev = {type: maybeValue.type};
                 state.streams.set(id, ev);
                 state.scratch.set(id, maybeValue.value);
+                */
             } else {
-                let stream:Behavior = {type: behaviorType}
+                let stream:Behavior = new Behavior();//{type: behaviorType}
                 state.streams.set(id, stream);
                 const resolved = state.resolved.get(id);
                 if (!resolved || resolved.value !== maybeValue) {
                     updated = true;
                     state.resolved.set(id, {value: maybeValue, time: state.time});
                 }
+                outputs = stream;
             }
-
-            // this is where the input values are available but not equal.
-            // meaning that the Event returned from Behavior.delay 
-            // can say when it wants to be triggered
-
-            bodyEvaluated = true;
         }
 
-        let maybeValue = outputs;
-        if (maybeValue === undefined) {continue;}
-        const maybeStream:Stream = maybeValue as Stream;
+        if (outputs === undefined) {continue;}
+        const evStream:Stream = outputs as Stream;
+        let evUpdated = evStream.evaluate(state, node, inputArray, lastInputArray);
+        updated = updated || evUpdated;
+        /*
         if (maybeStream.type === delayType) {
             const value = spliceDelayedQueued(state.scratch.get(id) as QueueRecord, state.time);
             // console.log("value", value);
@@ -262,10 +225,9 @@ export function evaluate(state:ProgramState) {
             }
             const inputIndex = 0; node.inputs.indexOf(maybeValue.varName);
             const myInput = inputArray[inputIndex];
-            if (bodyEvaluated && myInput !== undefined) {
+            if (myInput !== undefined) {
                 const scratch:QueueRecord = state.scratch.get(id) as QueueRecord;
                 scratch.queue.push({time: state.time + maybeValue.delay, value: myInput});
-                // state.activeTimers.add(maybeValue);
             }
         } else if (maybeStream.type === timerType) {
             const interval = (maybeStream as TimerEvent).interval;
@@ -279,7 +241,6 @@ export function evaluate(state:ProgramState) {
                 state.resolved.set(id, {value, time: state.time});
             }
         } else if (maybeStream.type === collectType) {
-            // if (maybeValue.current === 1) {debugger};
             type ArgTypes = Parameters<typeof maybeValue.updater>;
             const scratch = state.scratch.get(id) as CollectRecord<ArgTypes[1]>;
             maybeValue = maybeValue as CollectStream<typeof scratch.current, ArgTypes[1]>;
@@ -313,13 +274,15 @@ export function evaluate(state:ProgramState) {
             state.scratch.set(id, inputArray[0]);
         } else if (maybeValue.type === behaviorType) {
         }
+            */
     }
+
     // for all streams, check if it is an event.
     // if it is resolved, its promise and resolved will be cleared
 
     const deleted:Set<VarName> = new Set();
     for (let [varName, stream] of state.streams) {
-        const type = stream.type;
+        const type = stream._streamType;
         if (type === eventType || type === onceType || type === orType || type === changeType) {
             if (state.resolved.get(varName)?.value !== undefined) {
                 // console.log("deleting", varName);
@@ -337,8 +300,8 @@ export function evaluate(state:ProgramState) {
                     promise.then((value:any) => {
                         const wasResolved = state.resolved.get(varName)?.value;
                         if (!wasResolved) {
-                            updated = true;
                             // probably wrong to set a flag outside from within a promise handler
+                            updated = true;
                             state.resolved.set(varName, {value, time: state.time});
                         }
                     });
@@ -378,10 +341,8 @@ type EventBodyType = {
 };
 
 function eventBody(options:EventBodyType) {
-    let {forObserve, callback, dom, type, eventType} = options;
+    let {forObserve, callback, dom, eventType} = options;
     let record:QueueRecord = {queue:[]};
-    let returnValue:any = {type, record};
-
 
     let realDom:HTMLInputElement|undefined;
     if (typeof dom === "string") {
@@ -424,7 +385,7 @@ function eventBody(options:EventBodyType) {
         }
     }
 
-    return returnValue;
+    return new UserEvent(record);;
 }
 
 function registerEvent(state:ProgramState, receiver:VarName, value:any){
@@ -432,7 +393,7 @@ function registerEvent(state:ProgramState, receiver:VarName, value:any){
 }
 
 function renkonify(func:Function) {
-    const programState = newProgramState(Date.now());
+    const programState =  new ProgramState(Date.now());
     const {params, returnArray, output} = getFunctionBody(func.toString());
     console.log(params, returnArray, output);
 
@@ -473,20 +434,17 @@ const Events = {
         return eventBody({type: eventType, forObserve: false, dom, eventType: "click"});
     },
     delay(varName:VarName, delay: number):DelayedEvent {
-        return {type: delayType, delay, varName};
+        return new DelayedEvent(delay, varName);
     },
     timer(interval:number):TimerEvent {
-        return {type: timerType, interval};
+        return new TimerEvent(interval);
     },
-    once(value:any):OnceEvent{
-        return {type: onceType, value};
-    },
-    change(value:any):OnceEvent{
-        return {type: changeType, value};
+    change(value:any):ChangeEvent{
+        return new ChangeEvent(value);
     },
     next<T>(generator:AsyncGenerator<T>):GeneratorEvent<T> {
         const value = generator.next();
-        return {type: generatorType, promise: value, generator};
+        return new GeneratorEvent(value, generator);//{type: generatorType, promise: value, generator};
     },
     or(...varNames:Array<VarName>) {
         return {type: orType, varNames};
@@ -496,7 +454,7 @@ const Events = {
         return {type: sendType, receiver, value};
     },
     receiver() {
-        return {type: onceType, value: undefined};
+        return new ReceiverEvent();
     },
     renkonify: renkonify
 };
@@ -506,7 +464,7 @@ const Behaviors = {
        return value;
     },
     collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
-        return {type: collectType, init, updater, varName};
+        return new CollectStream(init, varName, updater);
     },
 }
 
@@ -577,6 +535,24 @@ function difference(oldSet:Set<VarName>, newSet:Set<VarName>) {
 function ready(node: ScriptCell, state: ProgramState) {
     const output = node.outputs;
     const stream = state.streams.get(output);
+
+    const defaultReady = (node: ScriptCell, state: ProgramState) => {
+        for (const inputName of node.inputs) {
+            const varName = baseVarName(inputName);
+            const resolved = state.resolved.get(varName)?.value;
+            if (resolved === undefined && !node.forceVars.includes(inputName)) {return false;}
+        }
+        return true;
+    }
+
+    if (stream) {
+        return stream.ready(node, state, defaultReady);
+    }
+
+    return defaultReady(node, state);
+}
+/*
+
     if (stream?.type === delayType) {
         const scratch:QueueRecord = state.scratch.get(output) as QueueRecord;
         if (scratch?.queue.length > 0) {return true;}
@@ -599,6 +575,9 @@ function ready(node: ScriptCell, state: ProgramState) {
 
     return true;
 }
+*/
+
+/*
 
 function equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>) {
     if (!Array.isArray(aArray) || !Array.isArray(bArray)) {return false;}
@@ -637,3 +616,4 @@ function getEventValue(record:QueueRecord, _t:number) {
     }
     return undefined;
 }
+*/
