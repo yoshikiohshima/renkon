@@ -3,19 +3,18 @@ import {getFunctionBody, transpileJavaScript} from "./javascript/transpile.ts"
 
 import {
     ProgramState, ScriptCell, VarName, NodeId, Stream,
-    eventType, generatorType, onceType,
+    eventType,
     DelayedEvent, CollectStream, PromiseEvent, EventType,
     GeneratorEvent,
-    orType,
     QueueRecord,
-    changeType,
     Behavior,
     TimerEvent,
     ChangeEvent,
     ReceiverEvent,
     UserEvent,
     SendEvent,
-    OrEvent
+    OrEvent,
+    typeKey,
 } from "./combinators.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
@@ -32,7 +31,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     // This should not be necessary if the DOM element that an event listener is attached stays the same.
 
     for (const [varName, stream] of state.streams) {
-        if (stream._streamType === eventType) {
+        if (stream[typeKey] === eventType) {
             const scratch = state.scratch.get(varName) as QueueRecord;
             if (scratch.cleanup && typeof scratch.cleanup === "function") {
                 scratch.cleanup();
@@ -108,14 +107,10 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     }
 }
 
-function baseVarName(varName:VarName) {
-    return varName[0] !== "$" ? varName : varName.slice(1);
-}
-
 export function evaluate(state:ProgramState) {
     const now = Date.now();
     state.time = now - state.startTime;
-    let updated = false;
+    state.updated = false;
     for (let id of state.order) {
         const node = state.nodes.get(id)!;
         const isReady = state.ready(node);
@@ -123,7 +118,7 @@ export function evaluate(state:ProgramState) {
 
         if (!isReady) {continue;}
 
-        const inputArray = node.inputs.map((inputName) => state.resolved.get(baseVarName(inputName))?.value);
+        const inputArray = node.inputs.map((inputName) => state.resolved.get(state.baseVarName(inputName))?.value);
         const lastInputArray = state.inputArray.get(id);
 
         let outputs:any;
@@ -136,38 +131,30 @@ export function evaluate(state:ProgramState) {
                     [...inputArray, state]
                 );
             } else {
-                outputs = {type: onceType, value: change};
+                outputs = new ReceiverEvent(change);
             }
             state.inputArray.set(id, inputArray);
             const maybeValue = outputs;
             if (maybeValue === undefined) {continue;}
-            if (maybeValue.then) {
-                const ev = new PromiseEvent<any>(maybeValue);
-                const [newStream, streamUpdated] = ev.created(state, id); 
+            if (maybeValue.then || maybeValue[typeKey]) {
+                const ev = maybeValue.then ? new PromiseEvent<any>(maybeValue) : maybeValue;
+                const newStream = ev.created(state, id);
                 state.streams.set(id, newStream);
-                outputs = newStream;
-                updated = streamUpdated;
-            } else if (maybeValue._streamType) {
-                const [newStream, streamUpdated] = maybeValue.created(state, id);
-                state.streams.set(id, newStream);
-                updated = streamUpdated;
                 outputs = newStream;
             } else {
-                let stream:Behavior = new Behavior();//{type: behaviorType}
-                state.streams.set(id, stream);
+                let newStream:Behavior = new Behavior();//{type: behaviorType}
+                state.streams.set(id, newStream);
                 const resolved = state.resolved.get(id);
                 if (!resolved || resolved.value !== maybeValue) {
-                    updated = true;
-                    state.resolved.set(id, {value: maybeValue, time: state.time});
+                    state.setResolved(id, {value: maybeValue, time: state.time});
                 }
-                outputs = stream;
+                outputs = newStream;
             }
         }
 
         if (outputs === undefined) {continue;}
         const evStream:Stream = outputs as Stream;
-        let evUpdated = evStream.evaluate(state, node, inputArray, lastInputArray);
-        updated = updated || evUpdated;
+        evStream.evaluate(state, node, inputArray, lastInputArray);
     }
 
     // for all streams, check if it is an event.
@@ -175,34 +162,9 @@ export function evaluate(state:ProgramState) {
 
     const deleted:Set<VarName> = new Set();
     for (let [varName, stream] of state.streams) {
-        const type = stream._streamType;
-        if (type === eventType || type === onceType || type === orType || type === changeType) {
-            if (state.resolved.get(varName)?.value !== undefined) {
-                // console.log("deleting", varName);
-                state.resolved.delete(varName);
-                if (type !== changeType) {
-                    deleted.add(varName);
-                }
-            }
-        } else if (type === generatorType) {
-            const value = state.resolved.get(varName)?.value;
-            if (value !== undefined) {
-                if (!value.done) {
-                    const gen = stream as GeneratorEvent<typeof value.value>;
-                    const promise = gen.generator.next();
-                    promise.then((value:any) => {
-                        const wasResolved = state.resolved.get(varName)?.value;
-                        if (!wasResolved) {
-                            // probably wrong to set a flag outside from within a promise handler
-                            updated = true;
-                            state.resolved.set(varName, {value, time: state.time});
-                        }
-                    });
-                    gen.promise = promise;
-                }
-                state.resolved.delete(varName);      
-                deleted.add(varName);         
-            }
+        let maybeDeleted = stream.conclude(state, varName);
+        if (maybeDeleted) {
+            deleted.add(maybeDeleted);
         }
     }
 
@@ -218,7 +180,7 @@ export function evaluate(state:ProgramState) {
         }
     }
     state.changeList.clear();
-    return updated;
+    return state.updated;
 }
 
 type UserEventType = "click" | "input";
@@ -297,7 +259,7 @@ function renkonify(func:Function) {
     }
     async function* renkonBody(...args:any[]) {
         for (let i = 0; i < params.length; i++) {
-            programState.resolved.set(params[i], args[i]);
+            programState.setResolved(params[i], args[i]);
         }
         while (true) {
             evaluate(programState);
@@ -347,7 +309,7 @@ const Events = {
         return new SendEvent();
     },
     receiver() {
-        return new ReceiverEvent();
+        return new ReceiverEvent(undefined);
     },
     renkonify: renkonify
 };

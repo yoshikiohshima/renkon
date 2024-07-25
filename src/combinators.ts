@@ -15,7 +15,7 @@ export type ResolveRecord = {
     time: number
 }
 
-export type ReadyFunction = (node: ScriptCell, state: ProgramState) => boolean;
+export const typeKey = Symbol("typeKey");
 
 export const eventType = "EventType";
 export const delayType = "DelayType";
@@ -27,7 +27,7 @@ export const generatorType = "GeneratorType";
 export const onceType = "OnceType";
 export const orType = "OrType";
 export const sendType = "SendType";
-export const receiverType = "ReceiveType";
+export const receiverType = "ReceiverType";
 export const changeType = "ChangeType";
 
 export type EventType = 
@@ -44,10 +44,6 @@ export type EventType =
     typeof receiverType |
     typeof changeType;
 
-export function baseVarName(varName:VarName) {
-    return varName[0] !== "$" ? varName : varName.slice(1);
-}
-
 export interface ValueRecord {}
 export interface CollectRecord<I> extends ValueRecord {
     current: I,
@@ -63,7 +59,7 @@ export interface QueueRecord extends ValueRecord {
 
 function defaultReady(node: ScriptCell, state: ProgramState) {
     for (const inputName of node.inputs) {
-        const varName = baseVarName(inputName);
+        const varName = state.baseVarName(inputName);
         const resolved = state.resolved.get(varName)?.value;
         if (resolved === undefined && !node.forceVars.includes(inputName)) {return false;}
     }
@@ -81,6 +77,7 @@ export class ProgramState {
     time: number;
     startTime: number;
     evaluatorRunning: number;
+    updated: boolean;
     constructor(startTime:number) {
         this.order = [];
         this.nodes = new Map();
@@ -92,6 +89,7 @@ export class ProgramState {
         this.changeList = new Map();
         this.startTime = startTime;
         this.evaluatorRunning = 0;
+        this.updated = false;
     }
 
     ready(node: ScriptCell) {
@@ -142,29 +140,42 @@ export class ProgramState {
         }
         return undefined;
     }
+
+    baseVarName(varName:VarName) {
+        return varName[0] !== "$" ? varName : varName.slice(1);
+    }
+
+    setResolved(varName:VarName, value:any) {
+        this.resolved.set(varName, value);
+        this.updated = true;
+    }
 }
 
 export class Stream {
-    _streamType: EventType;
+    [typeKey]: EventType;
     constructor(type:EventType) {
-        this._streamType = type;
+        this[typeKey] = type;
     }
 
-    created(_state:ProgramState, _id:VarName):[Stream, boolean] {
-        return [this, true]
+    created(_state:ProgramState, _id:VarName):Stream {
+        return this;
     }
 
     ready(node: ScriptCell, state:ProgramState):boolean {
         for (const inputName of node.inputs) {
-            const varName = baseVarName(inputName);
+            const varName = state.baseVarName(inputName);
             const resolved = state.resolved.get(varName)?.value;
             if (resolved === undefined && !node.forceVars.includes(inputName)) {return false;}
         }
         return true;
     }
 
-    evaluate(_state:ProgramState, _node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):boolean {
-        return false;
+    evaluate(_state:ProgramState, _node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+        return;
+    }
+
+    conclude(_state:ProgramState, _varName:VarName):VarName|undefined {
+        return;
     }
 }
 
@@ -184,21 +195,18 @@ export class DelayedEvent extends Stream {
         return defaultReady(node, state);
     }
 
-    created(state:ProgramState, id:VarName):[Stream, boolean] {
-        let updated = false;
+    created(state:ProgramState, id:VarName):Stream {
         if (!state.scratch.get(id)) {
             state.scratch.set(id, {queue: []});
-            updated = true;
+            state.updated = true;
         }
-        return [this, updated];
+        return this;
     }
 
-    evaluate(state:ProgramState, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):boolean {
+    evaluate(state:ProgramState, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         const value = state.spliceDelayedQueued(state.scratch.get(node.id) as QueueRecord, state.time);
-        let updated = false;
         if (value !== undefined) {
-            updated = true;
-            state.resolved.set(node.id, {value, time: state.time});
+            state.setResolved(node.id, {value, time: state.time});
         }
         const inputIndex = 0; // node.inputs.indexOf(this.varName);
         const myInput = inputArray[inputIndex];
@@ -206,7 +214,6 @@ export class DelayedEvent extends Stream {
             const scratch:QueueRecord = state.scratch.get(node.id) as QueueRecord;
             scratch.queue.push({time: state.time + this.delay, value: myInput});
         }
-        return updated;
     }
 }
 
@@ -217,8 +224,8 @@ export class TimerEvent extends Stream {
         this.interval = interval;
     }
 
-    created(_state:ProgramState, _id:VarName):[Stream, boolean] {
-        return [this, true];
+    created(_state:ProgramState, _id:VarName):Stream {
+        return this;
     }
 
     ready(node: ScriptCell, state:ProgramState):boolean {
@@ -228,12 +235,11 @@ export class TimerEvent extends Stream {
         return last === undefined || last + interval < state.time;
     }
 
-    evaluate(state:ProgramState, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):boolean {
+    evaluate(state:ProgramState, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         const interval = this.interval;
         const logicalTrigger = interval * Math.floor(state.time / interval);
-        state.resolved.set(node.id, {value: logicalTrigger, time: state.time});
+        state.setResolved(node.id, {value: logicalTrigger, time: state.time});
         state.scratch.set(node.id, logicalTrigger);
-        return true;
     }
 }
 
@@ -244,22 +250,20 @@ export class PromiseEvent<T> extends Stream {
         this.promise = promise;
     }
 
-    created(state:ProgramState, id:VarName):[Stream, boolean] {
+    created(state:ProgramState, id:VarName):Stream {
         const oldPromise = (state.scratch.get(id) as PromiseRecord)?.promise;
         const promise = this.promise;
-        let updated = false;
         if (oldPromise && promise !== oldPromise) {
             state.resolved.delete(id);
-            updated = true;
         }
         promise.then((value:any) => {
             const wasResolved = state.resolved.get(id)?.value;
             if (!wasResolved) {
                 state.scratch.set(id, {promise});
-                state.resolved.set(id, {value, time: state.time});
+                state.setResolved(id, {value, time: state.time});
             }
         });
-        return [this, updated];
+        return this;
     }
 }
 
@@ -270,15 +274,23 @@ export class OrEvent extends Stream {
         this.varNames = varNames;
     }
 
-    evaluate(state:ProgramState, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):boolean {
+    evaluate(state:ProgramState, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         for (let i = 0; i < node.inputs.length; i++) {
             const myInput = inputArray[i];
             if (myInput !== undefined) {
-                state.resolved.set(node.id, {value: myInput, time: state.time});
-                return true;
+                state.setResolved(node.id, {value: myInput, time: state.time});
+                return;
             }
         }
-        return false;
+    }
+
+    conclude(state:ProgramState, varName:VarName):VarName|undefined {
+        if (state.resolved.get(varName)?.value !== undefined) {
+            // console.log("deleting", varName);
+            state.resolved.delete(varName);
+            return varName;
+        }
+        return;
     }
 }
 
@@ -291,22 +303,29 @@ export class UserEvent extends Stream {
         this.record = record;
     }
 
-    created(state:ProgramState, id:VarName):[Stream, boolean] {
+    created(state:ProgramState, id:VarName):Stream {
         let stream = state.streams.get(id) as UserEvent;
         if (!stream) {
             state.scratch.set(id, this.record);
             stream = this;
         }
-        return [stream, true];
+        return this;
     }
 
-    evaluate(state:ProgramState, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):boolean {
+    evaluate(state:ProgramState, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         const value = state.getEventValue(state.scratch.get(node.id) as QueueRecord, state.time);
         if (value !== undefined) {
-            state.resolved.set(node.id, {value, time: state.time});
-            return true;
+            state.setResolved(node.id, {value, time: state.time});
+            return;
         }
-        return false;
+    }
+
+    conclude(state:ProgramState, varName:VarName):VarName|undefined {
+        if (state.resolved.get(varName)?.value !== undefined) {
+            state.resolved.delete(varName);
+            return varName;
+        }
+        return;
     }
 }
 
@@ -317,9 +336,33 @@ export class SendEvent extends Stream {
 }
 
 export class ReceiverEvent extends Stream {
-    constructor() {
-        // For now it is okay to be an event type
-        super(eventType);
+    value: any;
+    constructor(value:any) {
+        super(receiverType);
+        this.value = value;
+    }
+
+    created(state:ProgramState, id:VarName):Stream {
+        if (this.value !== undefined) {
+            state.scratch.set(id, this.value);
+        }
+        return this;
+    }
+
+    evaluate(state:ProgramState, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+        const value = state.scratch.get(node.id);
+        if (value !== undefined) {
+            state.setResolved(node.id, {value, time: state.time});
+        }
+    }
+
+    conclude(state:ProgramState, varName:VarName):VarName|undefined {
+        if (state.resolved.get(varName)?.value !== undefined) {
+            state.resolved.delete(varName);
+            state.scratch.delete(varName);
+            return varName;
+        }
+        return;
     }
 }
 
@@ -330,21 +373,29 @@ export class ChangeEvent extends Stream {
         this.value = value;
     }
 
-    created(state:ProgramState, id:VarName):[Stream, boolean] {
+    created(state:ProgramState, id:VarName):Stream {
         state.scratch.set(id, this.value);
-        return [this, true];
+        return this;
     }
 
     ready(node: ScriptCell, state:ProgramState):boolean {
-        const resolved = state.resolved.get(baseVarName(node.inputs[0]))?.value;
+        const resolved = state.resolved.get(state.baseVarName(node.inputs[0]))?.value;
         if (resolved !== undefined && resolved === state.scratch.get(node.id)) {return false;}
         return defaultReady(node, state);
     }
 
-    evaluate(state:ProgramState, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):boolean {
-        state.resolved.set(node.id, {value: this.value, time: state.time});
+    evaluate(state:ProgramState, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+        state.setResolved(node.id, {value: this.value, time: state.time});
         state.scratch.set(node.id, inputArray[0]);
-        return true;
+    }
+
+    conclude(state:ProgramState, varName:VarName):VarName|undefined {
+        if (state.resolved.get(varName)?.value !== undefined) {
+            // console.log("deleting", varName);
+            state.resolved.delete(varName);
+            return varName;
+        }
+        return;
     }
 }
 
@@ -365,18 +416,16 @@ export class CollectStream<I, T> extends Stream {
         this.updater = updater;
     }
 
-    created(state:ProgramState, id:VarName):[Stream, boolean] {
-        let updated = false;
+    created(state:ProgramState, id:VarName):Stream {
         if (!state.scratch.get(id)) {
             state.streams.set(id, this);
-            state.resolved.set(id, {value: this.init, time: state.time});
+            state.setResolved(id, {value: this.init, time: state.time});
             state.scratch.set(id, {current: this.init});
-            updated = true;
         }
-        return [this, updated]
+        return this;
     }
 
-    evaluate(state:ProgramState, node: ScriptCell, inputArray:Array<any>, lastInputArray:Array<any>|undefined):boolean {
+    evaluate(state:ProgramState, node: ScriptCell, inputArray:Array<any>, lastInputArray:Array<any>|undefined):void {
         type ArgTypes = Parameters<typeof this.updater>;
         const scratch = state.scratch.get(node.id) as CollectRecord<ArgTypes[0]>;
         const inputIndex = node.inputs.indexOf(this.varName);
@@ -384,12 +433,10 @@ export class CollectStream<I, T> extends Stream {
         if (inputValue !== undefined && (!lastInputArray || inputValue !== lastInputArray[inputIndex])) {
             const value = this.updater(scratch.current, inputValue);
             if (value !== undefined) {
-                state.resolved.set(node.id, {value, time: state.time});
+                state.setResolved(node.id, {value, time: state.time});
                 state.scratch.set(node.id, {current: value});
-                return true;
             }
         }
-        return false;
     }
 }
 
@@ -402,16 +449,33 @@ export class GeneratorEvent<T> extends Stream {
         this.generator = generator;
     }
 
-    created(state:ProgramState, id:VarName):[Stream, boolean] {
+    created(state:ProgramState, id:VarName):Stream {
         const promise = this.promise;
-        let updated = false;
         promise.then((value:any) => {
             const wasResolved = state.resolved.get(id)?.value;
             if (!wasResolved) {
-                updated = true;
-                state.resolved.set(id, {value, time: state.time});
+                state.setResolved(id, {value, time: state.time});
             }
         });
-        return [this, updated]
+        return this;
+    }
+
+    conclude(state:ProgramState, varName:VarName):VarName|undefined {
+        const value = state.resolved.get(varName)?.value;
+        if (value !== undefined) {
+            if (!value.done) {
+                const promise = this.generator.next();
+                promise.then((value:any) => {
+                    const wasResolved = state.resolved.get(varName)?.value;
+                    if (!wasResolved) {
+                        state.setResolved(varName, {value, time: state.time});
+                    }
+                });
+                this.promise = promise;
+            }
+            state.resolved.delete(varName);      
+            return varName;         
+        }
+        return;
     }
 }
