@@ -26,9 +26,12 @@
         const gen = llama.llama(enter, {...config.params}, config);
         const v = Events.next(gen);
 
-        const chunks = Behaviors.collect([], v, (a, b) => {
-          if (!b.done) return a;
-          return [...a, b.value];
+        const chunks = Behaviors.collect([], Events.or(v, abortHandler), (a, b) => {
+          if (b.done === undefined) {
+            return a;
+          }
+          if (b.done) return [...a, b.value];;
+          return a;
         });
 
         const delayedChunks = Behaviors.keep(Events.delay(Events.change(chunks), 1000));
@@ -79,7 +82,11 @@
             ${delayedChunks.map((c) => html`<div class="log">${c}</div>`)}
           </div>`, document.querySelector("#out"));
 
-        const logged = Behaviors.collect("", v, (a, b) => {
+        const logged = Behaviors.collect("", Events.or(v, abortHandler), (a, b) => {
+          if (b.done === undefined) {
+            // abortHandler case
+            return "";
+          }
           if (b.done) return "";
           return a + b.value.data.content});
 

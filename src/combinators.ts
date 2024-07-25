@@ -60,6 +60,16 @@ export interface QueueRecord extends ValueRecord {
     cleanup?: () => void
 }
 
+
+function defaultReady(node: ScriptCell, state: ProgramState) {
+    for (const inputName of node.inputs) {
+        const varName = baseVarName(inputName);
+        const resolved = state.resolved.get(varName)?.value;
+        if (resolved === undefined && !node.forceVars.includes(inputName)) {return false;}
+    }
+    return true;
+}
+
 export class ProgramState {
     order: Array<NodeId>;
     nodes: Map<NodeId, ScriptCell>;
@@ -84,7 +94,17 @@ export class ProgramState {
         this.evaluatorRunning = 0;
     }
 
-
+    ready(node: ScriptCell) {
+        const output = node.outputs;
+        const stream = this.streams.get(output);
+    
+        if (stream) {
+            return stream.ready(node, this);
+        }
+    
+        return defaultReady(node, this);
+    }
+    
     equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>) {
         if (!Array.isArray(aArray) || !Array.isArray(bArray)) {return false;}
         if (aArray.length !== bArray.length) {
@@ -134,7 +154,7 @@ export class Stream {
         return [this, true]
     }
 
-    ready(node: ScriptCell, state:ProgramState, _defaultReady:ReadyFunction):boolean {
+    ready(node: ScriptCell, state:ProgramState):boolean {
         for (const inputName of node.inputs) {
             const varName = baseVarName(inputName);
             const resolved = state.resolved.get(varName)?.value;
@@ -157,7 +177,7 @@ export class DelayedEvent extends Stream {
         this.varName = varName;
     }
 
-    ready(node: ScriptCell, state:ProgramState, defaultReady:ReadyFunction):boolean {
+    ready(node: ScriptCell, state:ProgramState):boolean {
         const output = node.outputs;
         const scratch:QueueRecord = state.scratch.get(output) as QueueRecord;
         if (scratch?.queue.length > 0) {return true;}
@@ -201,7 +221,7 @@ export class TimerEvent extends Stream {
         return [this, true];
     }
 
-    ready(node: ScriptCell, state:ProgramState, _defaultRead:ReadyFunction):boolean {
+    ready(node: ScriptCell, state:ProgramState):boolean {
         const output = node.outputs;
         const last = state.scratch.get(output) as number;
         const interval = this.interval;
@@ -315,7 +335,7 @@ export class ChangeEvent extends Stream {
         return [this, true];
     }
 
-    ready(node: ScriptCell, state:ProgramState, defaultReady:ReadyFunction):boolean {
+    ready(node: ScriptCell, state:ProgramState):boolean {
         const resolved = state.resolved.get(baseVarName(node.inputs[0]))?.value;
         if (resolved !== undefined && resolved === state.scratch.get(node.id)) {return false;}
         return defaultReady(node, state);
