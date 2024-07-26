@@ -13,25 +13,52 @@
         const render = preactModule.render;
         const entries = document.querySelector("#entries");
 
-        const deviceChange = Events.receiver();
-        const spaceHash = bridgeModule.goIntoSessions();
+        const newButton = Events.change(((dom) => "new")(Events.click("newSession")));
 
-        const newButton = Events.click("newSession");
+        const sessionChosen = Events.receiver();
+        const initialSpace = bridgeModule.goIntoSpace();
+
+        const newSessionRequest = ((trigger) => {
+          return {session: trigger.session || "new"};
+        })(Events.or(newButton, sessionChosen));
+
+        const sessionObjStream = Behaviors.collect(initialSpace, 
+          Events.change(newSessionRequest),
+          (a, b) => {
+            if (a.space === b.space && a.session === b.session) {return a;}
+            return b;
+          }
+        );
+
+        const mySession = ((bridgeModule, sessionObjStream) => {
+          if (sessionObjStream.session === "new") {
+              return bridgeModule.createNewSession();
+            }
+            if (sessionObjStream.session) {
+              return bridgeModule.createNewSession(sessionObjStream.session);
+            }
+            return sessionObjStream;
+          })(bridgeModule, Events.change(sessionObjStream));
+
+        const bridge = ((s) => {
+          console.log("websocket", s);
+          if (s) {
+            const w = new bridgeModule.BridgeConnection();
+            w.setupDataWS();
+            return w.getBridge();
+          };
+        })(Events.change(mySession));
+
+        const deviceChange = Events.receiver();
         const muteButton = Events.click("mic-mute");
         const systemAudioButton = Events.click("system-audio");
 
         const audioEnabled = Behaviors.collect(true, muteButton, (a, b) => !a);
 
-        const mySession = ((bridgeModule, trigger) => {
-          console.log("newSession body");
-          return bridgeModule.createNewSession();
-        })(bridgeModule, newButton); // Events.or(newButton, Events.change(spaceHash))
-
-        const ws = ((s) => {
-          if (s) {
-            console.log("webcoket");
-            return bridgeModule.setupDataWS()};
-          })(Events.change(mySession));
+        const sessionChooser = (evt) => {
+          console.log(evt.target.getAttribute("data"));
+          Events.send(sessionChosen, {sessionChosen: true, session: evt.target.getAttribute("data")});
+        };
 
         const localMedia = ((bridgeModule) => {
           return bridgeModule.initLocalMedia().then((media) => {
@@ -40,12 +67,13 @@
           });
         })(bridgeModule, Events.click("logo"));
 
-        const bridge = (() => bridgeModule.bridge)(ws);
         const formatTime = bridgeModule.formatTime;
         const ev = Events.next(bridge());
 
-        const transcript = ev.value.map(entryMapper);
-        //console.log(transcript);
+        const transcript = ev.value.entries.map(entryMapper);
+        console.log(ev.value);
+
+        const sessionsHTML = sessionsMapper(ev.value);
 
         const entryMapper = ((html, formatTime) => (attrs) => {return html`
           <div class="entry" data-start="${attrs.span.start}" data-end="${attrs.span.end}">
@@ -68,7 +96,20 @@
             </div>
           </div>`})(html, formatTime);
 
+          const sessionsMapper = ((html, sessionChooser) => (attrs) => {
+            const sessionsView = attrs.sessions?.map((s) => {
+              const active = attrs.activeSession?.ID === s.ID;
+              return html`
+                <div class="px-6 py-2 ${active ? "bg-gray-800" : ""}">
+                  <span onClick=${sessionChooser} data="${s.ID}">${new Date(s.Start).toLocaleString()}</span>
+                </div>`;
+              });
+              return html`<div>${sessionsView}</div>`;
+            })(html, sessionChooser);
+
         render(transcript, entries);
+
+        render(sessionsHTML, document.querySelector("#sessions"));
 
         const scroll = (() => {
           const elt = document.getElementById("entries");
@@ -112,6 +153,7 @@
               </svg>
             </a>
           </div>
+          <div id="sessions"></div>
         </div>
         <div class="flex flex-col grow">
           <div id="topbar" class="flex flex-wrap px-6 py-4">

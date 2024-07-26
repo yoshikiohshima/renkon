@@ -39,6 +39,7 @@ export class Session {
     }
   }
 
+
   setTrack(track, stream) {
     const sender = this.peer.getSenders().find((s) => s.track && s.track.kind == track.kind);
     if (sender) {
@@ -62,4 +63,15 @@ export class Session {
   set ontrack(fn) { this.peer.ontrack = fn; }
   set onerror(fn) { this.signals.onerror = fn; }
   set onclose(fn) { this.signals.onclose = fn; }
+
+  close() {
+    if (this.signals) {
+      this.signals.close();
+      this.signals = null;
+    }
+    if (this.peer) {
+      this.peer.close();
+      this.peer = null;
+    }
+  }
 }
