@@ -42,17 +42,23 @@ export function closeSession() {
 
 let localMedia = null;
 export const initLocalMedia = () => {
-  if (!localMedia) {
-    localMedia = new LocalMedia({
-      videoSource: false,
-      onstreamchange: (stream) => {
-        if (micSess == null) {
-          micSess = initSession();
-        }
-        micSess.setStream(stream);
-      },
-    });
+  if (localMedia) {
+    localMedia.close();
+    localMedia = null;
   }
+  if (micSess) {
+    micSess.close();
+    micSess = null;
+  }
+  localMedia = new LocalMedia({
+    videoSource: false,
+    onstreamchange: (stream) => {
+      if (!micSess) {
+        micSess = initSession();
+      }
+      micSess.setStream(stream);
+    },
+  });
   return Promise.resolve(localMedia);
 };
 

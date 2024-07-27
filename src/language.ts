@@ -21,7 +21,13 @@ type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
 
 export function evaluator(state:ProgramState) {
     state.evaluatorRunning = window.requestAnimationFrame(() => evaluator(state));
-    evaluate(state);
+    try {
+        evaluate(state, Date.now());
+    } catch (e) {
+        console.error(e);
+        console.log("stopping animation");
+        window.cancelAnimationFrame(state.evaluatorRunning);
+    }
 }
 
 export function setupProgram(scripts:string[], state:ProgramState) {
@@ -107,8 +113,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     }
 }
 
-export function evaluate(state:ProgramState) {
-    const now = Date.now();
+export function evaluate(state:ProgramState, now:number) {
     state.time = now - state.startTime;
     state.updated = false;
     for (let id of state.order) {
@@ -262,7 +267,7 @@ function renkonify(func:Function) {
             programState.setResolved(params[i], args[i]);
         }
         while (true) {
-            evaluate(programState);
+            evaluate(programState, programState.time);
             const result:any = {};
             if (returnArray) {
                 for (const n of returnArray) {
