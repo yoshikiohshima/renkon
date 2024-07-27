@@ -431,10 +431,18 @@ export class CollectStream<I, T> extends Stream {
         const inputIndex = node.inputs.indexOf(this.varName);
         const inputValue = inputArray[inputIndex];
         if (inputValue !== undefined && (!lastInputArray || inputValue !== lastInputArray[inputIndex])) {
-            const value = this.updater(scratch.current, inputValue);
-            if (value !== undefined) {
-                state.setResolved(node.id, {value, time: state.time});
-                state.scratch.set(node.id, {current: value});
+            const newValue = this.updater(scratch.current, inputValue);
+            if (newValue !== undefined) {
+                // this check feels like unfortunate.
+                if ((newValue as unknown as Promise<any>).then) {
+                    (newValue as unknown as Promise<any>).then((value:any) => {
+                        state.setResolved(node.id, {value, time: state.time});
+                        state.scratch.set(node.id, {current: value});
+                    })
+                } else {
+                    state.setResolved(node.id, {value: newValue, time: state.time});
+                    state.scratch.set(node.id, {current: newValue});
+                }
             }
         }
     }

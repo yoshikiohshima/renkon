@@ -22,32 +22,35 @@
           return {session: trigger.session || "new"};
         })(Events.or(newButton, sessionChosen));
 
-        const sessionObjStream = Behaviors.collect(initialSpace, 
+        const mySession = Behaviors.collect(initialSpace, 
           Events.change(newSessionRequest),
-          (a, b) => {
-            if (a.space === b.space && a.session === b.session) {return a;}
-            return b;
+          (current, request) => {
+            if (request.session === "new") {
+              return bridgeModule.createNewSession();
+            }
+            if (request.session) {
+              return bridgeModule.createNewSession(request.session);
+            }
+            if (current.space === request.space && current.session === request.session) {return current;}
+            return request;
           }
         );
 
-        const mySession = ((bridgeModule, sessionObjStream) => {
-          if (sessionObjStream.session === "new") {
-              return bridgeModule.createNewSession();
-            }
-            if (sessionObjStream.session) {
-              return bridgeModule.createNewSession(sessionObjStream.session);
-            }
-            return sessionObjStream;
-          })(bridgeModule, Events.change(sessionObjStream));
+        const socket = Behaviors.collect(null, Events.change(mySession), (a, b) => {
+          if (a) {
+            a.close();
+          }
+          const w = new bridgeModule.BridgeConnection();
+          w.setupDataWS();
+          return w;
+        });
 
-        const bridge = ((s) => {
-          console.log("websocket", s);
-          if (s) {
-            const w = new bridgeModule.BridgeConnection();
-            w.setupDataWS();
+        const bridge = ((w) => {
+          console.log("bridge", w);
+          if (w) {
             return w.getBridge();
           };
-        })(Events.change(mySession));
+        })(Events.change(socket));
 
         const deviceChange = Events.receiver();
         const muteButton = Events.click("mic-mute");

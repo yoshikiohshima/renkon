@@ -117,6 +117,15 @@ export class BridgeConnection {
     this.onmessagePromise = null;
     this.dataWS = null;
   }
+
+  close() {
+    if (this.dataWS) {
+      this.dataWS.close();
+      this.dataWS = null;
+      this.onmessageResolver = null;
+      this.onmessagePromise = null;
+    }
+  }
   
   setupDataWS() {
     if (this.dataWS) {
@@ -133,7 +142,6 @@ export class BridgeConnection {
     this.dataWS.binaryType = "arraybuffer";
     this.dataWS.onmessage = (e) => {
       const data = CBOR.decode(new Uint8Array(e.data).buffer);
-      console.log(data);
 
       const events =
         data.Session == null
@@ -325,7 +333,7 @@ export function createNewSession(optSessionName) {
 
   const semiIndex = loc.indexOf(";");
   const nonSemi = loc.slice(0, semiIndex);
-  if (!locSession.session && !optSessionName) {
+  if (!optSessionName) {
     const url = `https://substrate.home.arpa/bridge2${locSession.space}/sessions/new`;
 
     return fetch(url).then((resp) => {
@@ -336,9 +344,6 @@ export function createNewSession(optSessionName) {
       return newSession;
     });
   } else {
-    if (!optSessionName) {
-      return Promise.resolve(locSession);
-    }
     if (optSessionName === locSession.session) {
       return Promise.resolve(locSession);
     }
