@@ -111,6 +111,14 @@ export function setupProgram(scripts:string[], state:ProgramState) {
             state.scratch.delete(removed);
         }
     }
+
+    for (const [varName, node] of state.nodes) {
+        for (const input of node.inputs) {
+            if (!state.order.includes(input)) {
+                console.log(`Node ${varName} won't be evaluated as it depends on a variable named ${input} that does not exist in the program.`);
+            }
+        }
+    }
 }
 
 export function evaluate(state:ProgramState, now:number) {
