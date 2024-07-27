@@ -3,18 +3,10 @@ import {getFunctionBody, transpileJavaScript} from "./javascript/transpile.ts"
 
 import {
     ProgramState, ScriptCell, VarName, NodeId, Stream,
-    eventType,
     DelayedEvent, CollectStream, PromiseEvent, EventType,
-    GeneratorEvent,
-    QueueRecord,
-    Behavior,
-    TimerEvent,
-    ChangeEvent,
-    ReceiverEvent,
-    UserEvent,
-    SendEvent,
-    OrEvent,
-    typeKey,
+    GeneratorEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent,
+    ReceiverEvent, UserEvent, SendEvent, OrEvent,
+    eventType, typeKey,
 } from "./combinators.ts"
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
@@ -80,6 +72,12 @@ export function setupProgram(scripts:string[], state:ProgramState) {
         newNodes.set(newNode.id, newNode);
     }
 
+    const unsortedVarnames = difference(new Set(evaluated.map(e => e.id)), new Set(sorted));
+
+    for (const u of unsortedVarnames) {
+        console.log(`Node ${u} is not going to be evaluated because it is in a cycle or depends on a undefined variable.`);
+    }
+
     // nested ones also have to be checked?
     const oldVariableNames:Set<VarName> = new Set(state.order);
     const newVariableNames:Set<VarName> = new Set(sorted);
@@ -115,7 +113,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     for (const [varName, node] of state.nodes) {
         for (const input of node.inputs) {
             if (!state.order.includes(input)) {
-                console.log(`Node ${varName} won't be evaluated as it depends on a variable named ${input} that does not exist in the program.`);
+                console.log(`Node ${varName} won't be evaluated as it depends on an undefined variable ${input}.`);
             }
         }
     }
@@ -126,10 +124,9 @@ export function evaluate(state:ProgramState, now:number) {
     state.updated = false;
     for (let id of state.order) {
         const node = state.nodes.get(id)!;
-        const isReady = state.ready(node);
-        const change = state.changeList.get(id);
+        if (!state.ready(node)) {continue;}
 
-        if (!isReady) {continue;}
+        const change = state.changeList.get(id);
 
         const inputArray = node.inputs.map((inputName) => state.resolved.get(state.baseVarName(inputName))?.value);
         const lastInputArray = state.inputArray.get(id);
