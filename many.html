@@ -27,5 +27,9 @@
         input[type="range"] {width: 200px}
 	      #container {display: flex; flex-direction: column;}
       </style>
+    </div>
+    <script type="module">
+      import("./src/main.js").then((mod) => mod.view());
+    </script>
   </body>
 </html>
