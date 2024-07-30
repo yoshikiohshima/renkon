@@ -5,22 +5,21 @@ body {
     margin: 0px;
 }
 
-.dock .editor {
-    flex-grow: 1;
-    margin-left: 20px;
-    margin-right: 20px;
-    background-color: #ffffff;
-    border: 1px solid black;
-}
-
 .dock {
     position: fixed;
     top: 300px;
+    left: 0px;
     display: flex;
     box-shadow: 10px 10px 5px #4d4d4d, -10px -10px 5px #dddddd;
-    left: 0px;
     transition: left 0.5s;
     background-color: white;
+}
+
+.dock .editor {
+    flex-grow: 1;
+    margin: 0px 20px 0px 20px;
+    background-color: #ffffff;
+    border: 1px solid black;
 }
 
 .dock #buttonRow {
@@ -29,10 +28,7 @@ body {
 
 .dock #drawerButton {
     align-self: center;
-    padding-top: 40px;
-    padding-bottom: 40px;
-    padding-right: 8px;
-    padding-left: 8px;
+    padding: 40px 8px 40px 8px;
 }
 
 .dock #updateButton {
@@ -42,13 +38,9 @@ body {
 .dock #fileName {
     border: 1px black solid;
     min-width: 160px;
-    margin-bottom: 10px;
-    margin-top: 10px;
-    margin-left: 10px;
-    margin-right: 10px;
+    margin: 10px 10px 10px 10px;
 }
 
 .dock .button {
-    margin-bottom: 10px;
-    margin-top: 10px;
+    margin: 10px 0px 10px 0px;
 }
