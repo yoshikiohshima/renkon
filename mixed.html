@@ -13,7 +13,7 @@
 
         const promise = new Promise((resolve) => setTimeout(() => resolve(400), 2000));
         const delay = Behaviors.collect(200, promise, (a, b) => b);
-        const b = Events.input(document.querySelector("#slider"));
+        const b = Events.input(document.querySelector("#slider")).target.value;
         const b1 = Events.delay(b, delay);
         const b2 = Events.delay(b1, delay);
         const b3 = Events.delay(b2, delay);

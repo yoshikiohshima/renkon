@@ -193,23 +193,25 @@ export function evaluate(state:ProgramState, now:number) {
     return state.updated;
 }
 
-type UserEventType = "click" | "input";
+type UserEventType = string;
 
 type ObserveCallback = (notifier:(v:any) => void) => () => void;
 
 type EventBodyType = {
     forObserve: boolean;
     callback?: ObserveCallback;
-    dom?: HTMLInputElement | string;
+    eventHandler?: (evt:any) => void;
+    dom?: HTMLElement | string;
     type: EventType;
-    eventType?: UserEventType
+    eventName?: UserEventType,
+
 };
 
 function eventBody(options:EventBodyType) {
-    let {forObserve, callback, dom, eventType} = options;
+    let {forObserve, callback, dom, eventName, eventHandler} = options;
     let record:QueueRecord = {queue:[]};
 
-    let realDom:HTMLInputElement|undefined;
+    let realDom:HTMLElement|undefined;
     if (typeof dom === "string") {
         if (dom.startsWith("#")) {
             realDom = document.querySelector(dom) as HTMLInputElement;
@@ -220,14 +222,11 @@ function eventBody(options:EventBodyType) {
         realDom = dom;
     }
 
-    const handlers = {
-        "input": (evt:any) => {
-            const value = evt.target.value;
-            record.queue.push({value, time: 0});
-        },
-        "click": (evt:any) => {
-            const value = evt.target;
-            record.queue.push({value, time: 0});
+    const handlers = (eventName:string):((evt:any) => void)|undefined => {
+        if (eventName === "input" || eventName === "click") {
+            return (evt:any) => {
+                record.queue.push({value: evt, time: 0});
+            }
         }
     };
 
@@ -235,8 +234,11 @@ function eventBody(options:EventBodyType) {
         record.queue.push({value, time: 0});
     };
 
-    if (realDom && !forObserve && eventType) {
-        realDom.addEventListener(eventType, handlers[eventType]);
+    if (realDom && !forObserve && eventName) {
+        const myHandler = eventHandler || handlers(eventName);
+        if (myHandler) {
+            realDom.addEventListener(eventName, myHandler);
+        }
     }
 
     if (forObserve && callback) {
@@ -244,8 +246,11 @@ function eventBody(options:EventBodyType) {
     }
     if (!forObserve && dom) {
         record.cleanup = () => {
-            if (realDom && eventType) {
-                realDom.removeEventListener(eventType, handlers[eventType]);
+            if (realDom && eventName) {
+                const myHandler = eventHandler || handlers(eventName);
+                if (myHandler) {
+                    realDom.removeEventListener(eventName, myHandler);
+                }
             }
         }
     }
@@ -253,7 +258,7 @@ function eventBody(options:EventBodyType) {
     return new UserEvent(record);;
 }
 
-function registerEvent(state:ProgramState, receiver:VarName, value:any){
+function registerEvent(state:ProgramState, receiver:VarName, value:any) {
     state.changeList.set(receiver, value);
 }
 
@@ -289,14 +294,17 @@ function renkonify(func:Function) {
 }
 
 const Events = {
-    observe: (callback:ObserveCallback) => {
+    observe(callback:ObserveCallback) {
         return eventBody({type: eventType, forObserve: true, callback});
     },
-    input: (dom:HTMLInputElement|string) => {
-        return eventBody({type: eventType, forObserve: false, dom, eventType: "input"});
+    input(dom:HTMLInputElement|string) {
+        return eventBody({type: eventType, forObserve: false, dom, eventName: "input"});
     },
-    click: (dom:HTMLInputElement|string) => {
-        return eventBody({type: eventType, forObserve: false, dom, eventType: "click"});
+    click(dom:HTMLInputElement|string) {
+        return eventBody({type: eventType, forObserve: false, dom, eventName: "click"});
+    },
+    listener(dom: HTMLElement|string, eventName:string, handler: (evt:any) => void) {
+        return eventBody({type: eventType, forObserve: false, dom, eventName: eventName, eventHandler: handler});
     },
     delay(varName:VarName, delay: number):DelayedEvent {
         return new DelayedEvent(delay, varName);

@@ -5,7 +5,7 @@
   </head>
   <body>
     <div id="renkon">
-      <link rel="stylesheet" href="/renkon/bridge/session.css" />
+      <link rel="stylesheet" href="/bridge/session.css" />
       <script type="reactive">
         const bridgeModule = import("../bridge/bridge.js");
         const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
@@ -13,7 +13,7 @@
         const render = preactModule.render;
         const entries = document.querySelector("#entries");
 
-        const newButton = Events.change(((dom) => "new")(Events.click("newSession")));
+        const newButton = Events.change(((evt) => "new")(Events.click("newSession")));
 
         const sessionChosen = Events.receiver();
         const initialSpace = bridgeModule.goIntoSpace();
