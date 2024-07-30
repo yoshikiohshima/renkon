@@ -1,7 +1,8 @@
 const baseURL = "http://localhost:8000/";
 
 export function loadFile(fileName:string) {
-  return fetch(baseURL + fileName).then((resp) => resp.text());
+  const fetchName = fileName.startsWith("http") ? fileName : baseURL + fileName;
+  return fetch(fetchName).then((resp) => resp.text());
 }
 
 export function saveFile(fileName:string, content:string) {
