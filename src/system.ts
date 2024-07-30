@@ -7,6 +7,54 @@ import { getContentFromHTML, loadFile, makeHTMLFromContent, saveFile } from "./l
 
 let myResizeHandler: (() => void) | null;
 
+const css = `html, body, #renkon {
+    height: 100%;
+}
+body {
+    margin: 0px;
+}
+
+.dock {
+    position: fixed;
+    top: 300px;
+    left: 0px;
+    display: flex;
+    box-shadow: 10px 10px 5px #4d4d4d, -10px -10px 5px #dddddd;
+    transition: left 0.5s;
+    background-color: white;
+}
+
+.dock .editor {
+    flex-grow: 1;
+    margin: 0px 20px 0px 20px;
+    background-color: #ffffff;
+    border: 1px solid black;
+}
+
+.dock #buttonRow {
+    display: flex;
+}
+
+.dock #drawerButton {
+    align-self: center;
+    padding: 40px 8px 40px 8px;
+}
+
+.dock #updateButton {
+    margin-left: 40px;
+}
+
+.dock #fileName {
+    border: 1px black solid;
+    min-width: 160px;
+    margin: 10px 10px 10px 10px;
+}
+
+.dock .button {
+    margin: 10px 0px 10px 0px;
+}
+`;
+
 function resizeHandler() {
     const dock:HTMLElement = document.querySelector("#dock")!;
     if (!dock) {return;}
@@ -75,6 +123,13 @@ function createEditorDock(renkon:HTMLElement, programState:ProgramState) {
 </div>
 `;
 
+    if (!document.head.querySelector("#renkon-css")) {
+        const style = document.createElement("style");
+        style.textContent = css;
+        style.id = "renkon-css";
+        document.head.appendChild(style);
+    };
+
     const dock = div.querySelector("#dock")!;
     const editor = dock!.querySelector("#editor")!;
 
@@ -98,7 +153,6 @@ function createEditorDock(renkon:HTMLElement, programState:ProgramState) {
     const saveButton = dock.querySelector("#saveButton")! as HTMLButtonElement;
     saveButton.textContent = "Save";
     saveButton.onclick = () => save(renkon, editorView, programState);
-
 
     const drawerButton = dock.querySelector("#drawerButton")! as HTMLButtonElement;
     drawerButton.onclick = () => toggleDock(dock as HTMLElement);
