@@ -1,8 +1,7 @@
 import { basicSetup, EditorView } from "codemirror"
 //import { html, htmlLanguage } from "https://esm.sh/@codemirror/lang-html@v6.4.9"
 //import { javascript } from "https://esm.sh/@codemirror/lang-javascript@v6.0.1"
-import {setupProgram, evaluator} from "./language";
-import {ProgramState} from "./combinators";
+import {setupProgram, evaluator, ProgramState} from "./language";
 import { getContentFromHTML, loadFile, makeHTMLFromContent, saveFile } from "./load";
 
 let myResizeHandler: (() => void) | null;

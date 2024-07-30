@@ -1,5 +1,5 @@
-import {JavaScriptNode, parseJavaScript} from "./javascript/parse.ts"
-import {getFunctionBody, transpileJavaScript} from "./javascript/transpile.ts"
+import {JavaScriptNode, parseJavaScript} from "./javascript/parse"
+import {getFunctionBody, transpileJavaScript} from "./javascript/transpile"
 
 import {
     ProgramState, ScriptCell, VarName, NodeId, Stream,
@@ -7,7 +7,9 @@ import {
     GeneratorEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent,
     ReceiverEvent, UserEvent, SendEvent, OrEvent,
     eventType, typeKey,
-} from "./combinators.ts"
+} from "./combinators";
+
+export {ProgramState} from  "./combinators";
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
 
@@ -339,6 +341,9 @@ const Behaviors = {
     collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
         return new CollectStream(init, varName, updater);
     },
+    timer(interval:number):TimerEvent {
+        return new TimerEvent(interval);
+    }
 }
 
 function evalCode(str:string):ScriptCell {
