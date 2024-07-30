@@ -6,6 +6,7 @@ export default defineConfig({
     build: {
         lib: {
           entry: resolve(__dirname, 'src/main.js'),
+          formats: ["es"],
           name: 'Renkon',
           fileName: 'renkon',
         },
