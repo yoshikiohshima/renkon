@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"> 
+  </head>
+  <body>
+    <div id="renkon">
+      <script type="reactive">
+        const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
+        const html = preactModule.html;
+        const render = preactModule.render;
+
+        const url = "http://localhost:5173?doc=bridge.html&hideEditor=true;sessions=sp-01J4AGATF9XANKQCQZ7YTT13EV/sessions/cqml2i0ri6qs73b1hfng";
+
+        const open = ((url) => {
+          if (!document.body.querySelector("#bridge")) {
+            const iframe = document.createElement("iframe");
+            iframe.src = url;
+            iframe.width = 1024;
+            iframe.height = 800;
+            iframe.id = "bridge";
+            iframe.style.position = "absolute";
+            iframe.style.top = "100px";
+            iframe.style.left = "20px";
+            document.body.appendChild(iframe);
+          }
+        })(url);
+
+        const message = Events.observe((notify) => {
+          const received = (evt) => {
+            console.log(evt)
+            if (evt.data.event?.startsWith("renkon:")) {
+              notify(evt.data);
+            };
+          };
+          window.addEventListener("message", received);
+            return () => {window.removeEventListener("message", received)};
+        });
+
+        const logged = Behaviors.collect([], message, (cur, m) => {
+          console.log("logged");
+          if (!m.data.list) {return cur;}
+          const newList = m.data.list.map((e) => e.words.map((w) => w.word));
+          return [...cur, newList];
+        });
+
+        const dom = logged.map((arr) => html`<span class="line">${arr.join(" ")}</span>`);
+        render(dom, document.querySelector("#output"));
+
+      </script>
+      <div id="output"></div>
+      <style>
+        #output {position: absolute; left: 1100px; top: 20px; width: 400px}
+      </style>
+    </div>
+    <script type="module">
+      import("./src/main.js").then((mod) => mod.view());
+    </script>
+  </body>
+</html>

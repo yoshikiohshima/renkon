@@ -331,6 +331,18 @@ const Events = {
     receiver() {
         return new ReceiverEvent(undefined);
     },
+    message(event:string, data:any, directWindow?:Window) {
+        const isInIframe =  window.top !== window;
+        const obj = {event: `renkon:${event}`, data};
+        if (isInIframe) {
+          window.top!.postMessage(obj, "*");
+          return;
+        }
+    
+        if (directWindow) {
+          directWindow.postMessage(obj, "*");
+        }
+    },
     renkonify: renkonify
 };
 

@@ -74,7 +74,18 @@
         const ev = Events.next(bridge());
 
         const transcript = ev.value.entries.map(entryMapper);
-        console.log(ev.value);
+
+        const newEntries = Behaviors.collect({length: 0, list: []}, ev,
+          (current, ev) => {
+            const entries = ev.value?.entries;
+            const length = entries?.length || 0;
+            if (length <= current.length) {return current;}
+            return {length, list: entries.slice(current.length)};
+        });
+
+        const messenger = ((newEntries) => {
+          Events.message("bridge", newEntries);
+        })(newEntries);
 
         const sessionsHTML = sessionsMapper(ev.value);
 

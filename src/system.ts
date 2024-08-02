@@ -78,10 +78,15 @@ export function view() {
         }
     }
 
+    let hideEditor = url.searchParams.get("hideEditor");
+
     const renkon:HTMLElement = document.body.querySelector("#renkon")!;
     const programState = new ProgramState(Date.now());
     (window as any).programState = programState;
     let {dock, editorView} = createEditorDock(renkon, programState);
+    if (hideEditor) {
+        (dock as HTMLElement).style.display = "none";
+    }
     document.body.appendChild(dock);
 
     if (myResizeHandler) {
