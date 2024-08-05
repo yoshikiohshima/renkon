@@ -10,7 +10,7 @@
         const html = preactModule.html;
         const render = preactModule.render;
 
-        const url = "http://localhost:5173?doc=bridge.html&hideEditor=true;sessions=sp-01J4AGATF9XANKQCQZ7YTT13EV/sessions/cqml2i0ri6qs73b1hfng";
+        const url = "http://localhost:5173?doc=bridge.html;sessions=sp-01J4AGATF9XANKQCQZ7YTT13EV/sessions/cqml2i0ri6qs73b1hfng";
 
         const open = ((url) => {
           if (!document.body.querySelector("#bridge")) {
@@ -37,10 +37,29 @@
             return () => {window.removeEventListener("message", received)};
         });
 
-        const logged = Behaviors.collect([], message, (cur, m) => {
-          console.log("logged");
+        const newList =  Behaviors.collect([], message, (cur, m) => {
+          console.log("newList");
           if (!m.data.list) {return cur;}
-          const newList = m.data.list.map((e) => e.words.map((w) => w.word));
+          let happy = false;
+          const result = [];
+          for (const evt of m.data.list) {
+            const myLine = [];
+            for (const word of evt.words) {
+              myLine.push(word.word);
+              if (word.word.trim().startsWith("yeah")) {
+                myLine.push("😊")
+              }
+            }
+            result.push(myLine);
+          }
+          if (happy) console.log("happy");
+          return result;
+        });
+
+        const logged = Behaviors.collect([], Events.change(newList), (cur, newList) => {
+          console.log("logged")
+          if (newList.length === 0) {return cur;}
+
           return [...cur, newList];
         });
 
