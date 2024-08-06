@@ -232,7 +232,7 @@ export class TimerEvent extends Stream {
         const output = node.outputs;
         const last = state.scratch.get(output) as number;
         const interval = this.interval;
-        return last === undefined || last + interval < state.time;
+        return last === undefined || last + interval <= state.time;
     }
 
     evaluate(state:ProgramState, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
