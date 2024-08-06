@@ -309,10 +309,10 @@ const Events = {
         return eventBody({type: eventType, forObserve: false, dom, eventName: eventName, eventHandler: handler});
     },
     delay(varName:VarName, delay: number):DelayedEvent {
-        return new DelayedEvent(delay, varName);
+        return new DelayedEvent(delay, varName, false);
     },
     timer(interval:number):TimerEvent {
-        return new TimerEvent(interval);
+        return new TimerEvent(interval, false);
     },
     change(value:any):ChangeEvent{
         return new ChangeEvent(value);
@@ -351,11 +351,11 @@ const Behaviors = {
        return value;
     },
     collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
-        return new CollectStream(init, varName, updater);
+        return new CollectStream(init, varName, updater, true);
     },
     timer(interval:number):TimerEvent {
-        return new TimerEvent(interval);
-    }
+        return new TimerEvent(interval, true);
+    },
 }
 
 function evalCode(str:string):ScriptCell {
