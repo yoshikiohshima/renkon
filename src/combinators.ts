@@ -201,22 +201,33 @@ export class DelayedEvent extends Stream {
     created(state:ProgramState, id:VarName):Stream {
         if (!state.scratch.get(id)) {
             state.scratch.set(id, {queue: []});
-            state.updated = true;
         }
         return this;
     }
 
-    evaluate(state:ProgramState, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+    evaluate(state:ProgramState, node: ScriptCell, inputArray:Array<any>, lastInputArray:Array<any>|undefined):void {
         const value = state.spliceDelayedQueued(state.scratch.get(node.id) as QueueRecord, state.time);
         if (value !== undefined) {
             state.setResolved(node.id, {value, time: state.time});
         }
         const inputIndex = 0; // node.inputs.indexOf(this.varName);
         const myInput = inputArray[inputIndex];
-        if (myInput !== undefined) {
+
+        const doIt = (this[isBehaviorKey] && myInput !== undefined && myInput !== lastInputArray?.[inputIndex])
+            || (!this[isBehaviorKey] && myInput !== undefined);
+        if (doIt) {
             const scratch:QueueRecord = state.scratch.get(node.id) as QueueRecord;
-            scratch.queue.push({time: state.time + this.delay, value: myInput});
+                scratch.queue.push({time: state.time + this.delay, value: myInput});
         }
+    }
+
+    conclude(state:ProgramState, varName:VarName):VarName|undefined {
+        if (this[isBehaviorKey]) {return;}
+        if (state.resolved.get(varName)?.value !== undefined) {
+            state.resolved.delete(varName);
+            return varName;
+        }
+        return;
     }
 }
 

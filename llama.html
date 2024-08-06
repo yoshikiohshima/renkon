@@ -33,11 +33,11 @@
           if (b.done === undefined) {
             return a;
           }
-          if (b.done) return [...a, b.value];;
+          if (b.done) return [...a, b.value];
           return a;
         });
 
-        const delayedChunks = Behaviors.keep(Events.delay(Events.change(chunks), 1000));
+        const delayedChunks = Behaviors.delay(chunks, 1000);
 
         const pointer = Events.observe((change) => {
           const pointerMoved = (evt) => {
@@ -50,7 +50,7 @@
         const tokenId = Behaviors.collect(0, v, (old, v) => old + 1);
 
         const startPosition = Behaviors.keep(pointer);
-        const wordsTrigger = Events.or(v, Events.timer(50));
+        const wordsTrigger = Events.or(v, Events.timer(16));
         const lerp = (pe, ps, r) => {
           return [(pe[0] - ps[0]) * r + ps[0], (pe[1] - ps[1]) * r + ps[1]]; 
         }
@@ -78,7 +78,7 @@
 
         const flies = words.map((w) => html`<div key="${w.tokenId}" class="fly" style="transform: translate(${w.currentPosition[0]}px, ${w.currentPosition[1]}px)">${w.word}</div>`);
 
-        render(html`<div>${flies}</div>`, document.querySelector("#words"));
+        ((html, render, flies) => {render(html`<div>${flies}</div>`, document.querySelector("#words"));})(html, render, flies)
 
         render(
           html`<div style="display: flex; flex-direction: column">

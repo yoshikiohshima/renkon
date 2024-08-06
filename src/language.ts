@@ -114,7 +114,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
 
     for (const [varName, node] of state.nodes) {
         for (const input of node.inputs) {
-            if (!state.order.includes(input)) {
+            if (!state.order.includes(state.baseVarName(input))) {
                 console.log(`Node ${varName} won't be evaluated as it depends on an undefined variable ${input}.`);
             }
         }
@@ -324,6 +324,9 @@ const Events = {
     or(...varNames:Array<VarName>) {
         return new OrEvent(varNames)
     },
+    collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
+        return new CollectStream(init, varName, updater, false);
+    },
     send(state:ProgramState, receiver:VarName, value:any) {
         registerEvent(state, receiver, value);
         return new SendEvent();
@@ -355,6 +358,9 @@ const Behaviors = {
     },
     timer(interval:number):TimerEvent {
         return new TimerEvent(interval, true);
+    },
+    delay(varName:VarName, delay: number):DelayedEvent {
+        return new DelayedEvent(delay, varName, true);
     },
 }
 
