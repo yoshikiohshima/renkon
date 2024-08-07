@@ -40,9 +40,9 @@ export function test1() {
   assertState(state, "a", 50);
   assertState(state, "b", 55);
 
-  // the program itself is updated with a different tick. The computed values stay
+  // the program itself is updated with a different tick. The one that got a different definition is cleared.
   setupProgram([testTimerString("Behaviors", 100)], state);
-  assertState(state, "a", 50);
+  assertState(state, "a", undefined);
   assertState(state, "b", 55);
 
   // the program itself is updated with a different tick. The computed values stay
@@ -106,15 +106,15 @@ export function test2() {
   assertState(state, "b", 105);
   assertState(state, "c", [0, 50]); // 100 is filtered out in the updater function
 
-  // the program itself is updated with a different tick. The computed values stay
+  // the program itself is updated with a different tick. The stream with a different definition is cleared
   setupProgram([testTimerString("Behaviors", 100), test2String], state);
 
-  assertState(state, "a", 100);
+  assertState(state, "a", undefined);
   assertState(state, "b", 105);
   assertState(state, "c", [0, 50]);
 
   // the program itself is updated with a different tick. The computed values stay
-  evaluate(state, 105);
+  evaluate(state, 150);
   assertState(state, "a", 100);
   assertState(state, "b", 105);
 }

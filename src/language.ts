@@ -93,6 +93,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
         }
     }
 
+
     state.order = sorted;
     state.nodes = newNodes;
 
@@ -100,6 +101,11 @@ export function setupProgram(scripts:string[], state:ProgramState) {
         const newNode = newNodes.get(nodeId)!;
         if (invalidatedInput(newNode, invalidatedStreamNames)) {
             state.inputArray.delete(newNode.id);
+        }
+        if (invalidatedStreamNames.has(nodeId)) {
+            state.resolved.delete(nodeId);
+            state.scratch.delete(nodeId);
+            state.inputArray.delete(nodeId);
         }
     }
 
