@@ -50,7 +50,5 @@ export async function test2_1() {
   evaluate(state, 110);
   assertState(state, "a", 100);
   assertState(state, "b", 101);
-
-
 }
 
