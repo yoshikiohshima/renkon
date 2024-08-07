@@ -90,6 +90,9 @@ function rewriteFollowedByCalls(
             } else if (callee.property.name === "send") {
               output.insertLeft(node.arguments[0].start, '_state, "');
               output.insertRight(node.arguments[0].end, '"');
+            } else if (callee.property.name === "collect") {
+              output.insertLeft(node.arguments[1].start, '"');
+              output.insertRight(node.arguments[1].end, '"');
             }
           }
         } else if (callee.object.name === "Behaviors") {

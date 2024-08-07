@@ -469,6 +469,15 @@ export class CollectStream<I, T> extends Stream {
             }
         }
     }
+
+    conclude(state:ProgramState, varName:VarName):VarName|undefined {
+        if (this[isBehaviorKey]) {return;}
+        if (state.resolved.get(varName)?.value !== undefined) {
+            state.resolved.delete(varName);
+            return varName;
+        }
+        return;
+    }
 }
 
 export class GeneratorEvent<T> extends Stream {

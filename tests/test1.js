@@ -185,3 +185,78 @@ export function test3() {
   assertState(state, "a", undefined);
   assertState(state, "b", 105);
 }
+
+export function test4() {
+  //
+
+  const test4String = `
+    const a = Events.timer(50);
+    const b = Behaviors.timer(100);
+    const c = Events.collect([], a, (cur, a) => a === 100 ? cur : [...cur, a]);
+    const d = Behaviors.collect([], Events.change(b), (cur, a) => a === 100 ? cur : [...cur, a])`;
+
+  const state = new ProgramState(0);
+  setupProgram([test4String], state);
+
+  // there should be four nodes: three top level ones and an innner one Events.change(a)
+  assert(state.nodes.size, 5);
+
+
+  let a = state.resolved.get("a");
+  let b = state.resolved.get("b");
+  let c = state.resolved.get("c");
+  let d = state.resolved.get("d");
+
+
+  // but they are not evaluated yet.
+  assert(a, undefined);
+  assert(b, undefined);
+  assert(c, undefined);
+  assert(d, undefined);
+
+  // evaluate the program at t=0
+
+
+  evaluate(state, 0);
+
+  // then timer is evaluated and b is also evaluated.
+  // a and c is however reset
+
+  assertState(state, "a", undefined);
+  assertState(state, "b", 0);
+  assertState(state, "c", undefined);
+  assertState(state, "d", [0]);
+
+  const myScratch = state.scratch.get("c").current;
+
+  assert(equal(myScratch, [0]), true);
+
+  // timer has not hit the next tick so the values are unchanged.
+  evaluate(state, 10);
+  assertState(state, "a", undefined);
+  assertState(state, "b", 0);
+  assertState(state, "c", undefined);
+  assertState(state, "d", [0]);
+
+  assert(state.scratch.get("c").current === myScratch, true);
+
+  // the time passes the next threshold (50) so they are updated
+  evaluate(state, 60);
+  assertState(state, "a", undefined);
+  assertState(state, "b", 0);
+  assertState(state, "c", undefined);
+  assertState(state, "d", [0]); 
+
+  assert(state.scratch.get("c").current, [0, 50]);
+
+  // the time passes the next threshold (100) so they are updated
+  evaluate(state, 100);
+
+  assertState(state, "a", undefined);
+  assertState(state, "b", 100);
+  assertState(state, "c", undefined);
+  assertState(state, "d", [0]);
+
+  assert(state.scratch.get("c").current, [0, 50]);
+
+}
