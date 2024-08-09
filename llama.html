@@ -13,7 +13,7 @@
         const output = document.querySelector("#output");
 
         const abortHandler = Events.click("abort");
-        const abortController = Behaviors.collect(new AbortController(), Events.or(abortHandler, Events.change($chunks)), (a, b) => {
+        const abortController = Behaviors.collect(new AbortController(), Events.or(abortHandler, Events.change($responses)), (a, b) => {
           console.log("reset");
           a.abort(); 
           return new AbortController();
@@ -29,7 +29,7 @@
         const gen = llama.llama(enter, {...config.params}, config);
         const v = Events.next(gen);
 
-        const chunks = Behaviors.collect([], Events.or(v, abortHandler), (a, b) => {
+        const responses = Behaviors.collect([], Events.or(v, abortHandler), (a, b) => {
           if (b.done === undefined) {
             return a;
           }
@@ -37,7 +37,7 @@
           return a;
         });
 
-        const delayedChunks = Behaviors.delay(chunks, 1000);
+        const delayedChunks = Behaviors.delay(responses, 1000);
 
         const pointer = Events.observe((change) => {
           const pointerMoved = (evt) => {
