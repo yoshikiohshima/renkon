@@ -7,6 +7,7 @@ import {
     GeneratorEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent,
     ReceiverEvent, UserEvent, SendEvent, OrEvent,
     eventType, typeKey,
+    isBehaviorKey,
 } from "./combinators";
 
 export {ProgramState} from  "./combinators";
@@ -21,6 +22,7 @@ export function evaluator(state:ProgramState) {
         console.error(e);
         console.log("stopping animation");
         window.cancelAnimationFrame(state.evaluatorRunning);
+        state.evaluatorRunning = 0;
     }
 }
 
@@ -31,9 +33,9 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     // This should not be necessary if the DOM element that an event listener is attached stays the same.
 
     for (const [varName, stream] of state.streams) {
-        if (stream[typeKey] === eventType) {
+        if (!stream[isBehaviorKey]) {
             const scratch = state.scratch.get(varName) as QueueRecord;
-            if (scratch.cleanup && typeof scratch.cleanup === "function") {
+            if (scratch?.cleanup && typeof scratch.cleanup === "function") {
                 scratch.cleanup();
                 scratch.cleanup = undefined;
             }
@@ -208,7 +210,7 @@ type ObserveCallback = (notifier:(v:any) => void) => () => void;
 type EventBodyType = {
     forObserve: boolean;
     callback?: ObserveCallback;
-    eventHandler?: (evt:any) => void;
+    eventHandler?: (evt:any) => any;
     dom?: HTMLElement | string;
     type: EventType;
     eventName?: UserEventType,
@@ -218,6 +220,7 @@ type EventBodyType = {
 function eventBody(options:EventBodyType) {
     let {forObserve, callback, dom, eventName, eventHandler} = options;
     let record:QueueRecord = {queue:[]};
+    let myHandler: (evt:any) => any;
 
     let realDom:HTMLElement|undefined;
     if (typeof dom === "string") {
@@ -230,12 +233,13 @@ function eventBody(options:EventBodyType) {
         realDom = dom;
     }
 
-    const handlers = (eventName:string):((evt:any) => void)|undefined => {
+    const handlers = (eventName:string):((evt:any) => any) => {
         if (eventName === "input" || eventName === "click") {
             return (evt:any) => {
                 record.queue.push({value: evt, time: 0});
             }
         }
+        return (_evt:any) => null;
     };
 
     const notifier = (value:any) => {
@@ -243,7 +247,16 @@ function eventBody(options:EventBodyType) {
     };
 
     if (realDom && !forObserve && eventName) {
-        const myHandler = eventHandler || handlers(eventName);
+        if (eventHandler) {
+            myHandler = (evt) => {
+                const value = eventHandler(evt);
+                if (value !== undefined) {
+                    record.queue.push({value, time: 0});
+                }
+            }
+        } else {
+            myHandler = handlers(eventName);
+        }
         if (myHandler) {
             realDom.addEventListener(eventName, myHandler);
         }
@@ -255,7 +268,6 @@ function eventBody(options:EventBodyType) {
     if (!forObserve && dom) {
         record.cleanup = () => {
             if (realDom && eventName) {
-                const myHandler = eventHandler || handlers(eventName);
                 if (myHandler) {
                     realDom.removeEventListener(eventName, myHandler);
                 }
@@ -325,7 +337,7 @@ const Events = {
     },
     next<T>(generator:AsyncGenerator<T>):GeneratorEvent<T> {
         const value = generator.next();
-        return new GeneratorEvent(value, generator);//{type: generatorType, promise: value, generator};
+        return new GeneratorEvent(value, generator);
     },
     or(...varNames:Array<VarName>) {
         return new OrEvent(varNames)
@@ -372,8 +384,12 @@ const Behaviors = {
         // partialURL: './bridge/bridge.js'
         // expected: 
         const loc = window.location.toString();
+        const semi = loc.indexOf(";");
+        if (semi < 0) {
+            return partialURL;
+        }
         const index = loc.lastIndexOf("/");
-        let base = loc.slice(0, index);
+        let base = index >= 0 ? loc.slice(0, index) : loc;
         return `${base}/${partialURL}`;
     }
 }

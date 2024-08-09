@@ -98,16 +98,10 @@ export function view() {
     if (maybeDoc) {
         document.querySelector("#fileName")!.textContent = maybeDoc;
         load(renkon, editorView, programState);
-        if (programState.evaluatorRunning === 0) {
-            evaluator(programState);
-        }
         return;       
     }
 
     update(renkon, editorView, programState);
-    if (programState.evaluatorRunning === 0) {
-        evaluator(programState);
-    }
 }
 
 function createEditorDock(renkon:HTMLElement, programState:ProgramState) {
@@ -169,6 +163,9 @@ function update(renkon:HTMLElement, editorView:EditorView, programState: Program
     let scripts = [...renkon.querySelectorAll("script[type='reactive']")] as HTMLScriptElement[];
     let text = scripts.map((s) => s.textContent).filter((s) => s);
     setupProgram(text as string[], programState);
+    if (programState.evaluatorRunning === 0) {
+        evaluator(programState);
+    }
 }
 
 function toggleDock(dock:HTMLElement, force?:boolean) {
