@@ -351,6 +351,8 @@ runtime. This is the basis of the Live editing of Renkon program.
 One can experiment Renkon code in the default Renkon page. Check the
 following video.
 
+https://github.com/user-attachments/assets/cbbc331e-abe5-49da-b74b-3caf50d76840
+
 <video controls width="800">
   <source src="./docs/color.mov" type="video/mp4"/>
 </video>
@@ -367,6 +369,4 @@ indeed is a part of the HTML.
 You can simply edit the code in the editor, in this video add some
 style to the "words". Notice that the `collection` array is kept when
 you update code so that you can experiment things quickly.
-
-
 
