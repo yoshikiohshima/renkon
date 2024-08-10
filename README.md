@@ -1,27 +1,27 @@
-# Renkon: A reactive UI framework.
+# Renkon: A reactive UI framework
 
 ## Introduction
 
-Renkon is a UI framework for building an interactive web
-application. The basic concept is based on Functional Reactive
+Renkon is a UI framework for building interactive web
+applications. The basic concept is based on Functional Reactive
 Programming (FRP). A program consists of a set of reactive nodes. Each
-node reacts to input change and produce an output. Other nodes that
-depends on the output in turn produces their outputs, and updates on
-nodes propagates though the "dependency network".
+node reacts to input changes and produces an output. Other nodes that
+depend on the output, in turn, produce their outputs, and updates on
+nodes propagate through the "dependency network."
 
 Renkon stands out from other reactive web UI frameworks in three ways:
 
-- Native Promises and Generators of JavaScript is integrated cleanly.
-- Following the original FRP, discreet events and continuous values are separated.
+- Native Promises and Generators in JavaScript are integrated cleanly.
+- Following the original FRP, discrete events and continuous values are separated.
 - The definition of reactive nodes can be edited dynamically from within the environment itself.
 
-This results in a very simple yet powerful compared to some existing frameworks:
+This results in a very simple yet powerful framework compared to some existing ones:
 
-- No need to have "duct tapes" like `useEffect`. Asynchronous actions and state updates are nicely integrated.
+- No need for "duct tapes" like `useEffect`. Asynchronous actions and state updates are nicely integrated.
 - No need to manually create reactive state values and manage them by resetting them.
-- Existing libraries such as interfaces to an LLM can be directly used.
+- Existing libraries, such as interfaces to an LLM, can be directly used.
 - Quickly explore by modifying code in the live environment.
-- The program is isomorphic to box and wire diagram. It opens up the possibility of different editing modes.
+- The program is isomorphic to a box and wire diagram, opening up the possibility of different editing modes.
 
 Here is a simple example code:
 
@@ -33,48 +33,57 @@ console.log(mod.ten() + hundred + timer);
 ```
 
 The first line with `import` returns a promise that resolves to a
-JavaScript Module. Let us assume that it exports a function called `ten()` that
-returns 10. The node `hundred` is a Promise that resolves to 100
-after 500ms. `timer` is an event that produces a new value at every
-1000ms. The last line with `console.log()` call depends three nodes
-(`mod`, `hundred`, and `timer`), and when each of those has a value,
-the `console.log` function is executed and you see an output in the
-console. after `mod` and `hundred` have resolved, each time `timer`
-updates `console.log()` line is reevaluated. Consequently, you'd see a
-new console.log output added to a sequence like `1110`, `2110`,
-`3110`... .
+JavaScript module. Let us assume that it exports a function called
+`ten()` that returns 10. The node `hundred` is a Promise that resolves
+to 100 after 500ms. `timer` is an event that produces a new value
+every 1000ms. The last line with the `console.log()` call depends on
+three nodes (`mod`, `hundred`, and `timer`), and when each of these
+has a value, the `console.log` function is executed, and you see an
+output in the console. After `mod` and `hundred` have resolved, each
+time `timer` updates, the `console.log()` line is
+reevaluated. Consequently, you'd see a new `console.log` output added
+to a sequence like `1110`, `2110`, `3110`...
 
-## FRP in nutshell
+
+## FRP in Nutshell
 
 Functional Reactive Programming is a clean way to describe an
-application as an acyclic graph of data dependency. Lately all popular
-UI frameworks have reactivity.
+application as an acyclic graph of data dependency. Lately, all
+popular UI frameworks have reactivity based on the same basic idea.
 
 However, the original FRP had two concepts that recent reactive
-frameworks missed to incorporate. One is the clear definition of
-logical time and functions on the time domain. The other is clear
-separation between "events" that only exist on certain instants on the
+frameworks failed to incorporate. One is the clear definition of
+logical time and functions on the time domain. The other is the clear
+separation between "events" that only exist at certain instants on the
 time domain and "behaviors" that exist continuously on the time
-domain. As you use Renkon, and read this document, you see the
-benefits of those concepts.
+domain. As you use Renkon and read this document, you will see the
+benefits of these concepts.
 
-When you construct an application in FRP, you think the application
-state is a set of "nodes", and each node's value is a function of time
+When you construct an application in FRP, you think of the application
+state as a set of "nodes," and each node's value is a function of time
 <i>t</i>. A node is a function that uses values from other nodes and
-compute its value. IOW, a node depends on other nodes, and the
-dependency relationship forms a graph. When a "leaf" node changes its
-value as due to an event occurring at time t, the changes are
+computes its value. In other words, a node depends on other nodes, and
+the dependency relationship forms a graph. When a "leaf" node changes
+its value due to an event occurring at time _t_, the changes are
 propagated through the dependency graph. The result is that the
-application state is computed consistently for logical time t. This
-time is called logical time because evaluation of those nodes is done
-at the "same time", or the logical time does not advance while
-evaluating the dependency graph. This notion is sometimes called
-"synchronous", in the sense that all computation takes exactly 0 time.
+application state is computed consistently for logical time _t_. When
+a set of nodes compute the values the computation is done at the same
+logical time, regardless of how much CPU time they actually use.  This
+notion is sometimes called "synchronous," in the sense that all
+computation takes exactly 0 time.
 
-As described above, an event is a function that has a value only at certain instant on the timeline. What is the value of an event when there is no value in Renkon? Renkon is based on JavaScript, and JavaScript conveniently has `undefined` and `null`. They may be treated interchangeably in a regular JavaScript program, but Renkon uses `undefined` to indicate that the value does not exist at the time, while `null` is used to indicates that the value does exist but it is empty. IOW, a node won't be evaluated wwhen one of the dependencies is `undefined`.
+As described above, an event is a function that has a value only at
+certain instants on the timeline. What is the value of an event when
+there is no value in Renkon? Renkon is based on JavaScript, and
+JavaScript conveniently has `undefined` and `null`. They may be
+treated interchangeably in a regular JavaScript program, but Renkon
+uses `undefined` to indicate that the value does not exist at the
+time, while `null` is used to indicate that the value does exist but
+is empty. In other words, a node won't be evaluated when one of the
+dependencies is `undefined`.
 
-Let us describe some more building parts of Renkon. Those are called
-"combinators" that combines other FRP nodes to do more things.
+Let us describe some more building blocks of Renkon. These are called
+"combinators," which combine other FRP nodes to do more things.
 
 ```JavaScript
 const collection = Behaviors.collect([], Events.or(button, timer), (current, value) => {
@@ -89,44 +98,45 @@ console.log(collection);
 ```
 
 In the example above, `Events.or()` is a combinator that produces a
-new value when one of the arguments, in this case, `button` or `timer`
-gets a value. `Behaviors.collect` is a combinator that starts from the
-initial value, in this case `[]`. When the second argument, in this
-case `Events.or(button, timer)` gets a value, which serves as a
-trigger to update the value of the combinator, the updater function as
-the third argument is evaluated. It is called with the current value
-and new value, and the value returned from it becomes the new
-value. (In other languages the combinator may be called `followed by`
-or `fby`; is it is an initial value followed by updates.)
+new value when one of the arguments, in this case, `button` or
+`timer`, gets a value. `Behaviors.collect` is a combinator that starts
+from the initial value specified as the first argument, in this case
+`[]`. The combinator uses the second argument, in this case
+`Events.or(button, timer)` as the trigger. When the trigger gets a
+value, the value of the combinator is computed by applying the updater
+function as the third argument to the current value, and the value
+from the trigger, and the value returned from it becomes the new
+value. (In other languages, the combinator may be called `followed by`
+or `fby`; it is an initial value followed by updates.)
 
 The `button` node is created by the `Events.listener` call. It adds a
-DOM event listener (in this case `click`) to the button named
+DOM event listener (in this case, `click`) to the button named
 `myButton`.
 
-Because `Event.or` combinator "forwards" the value from one of the
-arguments , the `value` argument for the updater is either a DOM click
-event coming from the button click, or a number coming from
-`timer`. The body checks the type of `value`, and if it is a number it
-appends the value to the collection. If not it resets `collection` to
-an empty array. In effect, collection gets a new element at each
-second but reset when the user presses the button.
+Because the `Event.or` combinator "forwards" the value from one of the
+arguments, the `value` argument for the updater is either a DOM click
+event coming from the button click or a number coming from
+`timer`. The body of the updater checks the type of `value`, and if it
+is a number, it appends the value to the collection. If not, it resets
+`collection` to an empty array. In effect, the collection gets a new
+element each second but resets when the user presses the button.
 
 Some combinators have both the "Event" variant and "Behavior" variant,
-whether the value should be available only at the instant, or kept
-until it changes again. In the example above, `collect` and `timer`
-have both variants, but `Events.or` does not have a Behavior
-counterpart. (At the moment; it could be a kind of select operation
-that keeps the last value from whichever arguments). In general,
+depending on whether the value should be available only at the instant
+or kept until it changes again. In the example above, `collect` and
+`timer` have both variants, but `Events.or` does not have a Behavior
+counterpart. (... at the moment at least; it could be a kind of select operation
+that keeps the last value from whichever argument). In general,
 anything that is used as a kind of "trigger" should be an event, whose
 value is cleared after the event's time t. In the above example,
-`Behaviors.collect` can be changed to `Events.collect` and the program
-would produce the same sequence of output in the developer console; as
-the collection value is computed and the console.log line that depends
-on collection is executed at time t. But if you want to use the array
-in other parts of the program at later time, it should be a behavior
-that keeps the value.
+`Behaviors.collect` can be changed to `Events.collect`, and the
+program would produce the same sequence of output in the developer
+console, as the collection value is computed and the console.log line
+that depends on the collection is executed at time t. But if you want
+to use the array in other parts of the program at a later time, it
+should be a behavior that keeps the value.
 
-A constant value is treated as a behavior, meaniing that it is a
+A constant value is treated as a behavior, meaning that it is a
 function that always returns the same value:
 
 ```JavaScript
@@ -134,22 +144,21 @@ const a = 3;
 const b = a + 4;
 ```
 
-In the program above, `a` is a behavior that is always 3, and `b` is
-also a behavior that is always 7.
+In the program above, `a` is a behavior that is always 3, and `b` is also a behavior that is always 7.
 
-A Promise is treated as a Behavior. It means that the value of the
-node is `undefined` until the Promise resolves, and then becomes the
-resolved value and it stays.
+A Promise is treated as something resolves to a value treated as
+Behavior.This means that the value of the node is `undefined` until
+the Promise resolves, and then the resolved value is available later on.
 
-A Generator, on the other hand, typically generate values repeatedly
-over time. A typical use case is to treat the result as an
-event. Imagine that there is a JS library that returns a word from an
-LLM at a time.  Let us say that there is a library called `llama` that
-returns an async generator. We have a combinator called `Events.next`
-that gets a new value when the generator produces it.
+A Generator typically generates values repeatedly over time, and each
+result is treated as an event. Imagine that there is a JS library
+named "llama" that returns a word from an LLM at a time. In the
+following code, `llama.llama()` returns an async generator. We have a
+combinator called `Events.next` that gets a new value when the
+generator produces it.
 
 ```JavaScript
-...    
+...
 const gen = llama.llama(enter, {...config.params}, config);
 const v = Events.next(gen);
 
@@ -162,15 +171,16 @@ const log = Behaviors.collect([], v, (a, b) => {
 
 There are "natural conversions" between Events and Behaviors. You can
 convert an event to a behavior by making it a "step function" where
-the last value of the event is the current value of the behavior.
+the last value of the event becomes the current value of the behavior.
+
 
 ```JavaScript
 const anEvent = Events.timer(1000);
 const b = Behaviors.keep(anEvent);
 ```
 
-To create an event from a behavior, which assumes some implementation
-details and changes on the behavior's value is discretized, and event
+To create an event from a behavior, we assume that the behavior's time
+domain is discretized in the implementation, and make an event that
 fires when the value of the behavior changes.
 
 ```JavaScript
@@ -178,30 +188,30 @@ const aBehavior = Behaviors.timer(1000);
 const e = Events.change(aBehavior);
 ```
 
-## Creating DOM elements as values.
+## Creating DOM Elements as Values.
 
-Renkon is agnostic from the way display and DOM manipulation
-mechanism. For example, one can write this in a page that has a `div`
-called "output", and its text content updates at every second.
+Renkon is agnostic to the display and DOM manipulation mechanism. For
+example, one can write this on a page that has a `div` called
+"output," and its text content updates every second:
 
 ```JavaScript
 const timer = Events.timer(1000);
 document.querySelector("#output").textContent = `${timer}`;
 ```
 
-But this way of assigning a value is hard to manage.
+But this way of assigning a value quickly becomes unwieldy.
 
 One can use the HTM library (Hyperscript Tagged Markup) from the
-Preact community. HTM is like JSX that is used by React and other
-frameworks, but it instead uses the JavaScript's built-in "tagged
-templates" feature to construct virtual DOM elements. It can "render"
-virtual DOM elements as actual DOM elements. HTM is a great match
-with a reactive framework as the virtual DOM elements themselves can
-be used as the value in the framework. IOW, instead of writing code
+Preact community. HTM is like JSX used by React and other frameworks,
+but it instead uses JavaScript's built-in "tagged templates" feature
+to construct virtual DOM elements. It can "render" virtual DOM
+elements as actual DOM elements. HTM is a great match with a reactive
+framework, as the virtual DOM elements themselves can be used as
+values within the framework. In other words, instead of writing code
 that "does" something on a DOM element to make it so, you write code
-to produce a value that say the DOM should "be" like this. If you have
-the `collection` in the example above, you can make a list of `span`s
-for each element and "render" them:
+to produce a value that says the DOM should "be" like this. If you
+have the `collection` in the example above, you can make a list of
+`span`s for each element and "render" them:
 
 ```JavaScript
 const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
@@ -213,40 +223,39 @@ render(dom, document.querySelector("#output"));
 
 ```
 
-Yes, Renkon is agnostic of the display mechanism means that you can
-load HTM from your program dynamically and use it.
+Yes, Renkon being agnostic of the display mechanism means that you can
+load HTM dynamically from your program and use it.
 
 The `dom` behavior is computed whenever `collection` changes, and the
-`render` function is invoked as its dependency, `dom` is updated.
+`render` function is invoked as its dependency, `dom`, is updated.
 
-## Breaking out a cyclic dependecy
+## Breaking out a Cyclic Dependency
 
 FRP has a strong notion that an event or a behavior has at most one
-value at a given time t. If your program has a cyclic dependency such
-as:
+value at a given time _t_. If your program has a cyclic dependency, for example:
+
 
 ```JavaScript
 const a = b + 1;
 const b = a + 1;
 ```
 
-Then the system cannot compute a consistent result for time t. Your program is invalid.
+then the system cannot compute a consistent result for time _t_. This program is invalid.
 
-However, this restriction is too strong for practical cases. Let us
-say that you want to create the reset button in the above example
-dynamically only when there is certain number of elements. This means
-that the dynamically created button depends on the value of
-`collection` but `collection` depends on the output from the
-`button`. This is circular.
+However, this restriction is too strong in many practical use
+cases. Let us say that you want to create the reset button in the
+above example from your program dynamically, but only when there is a certain number of
+elements. This means that the dynamically created button depends on
+the value of `collection`, but `collection` depends on the output from
+the `button`. This is circular.
 
-So there are two ways to break such typical cyclic dependencies. One
-is called "send/receive". A `send` combinator can request a "future"
-update on the receiver.
+There are two ways to break such typical cyclic dependencies. One
+is called "send/receive." A `send` combinator can request a "future"
+update on the receiver:
+
 
 ```JavaScript
-const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
-const html = preactModule.html;
-const render = preactModule.render;
+...
 
 const reset = Events.receiver();
 const resetter = (evt) => Events.send(reset, "reset");
@@ -268,34 +277,53 @@ const buttonHTM = ((collection) => {
 render(buttonHTM, document.querySelector("#buttonHolder"));
 ```
 
-In this example, `reset` combinator gets a value in the "next evaluation time" when the `Events.send` combinator was invoked. the `resetter` is a vanilla JS function so that it can be attached to the HTM virtual DOM as an event handler (`onClick`). The `buttonHTM` is either a button virtual DOM or empty `div`.
+In this example, the `reset` node created by `Events.receiver()` gets a value in the "next
+evaluation cycle" when the `Events.send` combinator is invoked. The
+`resetter` is a vanilla JS function, so it can be attached to the HTM
+virtual DOM as an event handler (`onClick`). The `buttonHTM` is either
+a button virtual DOM or an empty `div`.
 
-Another way to accommodate cyclic dependency is to use the "$-variable" specification. Let us say that we want to keep the HTML feature of `AbortController` (that can be used to stop a `fetch` request). While an LLM typically takes time to generate words, so a fetch call typically has `Connection: "keep-live"` mode, but that request can be aborted when the AbortController signals. The below is code taken from the popular llama.cpp client code:
+Another way to accommodate cyclic dependency is to use the
+"$-variable" specification. Let us say that we want to use the HTML's
+`AbortController`, which is used to stop a `fetch` request in the
+middle. Because an LLM typically generates output words one at a time,
+a `fetch` call typically uses the `Connection: "keep-alive"` mode. The
+long running request can be aborted when the AbortController
+signals. The following is code taken from the popular llama.cpp client
+code:
 
 ```JavaScript
-const response = await fetch(config.url || "/completion", {
+const response = await fetch(config.url, {
     method: 'POST',
     body: JSON.stringify(completionParams),
     headers: {
         'Connection': 'keep-alive',
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream',
-        ...(params.api_key ? {'Authorization': `Bearer ${params.api_key}`} : {})
     },
     signal: abortController.signal,
 });
 ```
 
-Notice that the `headers` property has `'Connection': 'keep-alive'` and the `signal` property uses an AbortController.
+Notice that the `headers` property has `'Connection': 'keep-alive'`
+and the `signal` property uses an AbortController.
 
-Because a program would call this fetchh call multiple times, though the AbortController can be used only once for a fetch call, an AbortController instance needs to be created when a request completes. Let us say that upon the completion of the request, an array called `responses` gets a new element at the end. In this setting, `responses` depends on the abortController but abortController depends on `responses` as the abortController node needs to get a new value upon the completion of a request.
+A chat interface would call this code multiple times, but a new
+`AbortController` needs to be created for each call. Let us say that
+upon the completion of the request, an array called `responses` that
+holds onto the all responses from the LLM gets a new element at the
+end. In this setting, `responses` depends on the `abortController`
+because the `fetch` call that uses the `abortController` updates
+it. At the same time, the `abortController` depends on `responses` as
+the `abortController` node needs to get a new value upon the
+completion of a request.
 
 ```JavaScript
 const abortController = Behaviors.collect(
     new AbortController(),
     Events.change($responses),
-    (a, b) => {
-        a.abort(); 
+    (old, _new) => {
+        old.abort(); 
         return new AbortController();
     });
 
@@ -306,47 +334,63 @@ const responses = Behaviors.collect([], result, (chunks, resp) => {
 
 ```
 
-The trigger for `abortController` combinator is
-`Events.change($responses)`. The dollar sign means that the trigger
-depends on the previous cycle of `responses` value. (You could imagine
-that a program language that allows a "prime" (') in a variable name,
-it'd be written as `response'`.)  `Events.change` combinator fires
-when there is a change in `responses`.
+The trigger for the `abortController` node is
+`Events.change($responses)`. The dollar sign ("$") means that the trigger
+depends on the value of `responses` in previous evaluation cycle. You could
+imagine that in a programming language that allows a "prime" (') in a
+variable name, it would be written as `response'`. The
+`Events.change` combinator fires when there is a change in
+`responses`, effectively when responses gets a new element.
 
-For `responses`, the `result` trigger is a result from a generator
-that has the sentence from the generator and `done` property that
-indicates that the generator exited. That means the request is
-completed so the responses array gets updated. The `return chunks`
-part means that the fetch call is on going and a words are generated
-over time, so chunks it simply returns the current value.
+For `responses`, the `result` trigger is the result from a generator
+that includes the sentence from the generator. Its `done` property
+indicates whether the generator has exited or not. if `done` is true,
+it means the request is completed, so the responses array gets
+updated. The `return chunks` part means that the fetch call is still
+ongoing, so `chunks` simply returns the current value.
 
-In a way, `collect` is another way to break cyclic dependency; the
-node depends on itself, but updater uses the value of itself as the
-"previous" value, and with the current input at time t, it produces a
-value for time t.
+You can think that `collect` is the third way to break cyclic
+dependency; the node depends on itself, but the updater uses its own
+value as the "previous" value, and with the current input at time _t_,
+it produces a value for time _t_.
+
 
 ## Live Editing
 
-We explained the language in isolation in above, but it is a part of a
-live-editable environment. One can have a text editor in the same page
-of your application.
+We explained the language in isolation above, but it is part of a
+live-editable environment. One can have a text editor on the same page
+as your application.
 
-We discussed the dependency graph in the above, but how does a node determines what other nodes it depends on? The answer is the "variable names". When `b` depends on `a` in the following program:
+We discussed the dependency graph above, but how does a node determine
+what other nodes it depends on? The answer is "it uses variable
+names." Let's see what it means with a simple example:
 
 ```JavaScript
 const a = 3;
 const b = a + 4;
 ```
 
-The definition of `b` (`a + 4`) is examined, and it figures out that
-it needs "something named `a`. It does not know what `a` is or is
-going to be; `b` just remembers that it depends on the name `a`. To
-evaluate `b`, the value associated with `a` is looked up, and if the
-value is different from the last time `b` was evaluated, then b is
-updated with the new value.
+The language system examines the definition of each node. For `a`, it
+determines that `a` does not depend on any other variable. It also
+examines `b` (`a + 4`), and it figures out that `b` needs "something
+named `a` to compute `b`'s value. The system does not need to know what actually is `a`; `b` just
+remembers that it depends on a node named `a`. To evaluate `b`, the value
+associated with `a` is looked up, and if the value is different from
+the last time `b` was evaluated, then b is updated with the new value.
 
 In this way, one can simply swap out the definition of `a` at
 runtime. This is the basis of the Live editing of Renkon program.
+
+One could imagine to update the definition of `a` in the live manner to this:
+
+```JavaScript
+const a = new Promise((resolve) => setTimeout(() => resolve(10), 1000));
+const b = a + 4;
+```
+
+When you make this live edit, the value of `a` becomes undefined but
+`b` keeps its current value. When the Promise resolves, `b` is
+evaluated to become 14.
 
 One can experiment Renkon code in the default Renkon page. Check the
 following video.
@@ -370,3 +414,69 @@ You can simply edit the code in the editor, in this video add some
 style to the "words". Notice that the `collection` array is kept when
 you update code so that you can experiment things quickly.
 
+## Comparison to Other Frameworks
+
+### No `useEffect` Needed
+
+Renkon does not need the equivalent of `useEffect` in React. React
+forces you to manually provide the dependencies in the array for
+`useEffect`, yet it does not have the equivalent of `Events.or`. So if
+you want to have a block that uses two possible update sources, but
+typically only one updates, you'd have to check which dependency was
+updated manually.
+
+### No `await`, `async`, `then`, and `Promise.all` Needed
+
+Promises in JavaScript are powerful and useful, but the extra syntax
+and understanding how execution works require some experience. Renkon
+makes those integrated.
+
+### No Signals Needed
+
+Renkon does not need a new construct to have a reactive value. There
+are proposals to add "Signals" to JavaScript, but they require you to
+assign your value to the `value` property.
+
+Signals are conceptually close to Behaviors, but not having the Events
+counterpart complicates your program.
+
+In the [tutorial of Preact's
+Signals](https://preactjs.com/guide/v10/signals/), the `addToDo`
+function needs to explicitly clear `text.value`. Imagine that someone
+wants to add two to-do items that happen to have the same text. If you
+don't clear the value, the user cannot do it. But then, how would the
+creator of the program know that `addToDo` is the right place to clear
+the value? Later on, the app gets a feature that requires the use of
+`text.value`.
+
+If one were to write a similar To-Do program in Renkon, the "text"
+node would be an event that depends on the user click event. The
+dependency graph is updated at the event's time _t_, with all places
+that use `text` being updated, then the value becomes
+unavailable. Next time, the user may submit the exact same content for
+`text`, and the program adds the second entry as expected.
+
+`computed()`, `effect()`, and `batch()` of Signals are also not necessary in Renkon.
+
+### Maps and Sets Can Be Used in a Sane Way
+
+One of the issues with building a large application in React is that
+it is not easy to get it right with Maps and Sets in data. Imagine if
+you have 1,000 elements in a Map and make a list of virtual DOM
+elements for each, and then render it. First, an element added itself
+may not trigger the update detection, so you might have to copy the
+Map with 1,000 elements and then add a new entry. React's
+reconciliation logic tries to be fast, but it would still need to
+compare two long lists of data to add one element.
+
+In Renkon, one could add the new entry to the Map as data and just add
+a new virtual DOM element to the already existing list of virtual DOM,
+or you can actually call `appendChild()` directly.
+
+### No Excess Screen Updates
+
+Signals are touted as a way to reduce unnecessary DOM updates, and
+using HTM+Preact with Renkon has the same benefits. The
+above-mentioned Preact's Signal tutorial mentions some rendering
+optimizations; as shown above, Renkon allows even more direct DOM
+manipulation.
