@@ -44,6 +44,10 @@ time `timer` updates, the `console.log()` line is
 reevaluated. Consequently, you'd see a new `console.log` output added
 to a sequence like `1110`, `2110`, `3110`...
 
+Note that Renkon is a different language from JavaScript, though the
+surface syntax of it draws upon JavaScript. In other words, a
+JavaScript parser can parse any Renkon program but they work
+differently.
 
 ## FRP in Nutshell
 
@@ -81,6 +85,8 @@ uses `undefined` to indicate that the value does not exist at the
 time, while `null` is used to indicate that the value does exist but
 is empty. In other words, a node won't be evaluated when one of the
 dependencies is `undefined`.
+
+## Renkon by Examples
 
 Let us describe some more building blocks of Renkon. These are called
 "combinators," which combine other FRP nodes to do more things.
@@ -353,7 +359,6 @@ You can think that `collect` is the third way to break cyclic
 dependency; the node depends on itself, but the updater uses its own
 value as the "previous" value, and with the current input at time _t_,
 it produces a value for time _t_.
-
 
 ## Live Editing
 

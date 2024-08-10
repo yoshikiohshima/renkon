@@ -54,7 +54,7 @@
         const lerp = (pe, ps, r) => {
           return [(pe[0] - ps[0]) * r + ps[0], (pe[1] - ps[1]) * r + ps[1]]; 
         }
-        const words = ((startPosition, output, tokenId) => Behaviors.collect([], wordsTrigger, (acc, v) => {
+        const words = ((output,) => Behaviors.collect([], wordsTrigger, (acc, v) => {
           if (typeof v === "number") {
             return acc.filter((elem) => elem.targetTime > v).map((elem) => {
               const ratio = (v - elem.startTime) / 1000;
@@ -74,11 +74,11 @@
           const targetPosition = [rect.left, rect.bottom + window.scrollY];
           const result = [...acc, {startTime: time, targetTime, startPosition, currentPosition: startPosition, targetPosition, word: v.value.data.content, tokenId}];
           return result;
-        }))(startPosition, document.querySelector("#output"), tokenId);
+        }))(document.querySelector("#output"));
 
         const flies = words.map((w) => html`<div key="${w.tokenId}" class="fly" style="transform: translate(${w.currentPosition[0]}px, ${w.currentPosition[1]}px)">${w.word}</div>`);
 
-        ((html, render, flies) => {render(html`<div>${flies}</div>`, document.querySelector("#words"));})(html, render, flies)
+       render(html`<div>${flies}</div>`, document.querySelector("#words"));
 
         render(
           html`<div style="display: flex; flex-direction: column">
