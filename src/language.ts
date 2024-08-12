@@ -4,15 +4,19 @@ import {getFunctionBody, transpileJavaScript} from "./javascript/transpile"
 import {
     ProgramState, ScriptCell, VarName, NodeId, Stream,
     DelayedEvent, CollectStream, PromiseEvent, EventType,
-    GeneratorEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent,
+    GeneratorNextEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent,
     ReceiverEvent, UserEvent, SendEvent, OrEvent,
     eventType, typeKey,
     isBehaviorKey,
+    GeneratorWithFlag,
 } from "./combinators";
 
 export {ProgramState} from  "./combinators";
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
+
+const prototypicalGeneratorFunction = (async function*() {while (true) {}})();
+console.log(prototypicalGeneratorFunction);
 
 export function evaluator(state:ProgramState) {
     state.evaluatorRunning = window.requestAnimationFrame(() => evaluator(state));
@@ -166,6 +170,12 @@ export function evaluate(state:ProgramState, now:number) {
                 state.streams.set(id, newStream);
                 const resolved = state.resolved.get(id);
                 if (!resolved || resolved.value !== maybeValue) {
+                    if (maybeValue.constructor === prototypicalGeneratorFunction.constructor) {
+                        maybeValue.done = false;
+                        // there is a special case for generators.
+                        // actually, there is no real guarantee that this generator is not done.
+                        // but I could not find a way to tell whether a generator is done or not.
+                    }
                     state.setResolved(id, {value: maybeValue, time: state.time});
                 }
                 outputs = newStream;
@@ -290,7 +300,9 @@ function renkonify(func:Function) {
     setupProgram([output], programState);
 
     function generator(...args:any[]) {
-        return Events.next(renkonBody(...args));
+        const gen = renkonBody(...args) as GeneratorWithFlag<any>;
+        gen.done = false;
+        return Events.next(gen);
     }
     async function* renkonBody(...args:any[]) {
         for (let i = 0; i < params.length; i++) {
@@ -335,9 +347,8 @@ const Events = {
     change(value:any):ChangeEvent{
         return new ChangeEvent(value);
     },
-    next<T>(generator:AsyncGenerator<T>):GeneratorEvent<T> {
-        const value = generator.next();
-        return new GeneratorEvent(value, generator);
+    next<T>(generator:GeneratorWithFlag<T>):(GeneratorNextEvent<T>) {
+        return new GeneratorNextEvent(generator);
     },
     or(...varNames:Array<VarName>) {
         return new OrEvent(varNames)

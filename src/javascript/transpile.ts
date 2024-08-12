@@ -23,7 +23,7 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   const output = new Sourcemap(node.input).trim();
   // rewriteImportDeclarations(output, node.body, resolveImport);
   // rewriteImportExpressions(output, node.body, resolveImport);
-  rewriteFollowedByCalls(output, node.body);
+  rewriteRenkonCalls(output, node.body);
   // rewriteFileExpressions(output, node.files, path);
   output.insertLeft(0, `, body: (${inputs}${additional}) => {\n`);
   output.insertLeft(0, `, outputs: ${JSON.stringify(only)}`);
@@ -69,7 +69,7 @@ function getArray(returnNode: Statement) {
   return array.elements.map((e) => (e as Identifier).name);
 }
 
-function rewriteFollowedByCalls(
+function rewriteRenkonCalls(
   output: Sourcemap,
   body: Node,
 ): void {

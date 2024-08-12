@@ -24,12 +24,12 @@ export const timerType = "TimerType";
 export const collectType = "CollectType";
 export const promiseType = "PromiseType";
 export const behaviorType = "BehaviorType";
-export const generatorType = "GeneratorType";
 export const onceType = "OnceType";
 export const orType = "OrType";
 export const sendType = "SendType";
 export const receiverType = "ReceiverType";
 export const changeType = "ChangeType";
+export const generatorNextType = "GeneratorNextType";
 
 export type EventType = 
     typeof eventType |
@@ -38,12 +38,12 @@ export type EventType =
     typeof collectType |
     typeof promiseType |
     typeof behaviorType |
-    typeof generatorType |
     typeof onceType |
     typeof orType |
     typeof sendType |
     typeof receiverType |
-    typeof changeType;
+    typeof changeType |
+    typeof generatorNextType;
 
 export interface ValueRecord {}
 export interface CollectRecord<I> extends ValueRecord {
@@ -57,6 +57,7 @@ export interface QueueRecord extends ValueRecord {
     cleanup?: () => void
 }
 
+export type GeneratorWithFlag<T> = AsyncGenerator<T> & {done: boolean};
 
 function defaultReady(node: ScriptCell, state: ProgramState) {
     for (const inputName of node.inputs) {
@@ -480,17 +481,20 @@ export class CollectStream<I, T> extends Stream {
     }
 }
 
-export class GeneratorEvent<T> extends Stream {
+export class GeneratorNextEvent<T> extends Stream {
     promise: Promise<IteratorResult<T>>;
-    generator: AsyncGenerator<T>;
-    constructor(promise:Promise<IteratorResult<T>>, generator:AsyncGenerator<T>) {
-        super(generatorType, false);
+    generator: GeneratorWithFlag<T>;
+    constructor(generator:GeneratorWithFlag<T>) {
+        super(generatorNextType, false);
+        const promise = generator.next();
         this.promise = promise;
         this.generator = generator;
     }
 
     created(state:ProgramState, id:VarName):Stream {
+        if (this.generator.done) {return this;}
         const promise = this.promise;
+
         promise.then((value:any) => {
             const wasResolved = state.resolved.get(id)?.value;
             if (!wasResolved) {
@@ -504,14 +508,18 @@ export class GeneratorEvent<T> extends Stream {
         const value = state.resolved.get(varName)?.value;
         if (value !== undefined) {
             if (!value.done) {
-                const promise = this.generator.next();
-                promise.then((value:any) => {
-                    const wasResolved = state.resolved.get(varName)?.value;
-                    if (!wasResolved) {
-                        state.setResolved(varName, {value, time: state.time});
-                    }
-                });
-                this.promise = promise;
+                if (!this.generator.done) {
+                    const promise = this.generator.next();
+                    promise.then((value:any) => {
+                        const wasResolved = state.resolved.get(varName)?.value;
+                        if (!wasResolved) {
+                            state.setResolved(varName, {value, time: state.time});
+                        }
+                    });
+                    this.promise = promise;
+                }
+            } else {
+                this.generator.done = true;
             }
             state.resolved.delete(varName);      
             return varName;         

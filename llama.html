@@ -81,7 +81,7 @@
         ((html, render, flies) => {render(html`<div>${flies}</div>`, document.querySelector("#words"));})(html, render, flies)
 
         render(
-          html`<div style="display: flex; flex-direction: column">
+          html`<div id="responses" style="display: flex; flex-direction: column">
             ${delayedChunks.map((c) => html`<div class="log">${c}</div>`)}
           </div>`, document.querySelector("#out"));
 
@@ -154,9 +154,12 @@
 
         #out {
             width: 600px;
-            min-height: 48px;
             height: fit-content;
             padding-top: 10px;
+        }
+
+        #responses:empty {
+          min-height: 0px;
         }
 
         .log {
