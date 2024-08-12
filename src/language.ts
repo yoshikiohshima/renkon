@@ -16,7 +16,6 @@ export {ProgramState} from  "./combinators";
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
 
 const prototypicalGeneratorFunction = (async function*() {while (true) {}})();
-console.log(prototypicalGeneratorFunction);
 
 export function evaluator(state:ProgramState) {
     state.evaluatorRunning = window.requestAnimationFrame(() => evaluator(state));
@@ -356,6 +355,9 @@ const Events = {
     collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
         return new CollectStream(init, varName, updater, false);
     },
+    /*map<S, T>(varName:VarName, updater: (arg:S) => T) {
+        return new CollectStream(undefined, varName, (_a, b) => updater(b), false);
+    },*/
     send(state:ProgramState, receiver:VarName, value:any) {
         registerEvent(state, receiver, value);
         return new SendEvent();
