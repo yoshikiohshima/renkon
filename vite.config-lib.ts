@@ -10,5 +10,6 @@ export default defineConfig({
           name: 'Renkon',
           fileName: 'renkon',
         },
+        minify: false
     }
 })
