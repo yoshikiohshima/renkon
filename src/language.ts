@@ -197,6 +197,7 @@ export function evaluate(state:ProgramState, now:number) {
         }
     }
 
+    // This is not necessary I think. I just have to make sure that and remove this.
     for (let varName of deleted) {
         for (let [receipient, node] of state.nodes) {
             const index = node.inputs.indexOf(varName);

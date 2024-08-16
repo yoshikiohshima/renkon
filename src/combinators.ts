@@ -80,7 +80,8 @@ export class ProgramState {
     startTime: number;
     evaluatorRunning: number;
     updated: boolean;
-    constructor(startTime:number) {
+    app?: any;
+    constructor(startTime:number, app?:any) {
         this.order = [];
         this.nodes = new Map();
         this.streams = new Map();
@@ -92,6 +93,7 @@ export class ProgramState {
         this.startTime = startTime;
         this.evaluatorRunning = 0;
         this.updated = false;
+        this.app = app;
     }
 
     ready(node: ScriptCell) {
