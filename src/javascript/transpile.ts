@@ -16,7 +16,7 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   const only = outputs.length === 0 ? "" : outputs[0];
   const inputs = Array.from(new Set<string>(node.references.map((r) => r.name)))
     .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
-  const additional = `${inputs.length === 0 ? "" : ", "} _state`;
+  //const additional = `${inputs.length === 0 ? "" : ", "} _state`;
   const forceVars = Array.from(new Set<string>(node.forceVars.map((r) => r.name)))
     .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
   // if (hasImportDeclaration(node.body)) async = true;
@@ -25,7 +25,7 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   // rewriteImportExpressions(output, node.body, resolveImport);
   rewriteRenkonCalls(output, node.body);
   // rewriteFileExpressions(output, node.files, path);
-  output.insertLeft(0, `, body: (${inputs}${additional}) => {\n`);
+  output.insertLeft(0, `, body: (${inputs}) => {\n`);
   output.insertLeft(0, `, outputs: ${JSON.stringify(only)}`);
   output.insertLeft(0, `, inputs: ${JSON.stringify(inputs)}`);
   output.insertLeft(0, `, forceVars: ${JSON.stringify(forceVars)}`);
@@ -88,7 +88,7 @@ function rewriteRenkonCalls(
                 output.insertRight(arg.end, '"');            
               }
             } else if (callee.property.name === "send") {
-              output.insertLeft(node.arguments[0].start, '_state, "');
+              output.insertLeft(node.arguments[0].start, 'Renkon, "');
               output.insertRight(node.arguments[0].end, '"');
             } else if (callee.property.name === "collect") {
               output.insertLeft(node.arguments[1].start, '"');

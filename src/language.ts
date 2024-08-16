@@ -70,7 +70,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     }
 
     const translated = jsNodes.map((jsNode) => transpileJavaScript(jsNode));
-    const evaluated = translated.map((tr) => evalCode(tr, state.app));
+    const evaluated = translated.map((tr) => evalCode(tr, state));
     const sorted = topologicalSort(evaluated);
 
     const newNodes = new Map<NodeId, ScriptCell>();
@@ -408,10 +408,10 @@ const Behaviors = {
     }
 }
 
-function evalCode(str:string, App?:any):ScriptCell {
+function evalCode(str:string, state:ProgramState):ScriptCell {
     let code = `return ${str}`;
-    let func = new Function("Events", "Behaviors", "App", code);
-    let val = func(Events, Behaviors, App);
+    let func = new Function("Events", "Behaviors", "Renkon", code);
+    let val = func(Events, Behaviors, state);
     val.code = str;
     return val;
 }
