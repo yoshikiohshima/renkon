@@ -70,7 +70,7 @@ export function setupProgram(scripts:string[], state:ProgramState) {
     }
 
     const translated = jsNodes.map((jsNode) => transpileJavaScript(jsNode));
-    const evaluated = translated.map((tr) => evalCode(tr));
+    const evaluated = translated.map((tr) => evalCode(tr, state.app));
     const sorted = topologicalSort(evaluated);
 
     const newNodes = new Map<NodeId, ScriptCell>();
@@ -291,8 +291,8 @@ function registerEvent(state:ProgramState, receiver:VarName, value:any) {
     state.changeList.set(receiver, value);
 }
 
-function renkonify(func:Function) {
-    const programState =  new ProgramState(Date.now());
+function renkonify(func:Function, optSystem?:any) {
+    const programState =  new ProgramState(Date.now(), optSystem);
     const {params, returnArray, output} = getFunctionBody(func.toString());
     console.log(params, returnArray, output);
 
@@ -407,10 +407,10 @@ const Behaviors = {
     }
 }
 
-function evalCode(str:string):ScriptCell {
+function evalCode(str:string, App?:any):ScriptCell {
     let code = `return ${str}`;
-    let func = new Function("Events", "Behaviors", code);
-    let val = func(Events, Behaviors);
+    let func = new Function("Events", "Behaviors", "App", code);
+    let val = func(Events, Behaviors, App);
     val.code = str;
     return val;
 }
