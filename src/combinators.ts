@@ -154,7 +154,7 @@ export class ProgramState {
         this.updated = true;
     }
 
-    spaceURL(partialURL) {
+    spaceURL(partialURL:string) {
         // partialURL: './bridge/bridge.js'
         // expected: 
         const loc = window.location.toString();
