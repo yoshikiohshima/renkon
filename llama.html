@@ -6,7 +6,7 @@
   <body>
    <div id="renkon">
       <script type="reactive">
-        const llama = import("../llama/llama.js");
+        const llama = import(Renkon.spaceURL("./llama/llama.js"));
         const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
         const html = preactModule.html;
         const render = preactModule.render;
@@ -184,7 +184,8 @@
       </style>
    </div>
    <script type="module">
-     import("./src/main.js").then((mod) => mod.view());
+     import {view} from "./dist/renkon.js";
+     view();
     </script>
   </body>
 </html>

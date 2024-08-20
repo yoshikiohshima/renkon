@@ -153,6 +153,21 @@ export class ProgramState {
         this.resolved.set(varName, value);
         this.updated = true;
     }
+
+    spaceURL(partialURL) {
+        // partialURL: './bridge/bridge.js'
+        // expected: 
+        const loc = window.location.toString();
+        const semi = loc.indexOf(";");
+        if (semi < 0) {
+            const base = import.meta?.env?.DEV ? "../" : "../";
+            console.log(base + partialURL);
+            return base + partialURL;
+        }
+        const index = loc.lastIndexOf("/");
+        let base = index >= 0 ? loc.slice(0, index) : loc;
+        return `${base}/${partialURL}`;
+    }
 }
 
 export class Stream {

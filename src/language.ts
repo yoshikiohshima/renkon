@@ -393,18 +393,6 @@ const Behaviors = {
     },
     delay(varName:VarName, delay: number):DelayedEvent {
         return new DelayedEvent(delay, varName, true);
-    },
-    spaceURL(partialURL:string) {
-        // partialURL: './bridge/bridge.js'
-        // expected: 
-        const loc = window.location.toString();
-        const semi = loc.indexOf(";");
-        if (semi < 0) {
-            return partialURL;
-        }
-        const index = loc.lastIndexOf("/");
-        let base = index >= 0 ? loc.slice(0, index) : loc;
-        return `${base}/${partialURL}`;
     }
 }
 
