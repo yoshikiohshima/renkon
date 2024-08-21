@@ -1,3 +1,5 @@
+import { showInspector } from "./inspector";
+
 export type NodeId = string;
 export type VarName = string;
 
@@ -167,6 +169,10 @@ export class ProgramState {
         const index = loc.lastIndexOf("/");
         let base = index >= 0 ? loc.slice(0, index) : loc;
         return `${base}/${partialURL}`;
+    }
+
+    inspector(flag:boolean, dom?: HTMLElement) {
+        showInspector(this, flag === undefined ? true: flag, dom);
     }
 }
 
