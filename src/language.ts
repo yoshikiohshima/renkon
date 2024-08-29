@@ -270,6 +270,7 @@ export class ProgramState implements ProgramStateType {
     evaluatorRunning: number;
     updated: boolean;
     app?: any;
+    noTicking: boolean;
     constructor(startTime:number, app?:any) {
         this.order = [];
         this.nodes = new Map();
@@ -283,6 +284,7 @@ export class ProgramState implements ProgramStateType {
         this.evaluatorRunning = 0;
         this.updated = false;
         this.app = app;
+        this.noTicking = false;
     }
 
     evaluator() {
@@ -296,6 +298,22 @@ export class ProgramState implements ProgramStateType {
             window.cancelAnimationFrame(this.evaluatorRunning);
             this.evaluatorRunning = 0;
         }
+    }
+
+    noTickingEvaluator() {
+        this.noTicking = true;
+        if (this.evaluatorRunning !== 0) {return;}
+        setTimeout(() => {
+            try {
+                this.evaluate(Date.now());
+            } finally {
+                this.evaluatorRunning = 0;
+            }
+        }, 0);
+        // it means that when a value is received or a promise resolved,
+        // it will schedule to call evaluate.
+        // The timer and delay should also work, but need to think about
+        // how that would work without introducing too much complexity.
     }
 
     setupProgram(scripts:string[]) {
@@ -555,6 +573,9 @@ export class ProgramState implements ProgramStateType {
     setResolved(varName:VarName, value:any) {
         this.resolved.set(varName, value);
         this.updated = true;
+        if (this.noTicking) {
+            this.noTickingEvaluator();
+        }
     }
 
     spaceURL(partialURL:string) {

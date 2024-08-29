@@ -59,6 +59,7 @@ export interface ProgramStateType {
     evaluatorRunning: number;
     updated: boolean;
     app?: any;
+    noTicking: boolean;
     ready(node: ScriptCell):boolean;
     defaultReady(node: ScriptCell):boolean;
     spliceDelayedQueued(record:QueueRecord, t:number):any;
