@@ -286,6 +286,7 @@ export class ProgramState implements ProgramStateType {
     }
 
     evaluator() {
+        if (this.evaluatorRunning !== 0) return;
         this.evaluatorRunning = window.requestAnimationFrame(() => this.evaluator());
         try {
             this.evaluate(Date.now());
