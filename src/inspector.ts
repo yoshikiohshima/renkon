@@ -1,4 +1,4 @@
-import { ProgramState } from './combinators';
+import { ProgramStateType } from './combinators';
 
 // @ts-ignore
 import { Inspector } from '@observablehq/inspector';
@@ -20,7 +20,7 @@ const inspectorCSS = `
 
 let inspector: Inspector;
 
-export function showInspector(programState:ProgramState, show:boolean, dom?:HTMLElement) {
+export function showInspector(programState:ProgramStateType, show:boolean, dom?:HTMLElement) {
     if (!document.head.querySelector("#inspector-css")) {
         const link = document.createElement("link");
         link.rel = "stylesheet";

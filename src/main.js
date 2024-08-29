@@ -1,2 +1,2 @@
 export {view} from './system';
-export {setupProgram, evaluator, evaluate, ProgramState} from "./language";
+export {ProgramState} from "./language";

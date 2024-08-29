@@ -2,7 +2,7 @@ import { basicSetup, EditorView } from "codemirror";
 
 //import { html, htmlLanguage } from "https://esm.sh/@codemirror/lang-html@v6.4.9"
 //import { javascript } from "https://esm.sh/@codemirror/lang-javascript@v6.0.1"
-import {setupProgram, evaluator, ProgramState} from "./language";
+import {ProgramState} from "./language";
 import { getContentFromHTML, loadFile, makeHTMLFromContent, saveFile } from "./load";
 
 let myResizeHandler: (() => void) | null;
@@ -163,9 +163,9 @@ function update(renkon:HTMLElement, editorView:EditorView, programState: Program
     renkon.innerHTML = editorView.state.doc.toString();
     let scripts = [...renkon.querySelectorAll("script[type='reactive']")] as HTMLScriptElement[];
     let text = scripts.map((s) => s.textContent).filter((s) => s);
-    setupProgram(text as string[], programState);
+    programState.setupProgram(text as string[]);
     if (programState.evaluatorRunning === 0) {
-        evaluator(programState);
+        programState.evaluator();
     }
 }
 

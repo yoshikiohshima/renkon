@@ -1,4 +1,4 @@
-import {setupProgram, evaluator, evaluate, ProgramState} from "../dist/renkon.js";
+import {ProgramState} from "../dist/renkon.js";
 import {equal, assert, assertState} from "./tester.js";
 
 function testTimerString(cls, interval) {
@@ -11,7 +11,7 @@ const b = a + 5;
 export function test1() {
   // create a program with timer ticking at 50 ms
   const state = new ProgramState(0);
-  setupProgram([testTimerString("Behaviors", 50)], state);
+  state.setupProgram([testTimerString("Behaviors", 50)]);
 
   // there should be two nodes
   assert(state.nodes.size, 2);
@@ -24,29 +24,29 @@ export function test1() {
   assert(b, undefined);
   
   // evaluate the program at t=0
-  evaluate(state, 0);
+  state.evaluate(0);
 
   // then timer is evaluated and b is also evaluated
   assertState(state, "a", 0);
   assertState(state, "b", 5);
 
   // timer has not hit the next tick so the values are unchanged.
-  evaluate(state, 10);
+  state.evaluate(10);
   assertState(state, "a", 0);
   assertState(state, "b", 5);
 
   // the time passes the next threshold (50) so they are updated
-  evaluate(state, 60);
+  state.evaluate(60);
   assertState(state, "a", 50);
   assertState(state, "b", 55);
 
   // the program itself is updated with a different tick. The one that got a different definition is cleared.
-  setupProgram([testTimerString("Behaviors", 100)], state);
+  state.setupProgram([testTimerString("Behaviors", 100)]);
   assertState(state, "a", undefined);
   assertState(state, "b", 55);
 
   // the program itself is updated with a different tick. The computed values stay
-  evaluate(state, 105);
+  state.evaluate(105);
   assertState(state, "a", 100);
   assertState(state, "b", 105);
 }
@@ -59,7 +59,7 @@ export function test2() {
     const c = Behaviors.collect([], Events.change(a), (cur, a) => a === 100 ? cur : [...cur, a])`;
 
   const state = new ProgramState(0);
-  setupProgram([testTimerString("Behaviors", 50), test2String], state);
+  state.setupProgram([testTimerString("Behaviors", 50), test2String]);
 
   // there should be four nodes: three top level ones and an innner one Events.change(a)
   assert(state.nodes.size, 4);
@@ -74,7 +74,7 @@ export function test2() {
   assert(c, undefined);
   
   // evaluate the program at t=0
-  evaluate(state, 0);
+  state.evaluate(0);
 
   // then timer is evaluated and b is also evaluated. c's initial value was [] but the updater is evaluated.
   // a is however reset
@@ -85,7 +85,7 @@ export function test2() {
   const myC = state.resolved.get("c").value;
 
   // timer has not hit the next tick so the values are unchanged.
-  evaluate(state, 10);
+  state.evaluate(10);
   assertState(state, "a", 0);
   assertState(state, "b", 5);
   assertState(state, "c", [0]);
@@ -93,28 +93,28 @@ export function test2() {
   assert(state.resolved.get("c").value === myC, true);
 
   // the time passes the next threshold (50) so they are updated
-  evaluate(state, 60);
+  state.evaluate(60);
   assertState(state, "a", 50);
   assertState(state, "b", 55);
   assertState(state, "c", [0, 50]); 
 
 
   // the time passes the next threshold (100) so they are updated
-  evaluate(state, 100);
+  state.evaluate(100);
 
   assertState(state, "a", 100);
   assertState(state, "b", 105);
   assertState(state, "c", [0, 50]); // 100 is filtered out in the updater function
 
   // the program itself is updated with a different tick. The stream with a different definition is cleared
-  setupProgram([testTimerString("Behaviors", 100), test2String], state);
+  state.setupProgram([testTimerString("Behaviors", 100), test2String]);
 
   assertState(state, "a", undefined);
   assertState(state, "b", 105);
   assertState(state, "c", [0, 50]);
 
   // the program itself is updated with a different tick. The computed values stay
-  evaluate(state, 150);
+  state.evaluate(150);
   assertState(state, "a", 100);
   assertState(state, "b", 105);
 }
@@ -126,7 +126,7 @@ export function test3() {
     const c = Behaviors.collect([], Events.change(a), (cur, a) => a === 100 ? cur : [...cur, a])`;
 
   const state = new ProgramState(0);
-  setupProgram([testTimerString("Events", 50), test2String], state);
+  state.setupProgram([testTimerString("Events", 50), test2String]);
 
   // there should be four nodes: three top level ones and an innner one Events.change(a)
   assert(state.nodes.size, 4);
@@ -141,7 +141,7 @@ export function test3() {
   assert(c, undefined);
   
   // evaluate the program at t=0
-  evaluate(state, 0);
+  state.evaluate(0);
 
   // then timer is evaluated and b is also evaluated. c's initial value was [] but the updater is evaluated.
   // a is however reset
@@ -152,7 +152,7 @@ export function test3() {
   const myC = state.resolved.get("c").value;
 
   // timer has not hit the next tick so the values are unchanged.
-  evaluate(state, 10);
+  state.evaluate(10);
   assertState(state, "a", undefined);
   assertState(state, "b", 5);
   assertState(state, "c", [0]);
@@ -160,28 +160,28 @@ export function test3() {
   assert(state.resolved.get("c").value === myC, true);
 
   // the time passes the next threshold (50) so they are updated
-  evaluate(state, 60);
+  state.evaluate(60);
   assertState(state, "a", undefined);
   assertState(state, "b", 55);
   assertState(state, "c", [0, 50]); 
 
 
   // the time passes the next threshold (100) so they are updated
-  evaluate(state, 100);
+  state.evaluate(100);
 
   assertState(state, "a", undefined);
   assertState(state, "b", 105);
   assertState(state, "c", [0, 50]); // 100 is filtered out in the updater function
 
   // the program itself is updated with a different tick. The computed values stay
-  setupProgram([testTimerString("Events", 100), test2String], state);
+  state.setupProgram([testTimerString("Events", 100), test2String]);
 
   assertState(state, "a", undefined);
   assertState(state, "b", 105);
   assertState(state, "c", [0, 50]);
 
   // the program itself is updated with a different tick. The computed values stay
-  evaluate(state, 105);
+  state.evaluate(105);
   assertState(state, "a", undefined);
   assertState(state, "b", 105);
 }
@@ -196,11 +196,10 @@ export function test4() {
     const d = Behaviors.collect([], Events.change(b), (cur, a) => a === 100 ? cur : [...cur, a])`;
 
   const state = new ProgramState(0);
-  setupProgram([test4String], state);
+  state.setupProgram([test4String]);
 
   // there should be four nodes: three top level ones and an innner one Events.change(a)
   assert(state.nodes.size, 5);
-
 
   let a = state.resolved.get("a");
   let b = state.resolved.get("b");
@@ -217,7 +216,7 @@ export function test4() {
   // evaluate the program at t=0
 
 
-  evaluate(state, 0);
+  state.evaluate(0);
 
   // then timer is evaluated and b is also evaluated.
   // a and c is however reset
@@ -232,7 +231,7 @@ export function test4() {
   assert(equal(myScratch, [0]), true);
 
   // timer has not hit the next tick so the values are unchanged.
-  evaluate(state, 10);
+  state.evaluate(10);
   assertState(state, "a", undefined);
   assertState(state, "b", 0);
   assertState(state, "c", undefined);
@@ -241,7 +240,7 @@ export function test4() {
   assert(state.scratch.get("c").current === myScratch, true);
 
   // the time passes the next threshold (50) so they are updated
-  evaluate(state, 60);
+  state.evaluate(60);
   assertState(state, "a", undefined);
   assertState(state, "b", 0);
   assertState(state, "c", undefined);
@@ -250,7 +249,7 @@ export function test4() {
   assert(state.scratch.get("c").current, [0, 50]);
 
   // the time passes the next threshold (100) so they are updated
-  evaluate(state, 100);
+  state.evaluate(100);
 
   assertState(state, "a", undefined);
   assertState(state, "b", 100);

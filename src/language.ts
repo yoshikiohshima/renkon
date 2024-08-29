@@ -2,216 +2,22 @@ import {JavaScriptNode, parseJavaScript} from "./javascript/parse"
 import {getFunctionBody, transpileJavaScript} from "./javascript/transpile"
 
 import {
-    ProgramState, ScriptCell, VarName, NodeId, Stream,
+    ScriptCell, VarName, NodeId, Stream,
     DelayedEvent, CollectStream, PromiseEvent, EventType,
     GeneratorNextEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent,
     ReceiverEvent, UserEvent, SendEvent, OrEvent,
     eventType, typeKey,
     isBehaviorKey,
     GeneratorWithFlag,
+    ProgramStateType,
+    ValueRecord,
+    ResolveRecord,
 } from "./combinators";
-
-export {ProgramState} from  "./combinators";
+import { showInspector } from "./inspector";
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
 
 const prototypicalGeneratorFunction = (async function*() {while (true) {}})();
-
-export function evaluator(state:ProgramState) {
-    state.evaluatorRunning = window.requestAnimationFrame(() => evaluator(state));
-    try {
-        evaluate(state, Date.now());
-    } catch (e) {
-        console.error(e);
-        console.log("stopping animation");
-        window.cancelAnimationFrame(state.evaluatorRunning);
-        state.evaluatorRunning = 0;
-    }
-}
-
-export function setupProgram(scripts:string[], state:ProgramState) {
-    const invalidatedStreamNames:Set<VarName> = new Set();
-
-    // clear all output from events anyway, as re evaluation should not run a cell that depends on an event.
-    // This should not be necessary if the DOM element that an event listener is attached stays the same.
-
-    for (const [varName, stream] of state.streams) {
-        if (!stream[isBehaviorKey]) {
-            const scratch = state.scratch.get(varName) as QueueRecord;
-            if (scratch?.cleanup && typeof scratch.cleanup === "function") {
-                scratch.cleanup();
-                scratch.cleanup = undefined;
-            }
-            state.resolved.delete(varName);
-            state.streams.delete(varName);
-            state.inputArray.delete(varName);
-            invalidatedStreamNames.add(varName);
-        }
-    }
-
-    // this is a terrible special case hack to render something after live edit
-    for (const [varName, node] of state.nodes) {
-        if (node.inputs.includes("render")) {
-            state.inputArray.delete(varName);
-        }
-    }
-
-    // compile code and sort them.
-    const jsNodes: Array<JavaScriptNode> = [];
-
-    let id = 0;
-    for (const script of scripts) {
-        if (!script) {continue;}
-        const nodes = parseJavaScript(script, id, false);
-        for (const n of nodes) {
-            jsNodes.push(n);
-            id++;
-        }
-    }
-
-    const translated = jsNodes.map((jsNode) => transpileJavaScript(jsNode));
-    const evaluated = translated.map((tr) => evalCode(tr, state));
-    const sorted = topologicalSort(evaluated);
-
-    const newNodes = new Map<NodeId, ScriptCell>();
-
-    for (const newNode of evaluated) {
-        newNodes.set(newNode.id, newNode);
-    }
-
-    const unsortedVarnames = difference(new Set(evaluated.map(e => e.id)), new Set(sorted));
-
-    for (const u of unsortedVarnames) {
-        console.log(`Node ${u} is not going to be evaluated because it is in a cycle or depends on a undefined variable.`);
-    }
-
-    // nested ones also have to be checked?
-    const oldVariableNames:Set<VarName> = new Set(state.order);
-    const newVariableNames:Set<VarName> = new Set(sorted);
-    const removedVariableNames = difference(oldVariableNames, newVariableNames);
-
-    for (const old of state.order) {
-        const oldNode = state.nodes.get(old);
-        const newNode = newNodes.get(old);
-        if (newNode && oldNode && oldNode.code !== newNode.code) {
-            invalidatedStreamNames.add(old);
-        }
-    }
-
-
-    state.order = sorted;
-    state.nodes = newNodes;
-
-    for (const nodeId of state.order) {
-        const newNode = newNodes.get(nodeId)!;
-        if (invalidatedInput(newNode, invalidatedStreamNames)) {
-            state.inputArray.delete(newNode.id);
-        }
-        if (invalidatedStreamNames.has(nodeId)) {
-            state.resolved.delete(nodeId);
-            state.scratch.delete(nodeId);
-            state.inputArray.delete(nodeId);
-        }
-    }
-
-    for (const removed of removedVariableNames) {
-        const stream = state.streams.get(removed);
-        if (stream) {
-            state.resolved.delete(removed);
-            state.streams.delete(removed);
-            state.scratch.delete(removed);
-        }
-    }
-
-    for (const [varName, node] of state.nodes) {
-        for (const input of node.inputs) {
-            if (!state.order.includes(state.baseVarName(input))) {
-                console.log(`Node ${varName} won't be evaluated as it depends on an undefined variable ${input}.`);
-            }
-        }
-    }
-}
-
-export function evaluate(state:ProgramState, now:number) {
-    state.time = now - state.startTime;
-    state.updated = false;
-    for (let id of state.order) {
-        const node = state.nodes.get(id)!;
-        if (!state.ready(node)) {continue;}
-
-        const change = state.changeList.get(id);
-
-        const inputArray = node.inputs.map((inputName) => state.resolved.get(state.baseVarName(inputName))?.value);
-        const lastInputArray = state.inputArray.get(id);
-
-        let outputs:any;
-        if (change === undefined && state.equals(inputArray, lastInputArray)) {
-            outputs = state.streams.get(id)!;
-        } else {
-            if (change === undefined) {
-                outputs = node.body.apply(
-                    state,
-                    [...inputArray, state]
-                );
-            } else {
-                outputs = new ReceiverEvent(change);
-            }
-            state.inputArray.set(id, inputArray);
-            const maybeValue = outputs;
-            if (maybeValue === undefined) {continue;}
-            if (maybeValue.then || maybeValue[typeKey]) {
-                const ev = maybeValue.then ? new PromiseEvent<any>(maybeValue) : maybeValue;
-                const newStream = ev.created(state, id);
-                state.streams.set(id, newStream);
-                outputs = newStream;
-            } else {
-                let newStream:Behavior = new Behavior();//{type: behaviorType}
-                state.streams.set(id, newStream);
-                const resolved = state.resolved.get(id);
-                if (!resolved || resolved.value !== maybeValue) {
-                    if (maybeValue.constructor === prototypicalGeneratorFunction.constructor) {
-                        maybeValue.done = false;
-                        // there is a special case for generators.
-                        // actually, there is no real guarantee that this generator is not done.
-                        // but I could not find a way to tell whether a generator is done or not.
-                    }
-                    state.setResolved(id, {value: maybeValue, time: state.time});
-                }
-                outputs = newStream;
-            }
-        }
-
-        if (outputs === undefined) {continue;}
-        const evStream:Stream = outputs as Stream;
-        evStream.evaluate(state, node, inputArray, lastInputArray);
-    }
-
-    // for all streams, check if it is an event.
-    // if it is resolved, its promise and resolved will be cleared
-
-    const deleted:Set<VarName> = new Set();
-    for (let [varName, stream] of state.streams) {
-        let maybeDeleted = stream.conclude(state, varName);
-        if (maybeDeleted) {
-            deleted.add(maybeDeleted);
-        }
-    }
-
-    // This is not necessary I think. I just have to make sure that and remove this.
-    for (let varName of deleted) {
-        for (let [receipient, node] of state.nodes) {
-            const index = node.inputs.indexOf(varName);
-            if (index >= 0) {
-                const inputArray = state.inputArray.get(receipient);
-                if (inputArray) {
-                    inputArray[index] = undefined;
-                }
-            }
-        }
-    }
-    state.changeList.clear();
-    return state.updated;
-}
 
 type UserEventType = string;
 
@@ -224,7 +30,6 @@ type EventBodyType = {
     dom?: HTMLElement | string;
     type: EventType;
     eventName?: UserEventType,
-
 };
 
 function eventBody(options:EventBodyType) {
@@ -297,7 +102,7 @@ function renkonify(func:Function, optSystem?:any) {
     const {params, returnArray, output} = getFunctionBody(func.toString());
     console.log(params, returnArray, output);
 
-    setupProgram([output], programState);
+    programState.setupProgram([output]);
 
     function generator(...args:any[]) {
         const gen = renkonBody(...args) as GeneratorWithFlag<any>;
@@ -309,7 +114,7 @@ function renkonify(func:Function, optSystem?:any) {
             programState.setResolved(params[i], args[i]);
         }
         while (true) {
-            evaluate(programState, programState.time);
+            programState.evaluate(programState.time);
             const result:any = {};
             if (returnArray) {
                 for (const n of returnArray) {
@@ -396,14 +201,6 @@ const Behaviors = {
     }
 }
 
-function evalCode(str:string, state:ProgramState):ScriptCell {
-    let code = `return ${str}`;
-    let func = new Function("Events", "Behaviors", "Renkon", code);
-    let val = func(Events, Behaviors, state);
-    val.code = str;
-    return val;
-}
-
 function topologicalSort(nodes:Array<ScriptCell>) {
     let order = [];
 
@@ -458,4 +255,323 @@ function difference(oldSet:Set<VarName>, newSet:Set<VarName>) {
         }
     }
     return result;
+}
+
+export class ProgramState implements ProgramStateType {
+    order: Array<NodeId>;
+    nodes: Map<NodeId, ScriptCell>;
+    streams: Map<VarName, Stream>;
+    scratch: Map<VarName, ValueRecord>;
+    resolved: Map<VarName, ResolveRecord>;
+    inputArray: Map<NodeId, Array<any>>;
+    changeList: Map<VarName, any>;
+    time: number;
+    startTime: number;
+    evaluatorRunning: number;
+    updated: boolean;
+    app?: any;
+    constructor(startTime:number, app?:any) {
+        this.order = [];
+        this.nodes = new Map();
+        this.streams = new Map();
+        this.scratch = new Map();
+        this.resolved = new Map();
+        this.inputArray = new Map();
+        this.time = 0,
+        this.changeList = new Map();
+        this.startTime = startTime;
+        this.evaluatorRunning = 0;
+        this.updated = false;
+        this.app = app;
+    }
+
+    evaluator() {
+        this.evaluatorRunning = window.requestAnimationFrame(() => this.evaluator());
+        try {
+            this.evaluate(Date.now());
+        } catch (e) {
+            console.error(e);
+            console.log("stopping animation");
+            window.cancelAnimationFrame(this.evaluatorRunning);
+            this.evaluatorRunning = 0;
+        }
+    }
+
+    setupProgram(scripts:string[]) {
+        const invalidatedStreamNames:Set<VarName> = new Set();
+    
+        // clear all output from events anyway, as re evaluation should not run a cell that depends on an event.
+        // This should not be necessary if the DOM element that an event listener is attached stays the same.
+    
+        for (const [varName, stream] of this.streams) {
+            if (!stream[isBehaviorKey]) {
+                const scratch = this.scratch.get(varName) as QueueRecord;
+                if (scratch?.cleanup && typeof scratch.cleanup === "function") {
+                    scratch.cleanup();
+                    scratch.cleanup = undefined;
+                }
+                this.resolved.delete(varName);
+                this.streams.delete(varName);
+                this.inputArray.delete(varName);
+                invalidatedStreamNames.add(varName);
+            }
+        }
+    
+        // this is a terrible special case hack to render something after live edit
+        for (const [varName, node] of this.nodes) {
+            if (node.inputs.includes("render")) {
+                this.inputArray.delete(varName);
+            }
+        }
+    
+        // compile code and sort them.
+        const jsNodes: Array<JavaScriptNode> = [];
+    
+        let id = 0;
+        for (const script of scripts) {
+            if (!script) {continue;}
+            const nodes = parseJavaScript(script, id, false);
+            for (const n of nodes) {
+                jsNodes.push(n);
+                id++;
+            }
+        }
+    
+        const translated = jsNodes.map((jsNode) => transpileJavaScript(jsNode));
+        const evaluated = translated.map((tr) => this.evalCode(tr));
+        const sorted = topologicalSort(evaluated);
+    
+        const newNodes = new Map<NodeId, ScriptCell>();
+    
+        for (const newNode of evaluated) {
+            newNodes.set(newNode.id, newNode);
+        }
+    
+        const unsortedVarnames = difference(new Set(evaluated.map(e => e.id)), new Set(sorted));
+    
+        for (const u of unsortedVarnames) {
+            console.log(`Node ${u} is not going to be evaluated because it is in a cycle or depends on a undefined variable.`);
+        }
+    
+        // nested ones also have to be checked?
+        const oldVariableNames:Set<VarName> = new Set(this.order);
+        const newVariableNames:Set<VarName> = new Set(sorted);
+        const removedVariableNames = difference(oldVariableNames, newVariableNames);
+    
+        for (const old of this.order) {
+            const oldNode = this.nodes.get(old);
+            const newNode = newNodes.get(old);
+            if (newNode && oldNode && oldNode.code !== newNode.code) {
+                invalidatedStreamNames.add(old);
+            }
+        }
+    
+    
+        this.order = sorted;
+        this.nodes = newNodes;
+    
+        for (const nodeId of this.order) {
+            const newNode = newNodes.get(nodeId)!;
+            if (invalidatedInput(newNode, invalidatedStreamNames)) {
+                this.inputArray.delete(newNode.id);
+            }
+            if (invalidatedStreamNames.has(nodeId)) {
+                this.resolved.delete(nodeId);
+                this.scratch.delete(nodeId);
+                this.inputArray.delete(nodeId);
+            }
+        }
+    
+        for (const removed of removedVariableNames) {
+            const stream = this.streams.get(removed);
+            if (stream) {
+                this.resolved.delete(removed);
+                this.streams.delete(removed);
+                this.scratch.delete(removed);
+            }
+        }
+    
+        for (const [varName, node] of this.nodes) {
+            for (const input of node.inputs) {
+                if (!this.order.includes(this.baseVarName(input))) {
+                    console.log(`Node ${varName} won't be evaluated as it depends on an undefined variable ${input}.`);
+                }
+            }
+        }
+    }
+
+    evaluate(now:number) {
+        this.time = now - this.startTime;
+        this.updated = false;
+        for (let id of this.order) {
+            const node = this.nodes.get(id)!;
+            if (!this.ready(node)) {continue;}
+    
+            const change = this.changeList.get(id);
+    
+            const inputArray = node.inputs.map((inputName) => this.resolved.get(this.baseVarName(inputName))?.value);
+            const lastInputArray = this.inputArray.get(id);
+    
+            let outputs:any;
+            if (change === undefined && this.equals(inputArray, lastInputArray)) {
+                outputs = this.streams.get(id)!;
+            } else {
+                if (change === undefined) {
+                    outputs = node.body.apply(
+                        this,
+                        [...inputArray, this]
+                    );
+                } else {
+                    outputs = new ReceiverEvent(change);
+                }
+                this.inputArray.set(id, inputArray);
+                const maybeValue = outputs;
+                if (maybeValue === undefined) {continue;}
+                if (maybeValue.then || maybeValue[typeKey]) {
+                    const ev = maybeValue.then ? new PromiseEvent<any>(maybeValue) : maybeValue;
+                    const newStream = ev.created(this, id);
+                    this.streams.set(id, newStream);
+                    outputs = newStream;
+                } else {
+                    let newStream:Behavior = new Behavior();//{type: behaviorType}
+                    this.streams.set(id, newStream);
+                    const resolved = this.resolved.get(id);
+                    if (!resolved || resolved.value !== maybeValue) {
+                        if (maybeValue.constructor === prototypicalGeneratorFunction.constructor) {
+                            maybeValue.done = false;
+                            // there is a special case for generators.
+                            // actually, there is no real guarantee that this generator is not done.
+                            // but I could not find a way to tell whether a generator is done or not.
+                        }
+                        this.setResolved(id, {value: maybeValue, time: this.time});
+                    }
+                    outputs = newStream;
+                }
+            }
+    
+            if (outputs === undefined) {continue;}
+            const evStream:Stream = outputs as Stream;
+            evStream.evaluate(this, node, inputArray, lastInputArray);
+        }
+    
+        // for all streams, check if it is an event.
+        // if it is resolved, its promise and resolved will be cleared
+    
+        const deleted:Set<VarName> = new Set();
+        for (let [varName, stream] of this.streams) {
+            let maybeDeleted = stream.conclude(this, varName);
+            if (maybeDeleted) {
+                deleted.add(maybeDeleted);
+            }
+        }
+    
+        // This is not necessary I think. I just have to make sure that and remove this.
+        for (let varName of deleted) {
+            for (let [receipient, node] of this.nodes) {
+                const index = node.inputs.indexOf(varName);
+                if (index >= 0) {
+                    const inputArray = this.inputArray.get(receipient);
+                    if (inputArray) {
+                        inputArray[index] = undefined;
+                    }
+                }
+            }
+        }
+        this.changeList.clear();
+        return this.updated;
+    }
+
+    evalCode(str:string):ScriptCell {
+        let code = `return ${str}`;
+        let func = new Function("Events", "Behaviors", "Renkon", code);
+        let val = func(Events, Behaviors, this);
+        val.code = str;
+        return val;
+    }
+
+    ready(node: ScriptCell):boolean {
+        const output = node.outputs;
+        const stream = this.streams.get(output);
+    
+        if (stream) {
+            return stream.ready(node, this);
+        }
+    
+        return this.defaultReady(node);
+    }
+
+    defaultReady(node: ScriptCell) {
+        for (const inputName of node.inputs) {
+            const varName = this.baseVarName(inputName);
+            const resolved = this.resolved.get(varName)?.value;
+            if (resolved === undefined && !node.forceVars.includes(inputName)) {return false;}
+        }
+        return true;
+    }
+
+    equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>) {
+        if (!Array.isArray(aArray) || !Array.isArray(bArray)) {return false;}
+        if (aArray.length !== bArray.length) {
+            return false;
+        }
+        for (let i = 0; i < aArray.length; i++) {
+            if (aArray[i] !== bArray[i]) {return false;}
+        }
+        return true;
+    }
+
+    spliceDelayedQueued(record:QueueRecord, t:number) {
+        let last = -1;
+        for (let i = 0; i < record.queue.length; i++) {
+            if (record.queue[i].time >= t) {
+                break;
+            }
+            last = i;
+        }
+        if (last < 0) {
+            return undefined;
+        }
+
+        const value = record.queue[last].value;
+        const newQueue = record.queue.slice(last + 1);
+        record.queue = newQueue;
+        return value;
+    }
+
+    getEventValue(record:QueueRecord, _t:number) {
+        if (record.queue.length >= 1) {
+            const value = record.queue[record.queue.length - 1].value;
+            record.queue = [];
+            return value;
+        }
+        return undefined;
+    }
+
+    baseVarName(varName:VarName) {
+        return varName[0] !== "$" ? varName : varName.slice(1);
+    }
+
+    setResolved(varName:VarName, value:any) {
+        this.resolved.set(varName, value);
+        this.updated = true;
+    }
+
+    spaceURL(partialURL:string) {
+        // partialURL: './bridge/bridge.js'
+        // expected: 
+        const loc = window.location.toString();
+        const semi = loc.indexOf(";");
+        if (semi < 0) {
+            const base = import.meta?.env?.DEV ? "../" : "../";
+            console.log(base + partialURL);
+            return base + partialURL;
+        }
+        const index = loc.lastIndexOf("/");
+        let base = index >= 0 ? loc.slice(0, index) : loc;
+        return `${base}/${partialURL}`;
+    }
+
+    inspector(flag:boolean, dom?: HTMLElement) {
+        showInspector(this, flag === undefined ? true: flag, dom);
+    }
 }
