@@ -93,10 +93,6 @@ function eventBody(options:EventBodyType) {
     return new UserEvent(record);;
 }
 
-function registerEvent(state:ProgramState, receiver:VarName, value:any) {
-    state.changeList.set(receiver, value);
-}
-
 function renkonify(func:Function, optSystem?:any) {
     const programState =  new ProgramState(Date.now(), optSystem);
     const {params, returnArray, output} = getFunctionBody(func.toString());
@@ -165,7 +161,7 @@ const Events = {
         return new CollectStream(undefined, varName, (_a, b) => updater(b), false);
     },*/
     send(state:ProgramState, receiver:VarName, value:any) {
-        registerEvent(state, receiver, value);
+        state.registerEvent(receiver, value);
         return new SendEvent();
     },
     receiver() {
@@ -568,6 +564,13 @@ export class ProgramState implements ProgramStateType {
 
     baseVarName(varName:VarName) {
         return varName[0] !== "$" ? varName : varName.slice(1);
+    }
+
+    registerEvent(receiver:VarName, value:any) {
+        this.changeList.set(receiver, value);
+        if (this.noTicking) {
+            this.noTickingEvaluator();
+        }
     }
 
     setResolved(varName:VarName, value:any) {
