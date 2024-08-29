@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"> 
+  </head>
+  <body>
+    <div id="renkon">
+      <script type="reactive">
+        async function* func() {
+            yield 1;
+            yield 2;
+        }
+
+        const gen = func();
+            
+        const v = Events.next(gen);
+
+        console.log(v);
+      </script>
+    </div>
+    <script type="module">
+      import {view} from "./dist/renkon.js";
+      view();
+    </script>
+  </body>
+</html>
