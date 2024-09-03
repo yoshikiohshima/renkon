@@ -101,7 +101,8 @@
               evt.preventDefault();
               evt.stopPropagation();
               console.log("enter");
-              const prompt = `You are a part of a natural language command system. The system is supposed to find a phrase that is a command for an application. You recognize equivalent phrases to one of "open a frame", "move a frame by some amount", "delete a frame named something", and "bring a frame named something to front". When you recognize a phrase that looks like a command, output "COMMAND" with the phrase, where "something" or "some amount" was replaced with the values from the sentence.`;
+              // const prompt = `You are a part of a natural language command system. The system is supposed to find a phrase that is a command for an application. You recognize equivalent phrases to one of "open a frame", "move a frame by some amount", "delete a frame named something", and "bring a frame named something to front". When you recognize a phrase that looks like a command, output "COMMAND" with the phrase, where "something" or "some amount" was replaced with the values from the sentence.`;
+              const prompt = `You are a helpful assistant. You answer to a question truthfully and faithfully.`;
 
               notify(prompt + "\n\nUser: " + evt.target.textContent + "\nLlama:");
             }
