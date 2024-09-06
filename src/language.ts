@@ -480,29 +480,10 @@ export class ProgramState implements ProgramStateType {
             evStream.evaluate(this, node, inputArray, lastInputArray);
         }
     
-        // for all streams, check if it is an event.
-        // if it is resolved, its promise and resolved will be cleared
-    
-        const deleted:Set<VarName> = new Set();
         for (let [varName, stream] of this.streams) {
-            let maybeDeleted = stream.conclude(this, varName);
-            if (maybeDeleted) {
-                deleted.add(maybeDeleted);
-            }
+            stream.conclude(this, varName);
         }
-    
-        // This is not necessary I think. I just have to make sure that and remove this.
-        for (let varName of deleted) {
-            for (let [receipient, node] of this.nodes) {
-                const index = node.inputs.indexOf(varName);
-                if (index >= 0) {
-                    const inputArray = this.inputArray.get(receipient);
-                    if (inputArray) {
-                        inputArray[index] = undefined;
-                    }
-                }
-            }
-        }
+
         this.changeList.clear();
         return this.updated;
     }

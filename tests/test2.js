@@ -49,5 +49,7 @@ export async function test2_1() {
   state.evaluate(110);
   assertState(state, "a", 100);
   assertState(state, "b", 101);
+
+  return true;
 }
 

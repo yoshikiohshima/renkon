@@ -8,7 +8,7 @@ const b = a + 5;
 `;
 }
 
-export function test1() {
+export async function test1() {
   // create a program with timer ticking at 50 ms
   const state = new ProgramState(0);
   state.setupProgram([testTimerString("Behaviors", 50)]);
@@ -49,10 +49,11 @@ export function test1() {
   state.evaluate(105);
   assertState(state, "a", 100);
   assertState(state, "b", 105);
+  return true;
 }
 
 
-export function test2() {
+export async function test2() {
   //
 
   const test2String = `
@@ -117,9 +118,11 @@ export function test2() {
   state.evaluate(150);
   assertState(state, "a", 100);
   assertState(state, "b", 105);
+
+  return true;
 }
 
-export function test3() {
+export async function test3() {
   //
 
   const test2String = `
@@ -184,9 +187,11 @@ export function test3() {
   state.evaluate(105);
   assertState(state, "a", undefined);
   assertState(state, "b", 105);
+
+  return true;
 }
 
-export function test4() {
+export async function test4() {
   //
 
   const test4String = `
@@ -258,4 +263,5 @@ export function test4() {
 
   assert(state.scratch.get("c").current, [0, 50]);
 
+  return true;
 }
