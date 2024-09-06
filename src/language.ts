@@ -73,6 +73,11 @@ function eventBody(options:EventBodyType) {
             myHandler = handlers(eventName);
         }
         if (myHandler) {
+            if (eventName === "pointermove") {
+                console.log("add", myHandler);
+                if (!window.myHandlers) {window.myHandlers = [];}
+                window.myHandlers.push(myHandler);
+            }
             realDom.addEventListener(eventName, myHandler);
         }
     }
@@ -82,6 +87,9 @@ function eventBody(options:EventBodyType) {
     }
     if (!forObserve && dom) {
         record.cleanup = () => {
+            if (eventName === "pointermove") {
+                console.log("remove", myHandler);
+            }
             if (realDom && eventName) {
                 if (myHandler) {
                     realDom.removeEventListener(eventName, myHandler);
@@ -90,7 +98,7 @@ function eventBody(options:EventBodyType) {
         }
     }
 
-    return new UserEvent(record);;
+    return new UserEvent(record);
 }
 
 function renkonify(func:Function, optSystem?:any) {
@@ -194,7 +202,11 @@ const Behaviors = {
     },
     delay(varName:VarName, delay: number):DelayedEvent {
         return new DelayedEvent(delay, varName, true);
-    }
+    },
+    /*
+    startsWith(init:any, varName:VarName) {
+        return new CollectStream(init, varName, (_old, v) => v, true);
+    }*/
 }
 
 function topologicalSort(nodes:Array<ScriptCell>) {

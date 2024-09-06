@@ -38,6 +38,7 @@ body {
 .dock #drawerButton {
     align-self: center;
     padding: 40px 8px 40px 8px;
+    cursor: pointer;
 }
 
 .dock #updateButton {

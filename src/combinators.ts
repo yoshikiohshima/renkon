@@ -248,20 +248,23 @@ export class OrEvent extends Stream {
 }
 
 export class UserEvent extends Stream {
-    cleanup?: (() => void);
     record: ValueRecord;
     constructor(record:QueueRecord) {
         super(eventType, false);
-        this.cleanup = record.cleanup;
         this.record = record;
     }
 
     created(state:ProgramStateType, id:VarName):Stream {
         let stream = state.streams.get(id) as UserEvent;
-        if (!stream) {
-            state.scratch.set(id, this.record);
-            stream = this;
+        console.log("created", stream, id);
+        let oldRecord = state.scratch.get(id) as QueueRecord;
+        if (oldRecord && oldRecord.cleanup &&
+            typeof oldRecord.cleanup === "function") {
+                oldRecord.cleanup();
+                oldRecord.cleanup = undefined;
         }
+        state.scratch.set(id, this.record);
+
         return this;
     }
 
