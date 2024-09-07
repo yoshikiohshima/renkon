@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"> 
+  </head>
+  <body>
+    <div id="renkon">
+        <script type="reactive">
+            const value = Behaviors.collect(0, Events.or(minus, plus), (old, ev) => {
+                return ev.target.id === "minus" ? old - 1 : old + 1;
+            });
+            
+            const minus = Events.click("#minus");
+            const plus = Events.click("#plus");
+            document.querySelector("#output").textContent = value;
+      </script>
+        <button id="minus">-</button>
+        <div id="output"></div>
+        <button id="plus">-</button>
+    </div>
+    <script type="module">
+      import {view} from "./dist/renkon.js";
+      view();
+    </script>
+  </body>
+</html>
