@@ -13,10 +13,9 @@
 		Events.or(pointerdown, pointerup),
 		(old, ev) => {
 		    if (ev.type === "pointerdown") {
-				return (evt) => {console.log("moving");}
+			return (evt) => {console.log("moving");}
 		    }
-			console.log(ev.type);
-		    return (evt) => evt;
+		    return null;
 		}
 	    );
 	    const pointermove = Events.listener("#square", "pointermove", pointerMoveHandler);

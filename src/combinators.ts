@@ -256,7 +256,6 @@ export class UserEvent extends Stream {
 
     created(state:ProgramStateType, id:VarName):Stream {
         let stream = state.streams.get(id) as UserEvent;
-        console.log("created", stream, id);
         let oldRecord = state.scratch.get(id) as QueueRecord;
         if (oldRecord && oldRecord.cleanup &&
             typeof oldRecord.cleanup === "function") {
@@ -390,7 +389,7 @@ export class CollectStream<I, T> extends Stream {
             const newValue = this.updater(scratch.current, inputValue);
             if (newValue !== undefined) {
                 // this check feels like unfortunate.
-                if ((newValue as unknown as Promise<any>).then) {
+                if (newValue !== null && (newValue as unknown as Promise<any>).then) {
                     (newValue as unknown as Promise<any>).then((value:any) => {
                         state.setResolved(node.id, {value, time: state.time});
                         state.scratch.set(node.id, {current: value});

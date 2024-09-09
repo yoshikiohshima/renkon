@@ -26,7 +26,7 @@ type ObserveCallback = (notifier:(v:any) => void) => () => void;
 type EventBodyType = {
     forObserve: boolean;
     callback?: ObserveCallback;
-    eventHandler?: (evt:any) => any;
+    eventHandler?: (evt:any) => any | null;
     dom?: HTMLElement | string;
     type: EventType;
     eventName?: UserEventType,
@@ -35,7 +35,7 @@ type EventBodyType = {
 function eventBody(options:EventBodyType) {
     let {forObserve, callback, dom, eventName, eventHandler} = options;
     let record:QueueRecord = {queue:[]};
-    let myHandler: (evt:any) => any;
+    let myHandler: ((evt:any) => any) | null;
 
     let realDom:HTMLElement|undefined;
     if (typeof dom === "string") {
@@ -73,12 +73,10 @@ function eventBody(options:EventBodyType) {
             myHandler = handlers(eventName);
         }
         if (myHandler) {
-            if (eventName === "pointermove") {
-                console.log("add", myHandler);
-                if (!window.myHandlers) {window.myHandlers = [];}
-                window.myHandlers.push(myHandler);
-            }
             realDom.addEventListener(eventName, myHandler);
+        }
+        if (eventHandler === null) {
+            realDom.removeEventListener(eventName, myHandler);
         }
     }
 
@@ -87,9 +85,6 @@ function eventBody(options:EventBodyType) {
     }
     if (!forObserve && dom) {
         record.cleanup = () => {
-            if (eventName === "pointermove") {
-                console.log("remove", myHandler);
-            }
             if (realDom && eventName) {
                 if (myHandler) {
                     realDom.removeEventListener(eventName, myHandler);
