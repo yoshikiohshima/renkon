@@ -1,7 +1,7 @@
 {
-  "name": "renkon2",
+  "name": "renkon",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "npm-run-all --parallel vite file-server",
