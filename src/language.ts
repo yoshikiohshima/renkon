@@ -413,8 +413,9 @@ export class ProgramState implements ProgramStateType {
         }
     
         for (const [varName, node] of this.nodes) {
+            const nodeNames = [...this.nodes].map(([id, _body]) => id);
             for (const input of node.inputs) {
-                if (!this.order.includes(this.baseVarName(input))) {
+                if (!nodeNames.includes(this.baseVarName(input))) {
                     console.log(`Node ${varName} won't be evaluated as it depends on an undefined variable ${input}.`);
                 }
             }
