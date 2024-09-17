@@ -358,7 +358,7 @@ export class ProgramState implements ProgramStateType {
             }
         }
     
-        const translated = jsNodes.map((jsNode) => transpileJavaScript(jsNode));
+        const translated = jsNodes.map((jsNode) => ({id: jsNode.id, code: transpileJavaScript(jsNode)}));
         const evaluated = translated.map((tr) => this.evalCode(tr));
         const sorted = topologicalSort(evaluated);
     
@@ -483,11 +483,12 @@ export class ProgramState implements ProgramStateType {
         return this.updated;
     }
 
-    evalCode(str:string):ScriptCell {
-        let code = `return ${str}`;
-        let func = new Function("Events", "Behaviors", "Renkon", code);
+    evalCode(arg:{id:VarName, code:string}):ScriptCell {
+        const {id, code} = arg;
+        let body = `return ${code} //# sourceURL=${window.location.origin}/node/${id}`;
+        let func = new Function("Events", "Behaviors", "Renkon", body);
         let val = func(Events, Behaviors, this);
-        val.code = str;
+        val.code = code;
         return val;
     }
 
