@@ -9,15 +9,8 @@
       </script>
     </div>
     <script type="module">
-        import {parseJSX, transpileJSX} from "./src/main.js";
-        import {h, render} from "./preact.standalone.module.js";
-        const node = parseJSX('<div id="baz" style="color: red">{x}<button>Foo</button></div>');
-        const x = [h("div", {}, "123"), h("div", {}, "456")];
-        const str = transpileJSX(node);
-        const dom = eval(str);
-        console.log(dom);
-        render(dom, document.querySelector("#foo"));
+      import {view} from "./src/main.js";
+      view();
     </script>
-    <div id="foo"></div>
   </body>
 </html>

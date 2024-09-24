@@ -4,6 +4,8 @@ import { basicSetup, EditorView } from "codemirror";
 //import { javascript } from "https://esm.sh/@codemirror/lang-javascript@v6.0.1"
 import {ProgramState} from "./language";
 import { getContentFromHTML, loadFile, makeHTMLFromContent, saveFile } from "./load";
+import { transpileJSX } from "./javascript/transpileJSX";
+import { parseJSX } from "./javascript/parse";
 
 let myResizeHandler: (() => void) | null;
 
@@ -164,11 +166,22 @@ function update(renkon:HTMLElement, editorView:EditorView, programState: Program
     renkon.innerHTML = editorView.state.doc.toString();
     let scripts = [...renkon.querySelectorAll("script[type='reactive']")] as HTMLScriptElement[];
     let text = scripts.map((s) => s.textContent).filter((s) => s);
-    let jsx = [...renkon.querySelectorAll("script[type='renkon-jsx']")] as HTMLScriptElement[];
+    let jsxElements = [...renkon.querySelectorAll("script[type='renkon-jsx']")] as HTMLScriptElement[];
+    let jsxs = jsxElements.map((s) => [s, s.textContent]).filter((s) => s[1]);
 
-    
-    
-    programState.setupProgram(text as string[]);
+    const translated = jsxs.map((pair, index) => {
+        const node = parseJSX(pair[1]);
+        const str = transpileJSX(node);
+        const div = document.createElement("div");
+        div.id = `jsx-${index}`;
+        div.setAttribute("style", pair[0].style);
+        renkon.insertBefore(div, pair[0].nextSibling);
+        const renderString = `render(${str}, document.querySelector("#${div.id}"))`;
+        return renderString;
+    })
+
+
+    programState.setupProgram([...text, ...translated] as string[]);
     if (programState.evaluatorRunning === 0) {
         programState.evaluator();
     }
