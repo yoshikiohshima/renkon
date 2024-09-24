@@ -170,8 +170,7 @@ function update(renkon:HTMLElement, editorView:EditorView, programState: Program
     let jsxs = jsxElements.map((s) => [s, s.textContent]).filter((s) => s[1]);
 
     const translated = jsxs.map((pair, index) => {
-        const node = parseJSX(pair[1]);
-        const str = transpileJSX(node);
+        const str = transpileJSX(pair[1]);
         const div = document.createElement("div");
         div.id = `jsx-${index}`;
         div.setAttribute("style", pair[0].style);
@@ -179,7 +178,6 @@ function update(renkon:HTMLElement, editorView:EditorView, programState: Program
         const renderString = `render(${str}, document.querySelector("#${div.id}"))`;
         return renderString;
     })
-
 
     programState.setupProgram([...text, ...translated] as string[]);
     if (programState.evaluatorRunning === 0) {

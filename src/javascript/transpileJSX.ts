@@ -1,10 +1,9 @@
 import type {Node} from "acorn";
-export interface TranspileOptions {
-  id: string;
-}
+import { parseJSX } from "./parse";
 
-export function transpileJSX(node: Node): string {
-  const result = rewriteJSX((node as any).body[0]);
+export function transpileJSX(code: string): string {
+  const node = parseJSX(code);
+  const result = rewriteJSX((node as any).body[0], code);
   if (typeof result === "string") {
     return result;
   } 
@@ -15,6 +14,7 @@ type CodeFragments<T> = T | T[] | CodeFragments<T>[];
 
 function rewriteJSX(
   body: Node,
+  code: string
 ): CodeFragments<string> {
   function translate(body:any):CodeFragments<string> {
     if (body.type === "JSXElement") {
@@ -82,7 +82,7 @@ function rewriteJSX(
     } else if (body.type === "Literal") {
       return body.raw;
     }
-    return "";
+    return code.slice(body.start, body.end);
   }
   return translate(body);
 }
