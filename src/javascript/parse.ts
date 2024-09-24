@@ -1,4 +1,5 @@
 import {Parser, tokTypes} from "acorn";
+import jsx from "acorn-jsx";
 import type {Expression, Identifier, Options, Program} from "acorn";
 import {checkAssignments} from "./assignments.js";
 import {findDeclarations} from "./declarations.js";
@@ -35,7 +36,8 @@ function findDecls(input:string) {
     const list = (body as Program).body;
     return list.map((decl) => input.slice(decl.start, decl.end));
   } catch (error) {
-    console.log(error.message, ": error around -> ", `"${input.slice(error.pos - 30, error.pos + 30)}"`);
+    const e = error as unknown as SyntaxError & {pos:number};
+    console.log(e.message, ": error around -> ", `"${input.slice(e.pos - 30, e.pos + 30)}"`);
     return [];
   }
 }
@@ -93,6 +95,10 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
 
 export function parseProgram(input: string): Program {
   return Parser.parse(input, acornOptions);
+}
+
+export function parseJSX(input: string) {
+  return Parser.extend(jsx()).parse(input, {ecmaVersion: 13});
 }
 
 /**

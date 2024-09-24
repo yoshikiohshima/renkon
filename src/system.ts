@@ -164,6 +164,10 @@ function update(renkon:HTMLElement, editorView:EditorView, programState: Program
     renkon.innerHTML = editorView.state.doc.toString();
     let scripts = [...renkon.querySelectorAll("script[type='reactive']")] as HTMLScriptElement[];
     let text = scripts.map((s) => s.textContent).filter((s) => s);
+    let jsx = [...renkon.querySelectorAll("script[type='renkon-jsx']")] as HTMLScriptElement[];
+
+    
+    
     programState.setupProgram(text as string[]);
     if (programState.evaluatorRunning === 0) {
         programState.evaluator();

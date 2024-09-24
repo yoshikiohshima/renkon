@@ -255,7 +255,6 @@ export class UserEvent extends Stream {
     }
 
     created(state:ProgramStateType, id:VarName):Stream {
-        let stream = state.streams.get(id) as UserEvent;
         let oldRecord = state.scratch.get(id) as QueueRecord;
         if (oldRecord && oldRecord.cleanup &&
             typeof oldRecord.cleanup === "function") {
