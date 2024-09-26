@@ -96,39 +96,6 @@ function eventBody(options:EventBodyType) {
     return new UserEvent(record);
 }
 
-function renkonify(func:Function, optSystem?:any) {
-    const programState =  new ProgramState(Date.now(), optSystem);
-    const {params, returnArray, output} = getFunctionBody(func.toString());
-    console.log(params, returnArray, output);
-
-    programState.setupProgram([output]);
-
-    function generator(...args:any[]) {
-        const gen = renkonBody(...args) as GeneratorWithFlag<any>;
-        gen.done = false;
-        return Events.next(gen);
-    }
-    async function* renkonBody(...args:any[]) {
-        for (let i = 0; i < params.length; i++) {
-            programState.setResolved(params[i], args[i]);
-        }
-        while (true) {
-            programState.evaluate(programState.time);
-            const result:any = {};
-            if (returnArray) {
-                for (const n of returnArray) {
-                    const v = programState.resolved.get(n);
-                    if (v && v.value !== undefined) {
-                        result[n] = v.value;
-                    }
-                }
-            }
-            yield result;
-        }
-    }
-    return generator;
-}
-
 const Events = {
     observe(callback:ObserveCallback) {
         return eventBody({type: eventType, forObserve: true, callback});
@@ -182,7 +149,6 @@ const Events = {
           directWindow.postMessage(obj, "*");
         }
     },
-    renkonify: renkonify
 };
 
 const Behaviors = {
@@ -261,6 +227,7 @@ function difference(oldSet:Set<VarName>, newSet:Set<VarName>) {
 }
 
 export class ProgramState implements ProgramStateType {
+    scripts: Array<string>;
     order: Array<NodeId>;
     nodes: Map<NodeId, ScriptCell>;
     streams: Map<VarName, Stream>;
@@ -275,6 +242,7 @@ export class ProgramState implements ProgramStateType {
     app?: any;
     noTicking: boolean;
     constructor(startTime:number, app?:any) {
+        this.scripts = [];
         this.order = [];
         this.nodes = new Map();
         this.streams = new Map();
@@ -390,6 +358,7 @@ export class ProgramState implements ProgramStateType {
     
         this.order = sorted;
         this.nodes = newNodes;
+        this.scripts = scripts;
     
         for (const nodeId of this.order) {
             const newNode = newNodes.get(nodeId)!;
@@ -568,6 +537,45 @@ export class ProgramState implements ProgramStateType {
         if (this.noTicking) {
             this.noTickingEvaluator();
         }
+    }
+
+    merge(func:Function) {
+        let scripts = this.scripts;
+        const {output} = getFunctionBody(func.toString(), true);
+        this.setupProgram([...scripts, output] as string[]);    
+    }
+
+    renkonify(func:Function, optSystem?:any) {
+        const programState =  new ProgramState(Date.now(), optSystem);
+        const {params, returnArray, output} = getFunctionBody(func.toString(), false);
+        console.log(params, returnArray, output);
+    
+        programState.setupProgram([output]);
+    
+        function generator(...args:any[]) {
+            const gen = renkonBody(...args) as GeneratorWithFlag<any>;
+            gen.done = false;
+            return Events.next(gen);
+        }
+        async function* renkonBody(...args:any[]) {
+            for (let i = 0; i < params.length; i++) {
+                programState.setResolved(params[i], args[i]);
+            }
+            while (true) {
+                programState.evaluate(programState.time);
+                const result:any = {};
+                if (returnArray) {
+                    for (const n of returnArray) {
+                        const v = programState.resolved.get(n);
+                        if (v && v.value !== undefined) {
+                            result[n] = v.value;
+                        }
+                    }
+                }
+                yield result;
+            }
+        }
+        return generator;
     }
 
     spaceURL(partialURL:string) {

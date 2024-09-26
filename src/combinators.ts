@@ -47,6 +47,7 @@ export type EventType =
     typeof generatorNextType;
 
 export interface ProgramStateType {
+    scripts: Array<string>;
     order: Array<NodeId>;
     nodes: Map<NodeId, ScriptCell>;
     streams: Map<VarName, Stream>;

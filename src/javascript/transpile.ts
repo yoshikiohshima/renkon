@@ -35,13 +35,13 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   return String(output);
 }
 
-export function getFunctionBody(input: string) {
+export function getFunctionBody(input: string, forMerge: boolean) {
   const compiled = parseJavaScript(input, 0, true);
   const node = compiled[0].body.body[0] as FunctionDeclaration;
   const params = node.params.map((p) => (p as Identifier).name);
   const body = node.body.body;
   const last = body[body.length - 1];
-  const returnArray = getArray(last);
+  const returnArray = forMerge ? [] : getArray(last);
   const output = new Sourcemap(input).trim();
 
   output.delete(0, body[0].start);
