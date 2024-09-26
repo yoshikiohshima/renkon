@@ -59,7 +59,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
     const [references, forceVars] = findReferences(b);
     checkAssignments(b, references, input);
     const declarations = findDeclarations(b, input);
-    
+
     const rewriteSpecs = flattened ? [] : checkNested(b, id);
 
     if (rewriteSpecs.length === 0) {
@@ -77,17 +77,23 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
     } else {
       let newInput = decl;
       let newPart = "";
+      let overridden = false;
       for (let i = 0; i < rewriteSpecs.length; i++) {
         const spec = rewriteSpecs[i];
-        const sub = newInput.slice(spec.start, spec.end);
-        const varName = spec.name
-        newPart += `const ${varName} = ${sub};\n`;
-        let length = spec.end - spec.start;
-        const newNewInput = `${newInput.slice(0, spec.start)}${spec.name.padEnd(length, " ")}${newInput.slice(spec.end)}`;
-        if (newNewInput.length !== decl.length) {debugger}
-        newInput = newNewInput
+        if (spec.type === "range") {
+          const sub = newInput.slice(spec.start, spec.end);
+          const varName = spec.name
+          newPart += `const ${varName} = ${sub};\n`;
+          let length = spec.end - spec.start;
+          const newNewInput = `${newInput.slice(0, spec.start)}${spec.name.padEnd(length, " ")}${newInput.slice(spec.end)}`;
+          if (newNewInput.length !== decl.length) {debugger}
+          newInput = newNewInput
+        } else if (spec.type === "override") {
+          overridden = true;
+          newPart += spec.definition + "\n";
+        }
       }
-      allReferences.push(...parseJavaScript(`${newPart}\n${newInput}`, initialId, true));
+      allReferences.push(...parseJavaScript(`${newPart}${overridden ? "" : "\n" + newInput}`, initialId, true));
     }
   }
   return allReferences as JavaScriptNode[];

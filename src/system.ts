@@ -5,7 +5,6 @@ import { basicSetup, EditorView } from "codemirror";
 import {ProgramState} from "./language";
 import { getContentFromHTML, loadFile, makeHTMLFromContent, saveFile } from "./load";
 import { transpileJSX } from "./javascript/transpileJSX";
-import { parseJSX } from "./javascript/parse";
 
 let myResizeHandler: (() => void) | null;
 
@@ -167,19 +166,28 @@ function update(renkon:HTMLElement, editorView:EditorView, programState: Program
     let scripts = [...renkon.querySelectorAll("script[type='reactive']")] as HTMLScriptElement[];
     let text = scripts.map((s) => s.textContent).filter((s) => s);
     let jsxElements = [...renkon.querySelectorAll("script[type='renkon-jsx']")] as HTMLScriptElement[];
-    let jsxs = jsxElements.map((s) => [s, s.textContent]).filter((s) => s[1]);
+    type JSXS = {element: HTMLScriptElement, code: string};
+    let jsxs:Array<JSXS> = jsxElements.map((s) => ({element: s, code: s.textContent!})).filter((s) => s.code);
 
-    const translated = jsxs.map((pair, index) => {
-        const str = transpileJSX(pair[1]);
-        const div = document.createElement("div");
-        div.id = `jsx-${index}`;
-        div.setAttribute("style", pair[0].style);
-        renkon.insertBefore(div, pair[0].nextSibling);
-        const renderString = `render(${str}, document.querySelector("#${div.id}"))`;
-        return renderString;
-    })
+    const programs = [...text];
+    if (jsxs.length > 0) {
 
-    programState.setupProgram([...text, ...translated] as string[]);
+        const translated = jsxs.map((jsx, index) => {
+            const str = transpileJSX(jsx.code);
+            const div = document.createElement("div");
+            div.id = `jsx-${index}`;
+            if (jsx.element.style.cssText !== "") {
+            div.setAttribute("style", jsx.element.style.cssText);
+            }
+            renkon.insertBefore(div, jsx.element.nextSibling);
+            const renderString = `render(${str}, document.querySelector("#${div.id}"))`;
+            return renderString;
+        
+        });
+        programs.push(...translated);
+    }
+
+    programState.setupProgram(programs as string[]);
     if (programState.evaluatorRunning === 0) {
         programState.evaluator();
     }
