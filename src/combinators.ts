@@ -59,6 +59,8 @@ export interface ProgramStateType {
     startTime: number;
     evaluatorRunning: number;
     updated: boolean;
+    exports?: object;
+    imports?: Array<string>;
     app?: any;
     noTicking: boolean;
     ready(node: ScriptCell):boolean;

@@ -238,6 +238,8 @@ export class ProgramState implements ProgramStateType {
     time: number;
     startTime: number;
     evaluatorRunning: number;
+    exports?: object;
+    imports?: Array<string>;
     updated: boolean;
     app?: any;
     noTicking: boolean;
@@ -371,7 +373,7 @@ export class ProgramState implements ProgramStateType {
                 this.inputArray.delete(nodeId);
             }
         }
-    
+
         for (const removed of removedVariableNames) {
             const stream = this.streams.get(removed);
             if (stream) {
@@ -548,9 +550,12 @@ export class ProgramState implements ProgramStateType {
     renkonify(func:Function, optSystem?:any) {
         const programState =  new ProgramState(Date.now(), optSystem);
         const {params, returnArray, output} = getFunctionBody(func.toString(), false);
-        console.log(params, returnArray, output);
+        console.log(params, returnArray, output, this);
+        const time = this.time;
+
+        const receivers = params.map((r) => `const ${r} = undefined;`).join("\n");
     
-        programState.setupProgram([output]);
+        programState.setupProgram([receivers, output]);
     
         function generator(...args:any[]) {
             const gen = renkonBody(...args) as GeneratorWithFlag<any>;
@@ -572,11 +577,48 @@ export class ProgramState implements ProgramStateType {
                         }
                     }
                 }
-                yield result;
+                if (programState.updated) {
+                    yield result;
+                }
             }
         }
         return generator;
     }
+
+    renkonify2(func:Function, optSystem?:any) {
+        const programState =  new ProgramState(0, optSystem);
+        const {params, returnArray, output} = getFunctionBody(func.toString(), false);
+        // console.log(params, returnArray, output, this);
+
+        const receivers = params.map((r) => `const ${r} = undefined;`).join("\n");
+    
+        programState.setupProgram([receivers, output]);
+
+        programState.exports = returnArray;
+        programState.imports = params;
+
+        return programState;
+    }
+
+    evaluateSubProgram(programState: ProgramState, params:any) {
+        for (let key in params) {
+            programState.registerEvent(key, params[key]);
+        }
+        programState.evaluate(this.time);
+        if (!programState.updated) {return undefined;}
+        const result:any = {};
+        if (programState.exports) {
+            for (const n of programState.exports) {
+                const v = programState.resolved.get(n);
+                if (v && v.value !== undefined) {
+                    result[n] = v.value;
+                }
+            }
+        }
+        return result;
+    }
+    
+
 
     spaceURL(partialURL:string) {
         // partialURL: './bridge/bridge.js'
