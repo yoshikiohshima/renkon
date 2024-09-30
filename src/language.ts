@@ -548,38 +548,40 @@ export class ProgramState implements ProgramStateType {
     }
 
     renkonify(func:Function, optSystem?:any) {
-        const programState =  new ProgramState(Date.now(), optSystem);
+        const programState =  new ProgramState(0, optSystem);
         const {params, returnArray, output} = getFunctionBody(func.toString(), false);
         console.log(params, returnArray, output, this);
-        const time = this.time;
+        const self = this;
 
         const receivers = params.map((r) => `const ${r} = undefined;`).join("\n");
     
         programState.setupProgram([receivers, output]);
     
-        function generator(...args:any[]) {
-            const gen = renkonBody(...args) as GeneratorWithFlag<any>;
+        function generator(params:any) {
+            const gen = renkonBody(params) as GeneratorWithFlag<any>;
             gen.done = false;
             return Events.next(gen);
         }
-        async function* renkonBody(...args:any[]) {
-            for (let i = 0; i < params.length; i++) {
-                programState.setResolved(params[i], args[i]);
-            }
+        async function* renkonBody(args:any) {
+            let lastYielded = undefined;
             while (true) {
-                programState.evaluate(programState.time);
+                for (let key in args) {
+                    programState.registerEvent(key, args[key]);
+                }
+                programState.evaluate(self.time);
                 const result:any = {};
+                const resultTest = [];
                 if (returnArray) {
                     for (const n of returnArray) {
                         const v = programState.resolved.get(n);
+                        resultTest.push(v.value);
                         if (v && v.value !== undefined) {
                             result[n] = v.value;
                         }
                     }
                 }
-                if (programState.updated) {
-                    yield result;
-                }
+                yield !self.equals(lastYielded, resultTest) ? result : undefined;
+                lastYielded = resultTest;
             }
         }
         return generator;

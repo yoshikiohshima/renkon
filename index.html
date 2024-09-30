@@ -7,9 +7,10 @@
     <div id="renkon">
       <script type="reactive">
         const {foo} = import("../test.js");
-        const sub = Renkon.renkonify2(foo);
-          const values = Renkon.evaluateSubProgram(sub, {a: 3, b: 4, t: Events.timer(100)});
-        console.log(values);
+        const sub = Renkon.renkonify(foo);
+        const gen = sub({a: 3, b: 4});
+        const value = gen.value;
+        console.log(value.d);
       </script>
     </div>
     <script type="module">
