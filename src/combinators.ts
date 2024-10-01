@@ -59,7 +59,7 @@ export interface ProgramStateType {
     startTime: number;
     evaluatorRunning: number;
     updated: boolean;
-    exports?: object;
+    exports?: Array<string>;
     imports?: Array<string>;
     app?: any;
     noTicking: boolean;

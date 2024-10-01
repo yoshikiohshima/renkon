@@ -541,6 +541,12 @@ export class ProgramState implements ProgramStateType {
         }
     }
 
+    setResolvedForSubgraph(varName:VarName, value:any) {
+        this.setResolved(varName, value);
+        this.inputArray.set(varName, []);
+        this.streams.set(varName, new Behavior());
+    }
+
     merge(func:Function) {
         let scripts = this.scripts;
         const {output} = getFunctionBody(func.toString(), true);
@@ -564,10 +570,13 @@ export class ProgramState implements ProgramStateType {
         }
         async function* renkonBody(args:any) {
             let lastYielded = undefined;
+            for (let key in args) {
+                programState.setResolvedForSubgraph(
+                    key,
+                    {value: args[key], time: self.time}
+                );
+            }
             while (true) {
-                for (let key in args) {
-                    programState.registerEvent(key, args[key]);
-                }
                 programState.evaluate(self.time);
                 const result:any = {};
                 const resultTest = [];
