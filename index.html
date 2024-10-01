@@ -6,11 +6,6 @@
   <body>
     <div id="renkon">
       <script type="reactive">
-        const {foo} = import("../test.js");
-        const sub = Renkon.renkonify(foo);
-        const gen = sub({a: 3, b: 4});
-        const value = gen.value;
-        console.log(value.d);
       </script>
     </div>
     <script type="module">
