@@ -238,7 +238,7 @@ export class ProgramState implements ProgramStateType {
     time: number;
     startTime: number;
     evaluatorRunning: number;
-    exports?: object;
+    exports?: Array<string>;
     imports?: Array<string>;
     updated: boolean;
     app?: any;
@@ -574,7 +574,7 @@ export class ProgramState implements ProgramStateType {
                 if (returnArray) {
                     for (const n of returnArray) {
                         const v = programState.resolved.get(n);
-                        resultTest.push(v.value);
+                        resultTest.push(v ? v.value : undefined)
                         if (v && v.value !== undefined) {
                             result[n] = v.value;
                         }
@@ -596,7 +596,7 @@ export class ProgramState implements ProgramStateType {
     
         programState.setupProgram([receivers, output]);
 
-        programState.exports = returnArray;
+        programState.exports = returnArray || undefined;
         programState.imports = params;
 
         return programState;
