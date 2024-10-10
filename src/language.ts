@@ -602,7 +602,7 @@ export class ProgramState implements ProgramStateType {
         // console.log(params, returnArray, output, this);
 
         const receivers = params.map((r) => `const ${r} = undefined;`).join("\n");
-    
+
         programState.setupProgram([receivers, output]);
 
         programState.exports = returnArray || undefined;
@@ -628,22 +628,37 @@ export class ProgramState implements ProgramStateType {
         }
         return result;
     }
-    
-
 
     spaceURL(partialURL:string) {
         // partialURL: './bridge/bridge.js'
-        // expected: 
-        const loc = window.location.toString();
-        const semi = loc.indexOf(";");
-        if (semi < 0) {
-            const base = import.meta?.env?.DEV ? "../" : "../";
-            console.log(base + partialURL);
-            return base + partialURL;
+        // expected:
+        // if it is running on substrate, and it is from space, there is
+        // at least one slash and we remove chars after that.
+
+        // partialURL: "/tool-call/js/commands.js"
+        // expected:
+        // if it is running on substrate, it is the full path on substrate.home.arpa
+
+        const loc = window.location;
+        const maybeSpace = loc.host === "substrate.home.arpa"
+            && loc.pathname.includes("/space");
+
+        if (maybeSpace) {
+            if (partialURL.startsWith("/")) {
+                return `${loc.origin}${partialURL}`;
+            }
+            const index = loc.pathname.lastIndexOf("/");
+            const basepath = index >= 0 ? loc.pathname.slice(0, index) : loc.pathname;
+            return `${loc.origin}${basepath}/${partialURL}`;
         }
-        const index = loc.lastIndexOf("/");
-        let base = index >= 0 ? loc.slice(0, index) : loc;
-        return `${base}/${partialURL}`;
+
+        if (partialURL.startsWith("/")) {
+            const index = loc.pathname.lastIndexOf("/");
+            const basepath = index >= 0 ? loc.pathname.slice(0, index) : loc.pathname;
+            return `${loc.origin}${basepath}${partialURL}`;
+        }
+        const base = import.meta?.env?.DEV ? "../" : "../";
+        return base + partialURL;
     }
 
     inspector(flag:boolean, dom?: HTMLElement) {
