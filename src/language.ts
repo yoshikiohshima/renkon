@@ -415,6 +415,7 @@ export class ProgramState implements ProgramStateType {
                         [...inputArray, this]
                     );
                 } else {
+                    this.changeList.delete(id);
                     outputs = new ReceiverEvent(change);
                 }
                 this.inputArray.set(id, inputArray);
@@ -451,7 +452,6 @@ export class ProgramState implements ProgramStateType {
             stream.conclude(this, varName);
         }
 
-        this.changeList.clear();
         return this.updated;
     }
 
