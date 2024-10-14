@@ -5,7 +5,7 @@ import {
     ScriptCell, VarName, NodeId, Stream,
     DelayedEvent, CollectStream, PromiseEvent, EventType,
     GeneratorNextEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent,
-    ReceiverEvent, UserEvent, SendEvent, OrEvent,
+    ReceiverEvent, UserEvent, SendEvent, OrEvent, ResolvePart,
     eventType, typeKey,
     isBehaviorKey,
     GeneratorWithFlag,
@@ -149,6 +149,9 @@ const Events = {
           directWindow.postMessage(obj, "*");
         }
     },
+    resolvePart(promise:Promise<any>, object:any) {
+        return new ResolvePart(promise, object, false);
+    }
 };
 
 const Behaviors = {
@@ -164,6 +167,9 @@ const Behaviors = {
     delay(varName:VarName, delay: number):DelayedEvent {
         return new DelayedEvent(delay, varName, true);
     },
+    resolvePart(promise:Promise<any>, object:any) {
+        return new ResolvePart(promise, object, true);
+    }
     /*
     startsWith(init:any, varName:VarName) {
         return new CollectStream(init, varName, (_old, v) => v, true);

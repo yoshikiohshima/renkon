@@ -31,6 +31,7 @@ export const sendType = "SendType";
 export const receiverType = "ReceiverType";
 export const changeType = "ChangeType";
 export const generatorNextType = "GeneratorNextType";
+export const resolvePartType = "ResolvePart";
 
 export type EventType = 
     typeof eventType |
@@ -44,7 +45,8 @@ export type EventType =
     typeof sendType |
     typeof receiverType |
     typeof changeType |
-    typeof generatorNextType;
+    typeof generatorNextType |
+    typeof resolvePartType;
 
 export interface ProgramStateType {
     scripts: Array<string>;
@@ -402,6 +404,54 @@ export class CollectStream<I, T> extends Stream {
                 }
             }
         }
+    }
+
+    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        if (this[isBehaviorKey]) {return;}
+        if (state.resolved.get(varName)?.value !== undefined) {
+            state.resolved.delete(varName);
+            return varName;
+        }
+        return;
+    }
+}
+
+export class ResolvePart extends Stream {
+    promise: any|Promise<any>;
+    resolved: boolean;
+    object: any;
+    constructor(promise:Promise<any>, object:Array<any>|any, isBehavior:boolean) {
+        super(resolvePartType, isBehavior);
+        this.promise = promise;
+        this.object = object;
+        this.resolved = !(typeof this.promise === "object" && this.promise.then);
+    }
+
+    created(state:ProgramStateType, id:VarName):Stream {
+        if (!this.resolved) {
+            this.promise.then((value:any) => {
+                const wasResolved = state.resolved.get(id)?.value;
+                if (!wasResolved) {
+                    this.resolved = true;
+                    if (Array.isArray(this.object)) {
+                        const promiseIndex = this.object.indexOf(this.promise);
+                        const result = [...this.object];
+                        if (promiseIndex < 0) {return result;}
+                        result[promiseIndex] = value;
+                        state.setResolved(id, {value: result, time: state.time});
+                        return result; 
+                    } else {
+                        const result = {...this.object};
+                        const key = Object.keys(this.object).find((key => this.object[key] === this.promise));
+                        if (!key) {return result;}
+                        result[key] = value;
+                        state.setResolved(id, {value: result, time: state.time});
+                        return result;
+                    }
+                }
+            });
+        }
+        return this;
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
