@@ -365,10 +365,10 @@ export class Behavior extends Stream {
 }
 
 export class CollectStream<I, T> extends Stream {
-    init: I;
+    init: I|Promise<I>;
     varName: VarName;
     updater: (acc:I, v: T) => I;
-    constructor(init:I, varName:VarName, updater:(acc:I, v: T) => I, isBehavior: boolean) {
+    constructor(init:I|Promise<I>, varName:VarName, updater:(acc:I, v: T) => I, isBehavior: boolean) {
         super(collectType, isBehavior);
         this.init = init;
         this.varName = varName;
@@ -376,6 +376,15 @@ export class CollectStream<I, T> extends Stream {
     }
 
     created(state:ProgramStateType, id:VarName):Stream {
+        if (this.init && typeof this.init === "object" && (this.init as any).then) {
+            (this.init as any).then((value:any) => {
+                state.streams.set(id, this);
+                this.init = value;
+                state.setResolved(id, {value, time: state.time});
+                state.scratch.set(id, {current: this.init});
+            });
+            return this;
+        }
         if (!state.scratch.get(id)) {
             state.streams.set(id, this);
             state.setResolved(id, {value: this.init, time: state.time});
@@ -387,6 +396,7 @@ export class CollectStream<I, T> extends Stream {
     evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, lastInputArray:Array<any>|undefined):void {
         type ArgTypes = Parameters<typeof this.updater>;
         const scratch = state.scratch.get(node.id) as CollectRecord<ArgTypes[0]>;
+        if (!scratch) {return;}
         const inputIndex = node.inputs.indexOf(this.varName);
         const inputValue = inputArray[inputIndex];
         if (inputValue !== undefined && (!lastInputArray || inputValue !== lastInputArray[inputIndex])) {
