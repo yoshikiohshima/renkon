@@ -112,7 +112,19 @@ export class Stream {
         return;
     }
 
-    conclude(_state:ProgramStateType, _varName:VarName):VarName|undefined {
+    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        // this after all was needed...
+        // When there is an event that is either have the value of undefined or the same value,
+        // the inputArray for a node that depends on that event has to be cleared.
+        const inputArray = state.inputArray.get(varName);
+        const inputs = state.nodes.get(varName)!.inputs;
+        if (!inputArray || !inputs) {return;}
+        for (let i = 0; i < inputs.length; i++) {
+            const resolved = state.resolved.get(inputs[i]);
+            if (resolved === undefined) {
+                inputArray[i] = undefined;
+            }
+        }
         return;
     }
 }
@@ -157,6 +169,7 @@ export class DelayedEvent extends Stream {
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        super.conclude(state, varName);
         if (this[isBehaviorKey]) {return;}
         if (state.resolved.get(varName)?.value !== undefined) {
             state.resolved.delete(varName);
@@ -192,6 +205,7 @@ export class TimerEvent extends Stream {
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        super.conclude(state, varName);
         if (this[isBehaviorKey]) {return;}
         if (state.resolved.get(varName)?.value !== undefined) {
             state.resolved.delete(varName);
@@ -243,6 +257,7 @@ export class OrEvent extends Stream {
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        super.conclude(state, varName);
         if (state.resolved.get(varName)?.value !== undefined) {
             // console.log("deleting", varName);
             state.resolved.delete(varName);
@@ -272,14 +287,20 @@ export class UserEvent extends Stream {
     }
 
     evaluate(state:ProgramStateType, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
-        const value = state.getEventValue(state.scratch.get(node.id) as QueueRecord, state.time);
-        if (value !== undefined) {
-            state.setResolved(node.id, {value, time: state.time});
-            return;
+        const newValue = state.getEventValue(state.scratch.get(node.id) as QueueRecord, state.time);
+        if (newValue !== undefined) {
+            if (newValue !== null && (newValue as unknown as Promise<any>).then) {
+                (newValue as unknown as Promise<any>).then((value:any) => {
+                    state.setResolved(node.id, {value, time: state.time});
+                })
+            } else {
+                state.setResolved(node.id, {value: newValue, time: state.time});
+            }
         }
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        super.conclude(state, varName);
         if (state.resolved.get(varName)?.value !== undefined) {
             state.resolved.delete(varName);
             return varName;
@@ -316,6 +337,7 @@ export class ReceiverEvent extends Stream {
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        super.conclude(state, varName);
         if (state.resolved.get(varName)?.value !== undefined) {
             state.resolved.delete(varName);
             state.scratch.delete(varName);
@@ -349,6 +371,7 @@ export class ChangeEvent extends Stream {
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        super.conclude(state, varName);
         if (state.resolved.get(varName)?.value !== undefined) {
             // console.log("deleting", varName);
             state.resolved.delete(varName);
@@ -417,6 +440,7 @@ export class CollectStream<I, T> extends Stream {
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        super.conclude(state, varName);
         if (this[isBehaviorKey]) {return;}
         if (state.resolved.get(varName)?.value !== undefined) {
             state.resolved.delete(varName);
@@ -465,6 +489,7 @@ export class ResolvePart extends Stream {
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        super.conclude(state, varName);
         if (this[isBehaviorKey]) {return;}
         if (state.resolved.get(varName)?.value !== undefined) {
             state.resolved.delete(varName);
@@ -498,6 +523,7 @@ export class GeneratorNextEvent<T> extends Stream {
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        super.conclude(state, varName);
         const value = state.resolved.get(varName)?.value;
         if (value !== undefined) {
             if (!value.done) {

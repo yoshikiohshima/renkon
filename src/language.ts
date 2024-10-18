@@ -17,8 +17,6 @@ import { showInspector } from "./inspector";
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
 
-const prototypicalGeneratorFunction = (async function*() {while (true) {}})();
-
 type UserEventType = string;
 
 type ObserveCallback = (notifier:(v:any) => void) => () => void;
@@ -31,6 +29,14 @@ type EventBodyType = {
     type: EventType;
     eventName?: UserEventType,
 };
+
+const prototypicalGeneratorFunction = (async function*() {while (false) {}})();
+function isGenerator(value:any):boolean {
+    if (value === undefined || value === null) {
+        return false;
+    }
+    return (typeof value === "object" && value.constructor === prototypicalGeneratorFunction.constructor);
+}
 
 function eventBody(options:EventBodyType) {
     let {forObserve, callback, dom, eventName, eventHandler} = options;
@@ -426,8 +432,7 @@ export class ProgramState implements ProgramStateType {
                 }
                 this.inputArray.set(id, inputArray);
                 const maybeValue = outputs;
-                if (maybeValue === undefined) {continue;}
-                if (maybeValue.then || maybeValue[typeKey]) {
+               if (maybeValue !== undefined && (maybeValue.then || maybeValue[typeKey])) {
                     const ev = maybeValue.then ? new PromiseEvent<any>(maybeValue) : maybeValue;
                     const newStream = ev.created(this, id);
                     this.streams.set(id, newStream);
@@ -435,9 +440,10 @@ export class ProgramState implements ProgramStateType {
                 } else {
                     let newStream:Behavior = new Behavior();//{type: behaviorType}
                     this.streams.set(id, newStream);
+                    if (maybeValue === undefined) {continue;}
                     const resolved = this.resolved.get(id);
                     if (!resolved || resolved.value !== maybeValue) {
-                        if (maybeValue.constructor === prototypicalGeneratorFunction.constructor) {
+                        if (isGenerator(maybeValue)) {
                             maybeValue.done = false;
                             // there is a special case for generators.
                             // actually, there is no real guarantee that this generator is not done.
@@ -453,11 +459,12 @@ export class ProgramState implements ProgramStateType {
             const evStream:Stream = outputs as Stream;
             evStream.evaluate(this, node, inputArray, lastInputArray);
         }
-    
-        for (let [varName, stream] of this.streams) {
-            stream.conclude(this, varName);
-        }
 
+        for (let id of this.order) {
+            const stream = this.streams.get(id);
+            if (!stream) {continue;}
+            stream.conclude(this, id);
+        }
         return this.updated;
     }
 
