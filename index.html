@@ -6,11 +6,14 @@
   <body>
     <div id="renkon">
       <script type="reactive">
+        const a = e;
+        const e = Events.listener(document.querySelector("#b"), "click", (e) => e)
       </script>
+      <button id="b">Button</button>
     </div>
     <script type="module">
       import {view} from "./src/main.js";
-      view();
+      view({noTicking:true});
     </script>
   </body>
 </html>

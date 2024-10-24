@@ -16,7 +16,6 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   const only = outputs.length === 0 ? "" : outputs[0];
   const inputs = Array.from(new Set<string>(node.references.map((r) => r.name)))
     .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
-  //const additional = `${inputs.length === 0 ? "" : ", "} _state`;
   const forceVars = Array.from(new Set<string>(node.forceVars.map((r) => r.name)))
     .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
   // if (hasImportDeclaration(node.body)) async = true;
@@ -69,6 +68,11 @@ function getArray(returnNode: Statement) {
   return array.elements.map((e) => (e as Identifier).name);
 }
 
+function quote(node:Node, output:Sourcemap) {
+  output.insertLeft(node.start, '"');
+  output.insertRight(node.end, '"');
+}
+
 function rewriteRenkonCalls(
   output: Sourcemap,
   body: Node,
@@ -78,28 +82,25 @@ function rewriteRenkonCalls(
       const callee = node.callee;
       if (callee.type === "MemberExpression" && callee.object.type === "Identifier") {
         if (callee.object.name === "Events") {
+          output.insertRight(callee.object.end, ".create(Renkon)");
           if (callee.property.type === "Identifier") {
             if (callee.property.name === "delay") {
-              output.insertLeft(node.arguments[0].start, '"');
-              output.insertRight(node.arguments[0].end, '"');
+              quote(node.arguments[0], output);
             } else if (callee.property.name === "or") {
               for (const arg of node.arguments) {
-                output.insertLeft(arg.start, '"');
-                output.insertRight(arg.end, '"');            
+                quote(arg, output);            
               }
             } else if (callee.property.name === "send") {
-              output.insertLeft(node.arguments[0].start, 'Renkon, "');
-              output.insertRight(node.arguments[0].end, '"');
+              quote(node.arguments[0], output);
             } else if (callee.property.name === "collect") {
-              output.insertLeft(node.arguments[1].start, '"');
-              output.insertRight(node.arguments[1].end, '"');
+              quote(node.arguments[1], output);
             }
           }
         } else if (callee.object.name === "Behaviors") {
+          output.insertRight(callee.object.end, ".create(Renkon)");
           if (callee.property.type === "Identifier") {
             if (callee.property.name === "collect") {
-              output.insertLeft(node.arguments[1].start, '"');
-              output.insertRight(node.arguments[1].end, '"');
+              quote(node.arguments[1], output);
             }
           }
         }

@@ -70,7 +70,10 @@ function resizeHandler() {
     }
 }
 
-export function view(optApp?:any) {
+export function view(opt?:any) {
+    const app = opt?.app;
+    const noTicking = opt?.noTicking;
+    
     const url = new URL(window.location.toString());
     let maybeDoc = url.searchParams.get("doc");
     let semi;
@@ -84,7 +87,7 @@ export function view(optApp?:any) {
     let hideEditor = url.searchParams.get("hideEditor");
 
     const renkon:HTMLElement = document.body.querySelector("#renkon")!;
-    const programState = new ProgramState(Date.now(), optApp);
+    const programState = new ProgramState(Date.now(), app, noTicking);
     (window as any).programState = programState;
     let {dock, editorView} = createEditorDock(renkon, programState);
     if (hideEditor) {

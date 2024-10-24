@@ -28,40 +28,30 @@ type EventBodyType = {
     dom?: HTMLElement | string;
     type: EventType;
     eventName?: UserEventType,
+    state: ProgramState,
 };
 
-const prototypicalGeneratorFunction = (async function*() {while (false) {}})();
 function isGenerator(value:any):boolean {
+    const prototypicalGeneratorFunction = (async function*() {while (false) {}})();
     if (value === undefined || value === null) {
         return false;
     }
     return (typeof value === "object" && value.constructor === prototypicalGeneratorFunction.constructor);
 }
 
+const defaultHandler = (ev:any) => ev;
+
 function eventBody(options:EventBodyType) {
-    let {forObserve, callback, dom, eventName, eventHandler} = options;
+    let {forObserve, callback, dom, eventName, eventHandler, state} = options;
     let record:QueueRecord = {queue:[]};
     let myHandler: ((evt:any) => any) | null;
 
     let realDom:HTMLElement|undefined;
     if (typeof dom === "string") {
-        if (dom.startsWith("#")) {
-            realDom = document.querySelector(dom) as HTMLInputElement;
-        } else {
-            realDom = document.getElementById(dom) as HTMLInputElement;
-        }
+        realDom = document.querySelector(dom) as HTMLInputElement;
     } else {
         realDom = dom;
     }
-
-    const handlers = (eventName:string):((evt:any) => any) => {
-        if (eventName === "input" || eventName === "click") {
-            return (evt:any) => {
-                record.queue.push({value: evt, time: 0});
-            }
-        }
-        return (_evt:any) => null;
-    };
 
     const notifier = (value:any) => {
         record.queue.push({value, time: 0});
@@ -73,10 +63,13 @@ function eventBody(options:EventBodyType) {
                 const value = eventHandler(evt);
                 if (value !== undefined) {
                     record.queue.push({value, time: 0});
+                    if (state.noTicking) {
+                        state.noTickingEvaluator();
+                    }
                 }
             }
         } else {
-            myHandler = handlers(eventName);
+            myHandler = defaultHandler;
         }
         if (myHandler) {
             realDom.addEventListener(eventName, myHandler);
@@ -102,47 +95,50 @@ function eventBody(options:EventBodyType) {
     return new UserEvent(record);
 }
 
-const Events = {
-    observe(callback:ObserveCallback) {
-        return eventBody({type: eventType, forObserve: true, callback});
-    },
-    input(dom:HTMLInputElement|string) {
-        return eventBody({type: eventType, forObserve: false, dom, eventName: "input"});
-    },
-    click(dom:HTMLInputElement|string) {
-        return eventBody({type: eventType, forObserve: false, dom, eventName: "click"});
-    },
+class Events {
+    programState: ProgramState;
+    constructor(state:ProgramState) {
+        this.programState = state;
+    }
+
+    static create(state:ProgramState) {
+        return new Events(state);
+    }
+
     listener(dom: HTMLElement|string, eventName:string, handler: (evt:any) => void) {
-        return eventBody({type: eventType, forObserve: false, dom, eventName: eventName, eventHandler: handler});
-    },
+        return eventBody({type: eventType, forObserve: false, dom, eventName: eventName, eventHandler: handler, state: this.programState});
+    }
     delay(varName:VarName, delay: number):DelayedEvent {
         return new DelayedEvent(delay, varName, false);
-    },
+    }
     timer(interval:number):TimerEvent {
         return new TimerEvent(interval, false);
-    },
+    }
     change(value:any):ChangeEvent{
         return new ChangeEvent(value);
-    },
+    }
     next<T>(generator:GeneratorWithFlag<T>):(GeneratorNextEvent<T>) {
         return new GeneratorNextEvent(generator);
-    },
+    }
     or(...varNames:Array<VarName>) {
         return new OrEvent(varNames)
-    },
+    }
     collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
         return new CollectStream(init, varName, updater, false);
-    },
+    }
     /*map<S, T>(varName:VarName, updater: (arg:S) => T) {
         return new CollectStream(undefined, varName, (_a, b) => updater(b), false);
     },*/
-    send(state:ProgramState, receiver:VarName, value:any) {
-        state.registerEvent(receiver, value);
+    send(receiver:VarName, value:any) {
+        this.programState.registerEvent(receiver, value);
         return new SendEvent();
-    },
+    }
     receiver() {
         return new ReceiverEvent(undefined);
-    },
+    }
+    observe(callback:ObserveCallback) {
+        return eventBody({type: eventType, forObserve: true, callback, state:this.programState});
+    }
     message(event:string, data:any, directWindow?:Window) {
         const isInIframe =  window.top !== window;
         const obj = {event: `renkon:${event}`, data};
@@ -154,25 +150,33 @@ const Events = {
         if (directWindow) {
           directWindow.postMessage(obj, "*");
         }
-    },
+    }
     resolvePart(promise:Promise<any>, object:any) {
         return new ResolvePart(promise, object, false);
     }
 };
 
-const Behaviors = {
+class Behaviors {
+    programState: ProgramState;
+    constructor(state:ProgramState) {
+        this.programState = state;
+    }
+
+    static create(state:ProgramState) {
+        return new Behaviors(state);
+    }
     keep(value:any) {
        return value;
-    },
+    }
     collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
         return new CollectStream(init, varName, updater, true);
-    },
+    }
     timer(interval:number):TimerEvent {
         return new TimerEvent(interval, true);
-    },
+    }
     delay(varName:VarName, delay: number):DelayedEvent {
         return new DelayedEvent(delay, varName, true);
-    },
+    }
     resolvePart(promise:Promise<any>, object:any) {
         return new ResolvePart(promise, object, true);
     }
@@ -255,7 +259,7 @@ export class ProgramState implements ProgramStateType {
     updated: boolean;
     app?: any;
     noTicking: boolean;
-    constructor(startTime:number, app?:any) {
+    constructor(startTime:number, app?:any, noTicking?:boolean) {
         this.scripts = [];
         this.order = [];
         this.nodes = new Map();
@@ -269,10 +273,11 @@ export class ProgramState implements ProgramStateType {
         this.evaluatorRunning = 0;
         this.updated = false;
         this.app = app;
-        this.noTicking = false;
+        this.noTicking = noTicking !== undefined ? noTicking : false;
     }
 
     evaluator() {
+        if (this.noTicking) {return this.noTickingEvaluator();}
         this.evaluatorRunning = window.requestAnimationFrame(() => this.evaluator());
         try {
             this.evaluate(Date.now());
@@ -579,7 +584,7 @@ export class ProgramState implements ProgramStateType {
         function generator(params:any) {
             const gen = renkonBody(params) as GeneratorWithFlag<any>;
             gen.done = false;
-            return Events.next(gen);
+            return Events.create(self).next(gen);
         }
         async function* renkonBody(args:any) {
             let lastYielded = undefined;
