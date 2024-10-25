@@ -291,8 +291,8 @@ export class ProgramState implements ProgramStateType {
 
     noTickingEvaluator() {
         this.noTicking = true;
-        if (this.evaluatorRunning !== 0) {return;}
-        setTimeout(() => {
+        if (this.evaluatorRunning !== 0) {return;}  
+        this.evaluatorRunning = setTimeout(() => {
             try {
                 this.evaluate(Date.now());
             } finally {
@@ -475,7 +475,13 @@ export class ProgramState implements ProgramStateType {
 
     evalCode(arg:{id:VarName, code:string}):ScriptCell {
         const {id, code} = arg;
-        let body = `return ${code} //# sourceURL=${window.location.origin}/node/${id}`;
+        const hasWindow = typeof window !== "undefined";
+        let body;
+        if (hasWindow) {
+            body = `return ${code} //# sourceURL=${window.location.origin}/node/${id}`;
+        } else {
+            body = `return ${code} //# sourceURL=/node/${id}`;
+        }
         let func = new Function("Events", "Behaviors", "Renkon", body);
         let val = func(Events, Behaviors, this);
         val.code = code;
@@ -565,10 +571,16 @@ export class ProgramState implements ProgramStateType {
         this.streams.set(varName, new Behavior());
     }
 
-    merge(func:Function) {
+    merge(...funcs:Function[]) {
         let scripts = this.scripts;
-        const {output} = getFunctionBody(func.toString(), true);
-        this.setupProgram([...scripts, output] as string[]);    
+        const outputs:string[] = [];
+        debugger;
+        funcs.forEach((func) => {
+            const {output} = getFunctionBody(func.toString(), true);
+            outputs.push(output);
+        });
+        console.log(outputs);
+        this.setupProgram([...scripts, ...outputs] as string[]);    
     }
 
     renkonify(func:Function, optSystem?:any) {
