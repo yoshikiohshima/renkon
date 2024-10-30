@@ -574,12 +574,10 @@ export class ProgramState implements ProgramStateType {
     merge(...funcs:Function[]) {
         let scripts = this.scripts;
         const outputs:string[] = [];
-        debugger;
         funcs.forEach((func) => {
             const {output} = getFunctionBody(func.toString(), true);
             outputs.push(output);
         });
-        console.log(outputs);
         this.setupProgram([...scripts, ...outputs] as string[]);    
     }
 
