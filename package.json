@@ -4,6 +4,7 @@
   "type": "module",
   "license": "MIT",
   "files": ["dist"],
+  "main": "dist/renkon.js",
   "scripts": {
     "dev": "npm-run-all --parallel vite file-server",
     "vite": "vite",
