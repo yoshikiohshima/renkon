@@ -584,7 +584,7 @@ export class ProgramState implements ProgramStateType {
     renkonify(func:Function, optSystem?:any) {
         const programState =  new ProgramState(0, optSystem);
         const {params, returnArray, output} = getFunctionBody(func.toString(), false);
-        console.log(params, returnArray, output, this);
+        // console.log(params, returnArray, output, this);
         const self = this;
 
         const receivers = params.map((r) => `const ${r} = undefined;`).join("\n");
