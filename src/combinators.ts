@@ -69,6 +69,7 @@ export interface ProgramStateType {
     defaultReady(node: ScriptCell):boolean;
     spliceDelayedQueued(record:QueueRecord, t:number):any;
     getEventValue(record:QueueRecord, _t:number):any;
+    getEventValues(record:QueueRecord, _t:number):any;
     baseVarName(varName:VarName):VarName;
     setResolved(varName:VarName, value:any):void;
 }
@@ -269,9 +270,11 @@ export class OrEvent extends Stream {
 
 export class UserEvent extends Stream {
     record: ValueRecord;
-    constructor(record:QueueRecord) {
+    queued: boolean;
+    constructor(record:QueueRecord, queued?: boolean) {
         super(eventType, false);
         this.record = record;
+        this.queued = !!queued;
     }
 
     created(state:ProgramStateType, id:VarName):Stream {
@@ -287,7 +290,12 @@ export class UserEvent extends Stream {
     }
 
     evaluate(state:ProgramStateType, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
-        const newValue = state.getEventValue(state.scratch.get(node.id) as QueueRecord, state.time);
+        let newValue;
+        if (this.queued) {
+            newValue = state.getEventValues(state.scratch.get(node.id) as QueueRecord, state.time);
+        } else {
+            newValue = state.getEventValue(state.scratch.get(node.id) as QueueRecord, state.time);
+        }
         if (newValue !== undefined) {
             if (newValue !== null && (newValue as unknown as Promise<any>).then) {
                 (newValue as unknown as Promise<any>).then((value:any) => {

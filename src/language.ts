@@ -23,6 +23,7 @@ type ObserveCallback = (notifier:(v:any) => void) => () => void;
 
 type EventBodyType = {
     forObserve: boolean;
+    queued: boolean;
     callback?: ObserveCallback;
     eventHandler?: (evt:any) => any | null;
     dom?: HTMLElement | string;
@@ -42,7 +43,7 @@ function isGenerator(value:any):boolean {
 const defaultHandler = (ev:any) => ev;
 
 function eventBody(options:EventBodyType) {
-    let {forObserve, callback, dom, eventName, eventHandler, state} = options;
+    let {forObserve, callback, dom, eventName, eventHandler, state, queued} = options;
     let record:QueueRecord = {queue:[]};
     let myHandler: ((evt:any) => any) | null;
 
@@ -92,7 +93,7 @@ function eventBody(options:EventBodyType) {
         }
     }
 
-    return new UserEvent(record);
+    return new UserEvent(record, queued);
 }
 
 class Events {
@@ -105,8 +106,8 @@ class Events {
         return new Events(state);
     }
 
-    listener(dom: HTMLElement|string, eventName:string, handler: (evt:any) => void) {
-        return eventBody({type: eventType, forObserve: false, dom, eventName: eventName, eventHandler: handler, state: this.programState});
+    listener(dom: HTMLElement|string, eventName:string, handler: (evt:any) => void, options?:any) {
+        return eventBody({type: eventType, forObserve: false, dom, eventName: eventName, eventHandler: handler, state: this.programState, queued: !!options?.queued});
     }
     delay(varName:VarName, delay: number):DelayedEvent {
         return new DelayedEvent(delay, varName, false);
@@ -136,8 +137,8 @@ class Events {
     receiver() {
         return new ReceiverEvent(undefined);
     }
-    observe(callback:ObserveCallback) {
-        return eventBody({type: eventType, forObserve: true, callback, state:this.programState});
+    observe(callback:ObserveCallback, options?:any) {
+        return eventBody({type: eventType, forObserve: true, callback, state:this.programState, queued: options?.queued});
     }
     message(event:string, data:any, directWindow?:Window) {
         const isInIframe =  window.top !== window;
@@ -540,6 +541,15 @@ export class ProgramState implements ProgramStateType {
     getEventValue(record:QueueRecord, _t:number) {
         if (record.queue.length >= 1) {
             const value = record.queue[record.queue.length - 1].value;
+            record.queue = [];
+            return value;
+        }
+        return undefined;
+    }
+
+    getEventValues(record:QueueRecord, _t:number) {
+        if (record.queue.length >= 1) {
+            const value = record.queue.map((pair => pair.value))
             record.queue = [];
             return value;
         }
