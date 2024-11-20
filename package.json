@@ -1,9 +1,11 @@
 {
   "name": "renkon",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "type": "module",
   "license": "MIT",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "main": "dist/renkon.js",
   "scripts": {
     "dev": "npm-run-all --parallel vite file-server",
@@ -18,7 +20,7 @@
     "@typescript-eslint/eslint-plugin": "^7.11.0",
     "@typescript-eslint/parser": "^7.11.0",
     "npm-run-all": "^4.1.5",
-    "typescript": "^5.2.2",
+    "typescript": "^5.6.3",
     "vite": "^5.2.0"
   },
   "dependencies": {

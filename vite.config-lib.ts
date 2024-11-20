@@ -10,6 +10,11 @@ export default defineConfig({
           name: 'Renkon',
           fileName: 'renkon',
         },
-        minify: false
+        minify: false,
+        output: {
+            manualChunks: {
+                typescript: ["typescript"]
+            }
+        }
     }
 })

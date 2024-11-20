@@ -14,6 +14,7 @@ import {
     ResolveRecord,
 } from "./combinators";
 import { showInspector } from "./inspector";
+import { translateTS } from "./typescript";
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
 
@@ -589,6 +590,20 @@ export class ProgramState implements ProgramStateType {
             outputs.push(output);
         });
         this.setupProgram([...scripts, ...outputs] as string[]);    
+    }
+
+    loadTS(path:string) {
+        let i = 0;
+        return fetch(path).then((resp) => resp.text()).then((text) => {
+            const js = translateTS(text, `${i}.ts`);
+            if (!js) {return null}
+            let dataURL = URL.createObjectURL(new Blob([js], {type: "application/javascript"}));
+            return eval(`import("${dataURL}")`).then((mod:any) => {
+                return mod;
+            }).finally(() => {
+                URL.revokeObjectURL(dataURL);
+            });
+        })
     }
 
     renkonify(func:Function, optSystem?:any) {

@@ -5,6 +5,7 @@ import { basicSetup, EditorView } from "codemirror";
 import {ProgramState} from "./language";
 import { getContentFromHTML, loadFile, makeHTMLFromContent, saveFile } from "./load";
 import { transpileJSX } from "./javascript/transpileJSX";
+import { translateTS } from "./typescript";
 
 let myResizeHandler: (() => void) | null;
 
@@ -164,10 +165,15 @@ function createEditorDock(renkon:HTMLElement, programState:ProgramState) {
     return {dock, editorView, updateButton};
 }   
 
-function update(renkon:HTMLElement, editorView:EditorView, programState: ProgramState) {
+async function update(renkon:HTMLElement, editorView:EditorView, programState: ProgramState) {
     renkon.innerHTML = editorView.state.doc.toString();
-    let scripts = [...renkon.querySelectorAll("script[type='reactive']")] as HTMLScriptElement[];
-    let text = scripts.map((s) => s.textContent).filter((s) => s);
+    let scripts = [...renkon.querySelectorAll("script[type='reactive'],script[type='reactive-ts']")] as HTMLScriptElement[];
+    let text = scripts.map((s, i) => {
+        if (s.getAttribute("type") === "reactive-ts" && s.textContent) {
+            return translateTS(s.textContent, s.id || `${i}.ts`);
+        }
+        return s.textContent;
+    }).filter((s) => s);
     let jsxElements = [...renkon.querySelectorAll("script[type='renkon-jsx']")] as HTMLScriptElement[];
     type JSXS = {element: HTMLScriptElement, code: string};
     let jsxs:Array<JSXS> = jsxElements.map((s) => ({element: s, code: s.textContent!})).filter((s) => s.code);
