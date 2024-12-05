@@ -13,7 +13,6 @@ import {
     ValueRecord,
     ResolveRecord,
 } from "./combinators";
-import { showInspector } from "./inspector";
 import { translateTS } from "./typescript";
 
 type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
@@ -714,7 +713,9 @@ export class ProgramState implements ProgramStateType {
         return base + partialURL;
     }
 
-    inspector(flag:boolean, dom?: HTMLElement) {
+    /*
+      inspector(flag:boolean, dom?: HTMLElement) {
         showInspector(this, flag === undefined ? true: flag, dom);
-    }
+        }
+    */
 }

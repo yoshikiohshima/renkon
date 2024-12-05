@@ -1,4 +1,4 @@
-import ts from "typescript";
+import {ModuleKind, ScriptTarget, createProgram, createSourceFile, getDefaultLibFileName} from "typescript";
 
 export class TSCompiler {
     sources: Map<string, string>;
@@ -9,15 +9,15 @@ export class TSCompiler {
     }
     compile(tsCode:string, path:string) {
        const options = {
-            module: ts.ModuleKind.ESNext,
-            target: ts.ScriptTarget.ESNext,
+            module: ModuleKind.ESNext,
+            target: ScriptTarget.ESNext,
             noResolve: true,
         };
 
         const compilerHost = this.createCompilerHost();
         this.sources.set(path, tsCode);
 
-        let program = ts.createProgram([path], options, compilerHost);
+        let program = createProgram([path], options, compilerHost);
         program.emit();
 
         let compiledName = path.replace(/\.ts$/, ".js");
@@ -32,7 +32,7 @@ export class TSCompiler {
     getSourceFile(fileName:string, languageVersion:any, _onError:any) {
         const sourceText = this.readFile(fileName);
         return sourceText !== undefined
-            ? ts.createSourceFile(fileName, sourceText, languageVersion)
+            ? createSourceFile(fileName, sourceText, languageVersion)
             : undefined;
     }
 
@@ -52,7 +52,7 @@ export class TSCompiler {
     createCompilerHost() {
         return {
             getSourceFile: this.getSourceFile,
-            getDefaultLibFileName: (defaultLibOptions:any) => "/" + ts.getDefaultLibFileName(defaultLibOptions),
+            getDefaultLibFileName: (defaultLibOptions:any) => "/" + getDefaultLibFileName(defaultLibOptions),
             writeFile: (fileName:string, content:string) => this.writeFile(fileName, content),
             getCurrentDirectory: () => "/",
             getDirectories: (_path:string) => [],
