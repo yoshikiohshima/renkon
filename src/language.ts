@@ -682,35 +682,32 @@ export class ProgramState implements ProgramStateType {
     }
 
     spaceURL(partialURL:string) {
+        // partialURL: :http..."
+        // return itself
+
         // partialURL: './bridge/bridge.js'
         // expected:
         // if it is running on substrate, and it is from space, there is
         // at least one slash and we remove chars after that.
 
+        // if ?host parameter is specified, use that as host
+
         // partialURL: "/tool-call/js/commands.js"
         // expected:
         // if it is running on substrate, it is the full path on substrate.home.arpa
+        // if not, use ?host parameter value. if host is not specified, it is the server's address
 
-        const loc = window.location;
-        const maybeSpace = loc.host === "substrate.home.arpa"
-            && loc.pathname.includes("/space");
-
-        if (maybeSpace) {
-            if (partialURL.startsWith("/")) {
-                return `${loc.origin}${partialURL}`;
-            }
-            const index = loc.pathname.lastIndexOf("/");
-            const basepath = index >= 0 ? loc.pathname.slice(0, index) : loc.pathname;
-            return `${loc.origin}${basepath}/${partialURL}`;
+        if (/^http(s)?:\/\//.test(partialURL)) {
+            return partialURL;
         }
 
         if (partialURL.startsWith("/")) {
-            const index = loc.pathname.lastIndexOf("/");
-            const basepath = index >= 0 ? loc.pathname.slice(0, index) : loc.pathname;
-            return `${loc.origin}${basepath}${partialURL}`;
+            const url = new UR(window.location);
+            const maybeHost = url.searchParams.get("host") || url.host;
+            return `${url.protocol}//${maybeHost}}${partialURL}`;
         }
-        const base = import.meta?.env?.DEV ? "../" : "../";
-        return base + partialURL;
+
+        return partialURL;
     }
 
     /*

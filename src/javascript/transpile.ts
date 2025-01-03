@@ -2,7 +2,7 @@
 import type {FunctionDeclaration, Identifier, Node, Statement} from "acorn";
 import {simple} from "acorn-walk";
 // import {isPathImport, relativePath, resolvePath, resolveRelativePath} from "../path.js";
-import {Sourcemap} from "../sourcemap.js";
+import {Sourcemap} from "./sourcemap.js";
 import {JavaScriptNode, parseJavaScript} from "./parse.js";
 import {defaultGlobals} from "./globals";
 import {renkonGlobals} from "./renkonGlobals";

@@ -1,4 +1,6 @@
-import {ModuleKind, ScriptTarget, createProgram, createSourceFile, getDefaultLibFileName} from "typescript";
+//import {ModuleKind, ScriptTarget, createProgram, createSourceFile, getDefaultLibFileName} from "typescript";
+
+import {detype} from "./javascript/detype";
 
 export class TSCompiler {
     sources: Map<string, string>;
@@ -7,63 +9,9 @@ export class TSCompiler {
         this.sources = new Map();
         this.results = new Map();
     }
-    compile(tsCode:string, path:string) {
-       const options = {
-            module: ModuleKind.ESNext,
-            target: ScriptTarget.ESNext,
-            noResolve: true,
-        };
-
-        const compilerHost = this.createCompilerHost();
-        this.sources.set(path, tsCode);
-
-        let program = createProgram([path], options, compilerHost);
-        program.emit();
-
-        let compiledName = path.replace(/\.ts$/, ".js");
-
-        let compiled = this.results.get(compiledName);
-        this.sources.delete(path);
-        this.results.delete(path);
-
+    compile(tsCode:string, _path:string) {
+        const compiled = detype(tsCode);
         return compiled;
-    }
-
-    getSourceFile(fileName:string, languageVersion:any, _onError:any) {
-        const sourceText = this.readFile(fileName);
-        return sourceText !== undefined
-            ? createSourceFile(fileName, sourceText, languageVersion)
-            : undefined;
-    }
-
-    readFile(fileName:string) {
-        return this.sources.get(fileName);
-    }
-
-    writeFile(fileName:string, content:string) {
-        this.results.set(fileName, content);
-    }
-
-    knownDirectories() {
-        return [];
-        // return ["croquet", "default"];
-    }
-
-    createCompilerHost() {
-        return {
-            getSourceFile: this.getSourceFile,
-            getDefaultLibFileName: (defaultLibOptions:any) => "/" + getDefaultLibFileName(defaultLibOptions),
-            writeFile: (fileName:string, content:string) => this.writeFile(fileName, content),
-            getCurrentDirectory: () => "/",
-            getDirectories: (_path:string) => [],
-            fileExists: () => true,
-            readFile: (fileName:string) => this.readFile(fileName),
-            getCanonicalFileName: (fileName:string) => fileName,
-            useCaseSensitiveFileNames: () => true,
-            getNewLine: () => "\n",
-            getEnvironmentVariable: () => "", // do nothing
-            resolveModuleNames: () => [],
-        };
     }
 }
 
