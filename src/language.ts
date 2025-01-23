@@ -702,7 +702,7 @@ export class ProgramState implements ProgramStateType {
         }
 
         if (partialURL.startsWith("/")) {
-            const url = new UR(window.location);
+            const url = new URL(window.location.toString());
             const maybeHost = url.searchParams.get("host") || url.host;
             return `${url.protocol}//${maybeHost}}${partialURL}`;
         }

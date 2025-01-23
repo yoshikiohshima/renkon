@@ -15,7 +15,11 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   const outputs = Array.from(new Set<string>(node.declarations?.map((r) => r.name)));
   const only = outputs.length === 0 ? "" : outputs[0];
   const inputs = Array.from(new Set<string>(node.references.map((r) => r.name)))
-    .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
+      .filter((n) => {
+        return !defaultGlobals.has(n) &&
+          !renkonGlobals.has(n) &&
+          !(node.sendTargets.findIndex((s) => s.name === n) >= 0)
+      });
   const forceVars = Array.from(new Set<string>(node.forceVars.map((r) => r.name)))
     .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
   // if (hasImportDeclaration(node.body)) async = true;

@@ -26,6 +26,7 @@ export interface JavaScriptNode {
   declarations: Identifier[]; // null for expressions that can’t declare top-level variables, a.k.a outputs
   references: Identifier[]; // the unbound references, a.k.a. inputs
   forceVars: Identifier[]; // reactive variable names that should still trigger evaluation when it is undefined.
+  sendTargets: Identifier[]; // A special case where a variable is used for Events.send destination
   imports: ImportReference[];
   input: string;
 }
@@ -56,7 +57,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
   for (const decl of decls) {
     id++;
     const b = parseProgram(decl);
-    const [references, forceVars] = findReferences(b);
+    const [references, forceVars, sendTargets] = findReferences(b);
     checkAssignments(b, references, input);
     const declarations = findDeclarations(b, input);
 
@@ -70,6 +71,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
         declarations,
         references,
         forceVars,
+        sendTargets,
         imports: [],
         expression: false,
         input: decl

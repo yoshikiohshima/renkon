@@ -53,9 +53,10 @@ export function findReferences(
     globals?: Set<string>;
     filterDeclaration?: (identifier: {name: string}) => any;
   } = {}
-): [Identifier[], Identifier[]] {
+): [Identifier[], Identifier[], Identifier[]] {
   const locals = new Map<Node, Set<string>>();
   const references: Identifier[] = [];
+  const sendTarget: Identifier[] = [];
 
   function hasLocal(node: Node, name: string): boolean {
     const l = locals.get(node);
@@ -138,6 +139,19 @@ export function findReferences(
     CatchClause: declareCatchClause,
     ImportDeclaration(node, _state, [root]) {
       node.specifiers.forEach((specifier) => declareLocal(root, specifier.local));
+    },
+    CallExpression(node) {
+      const callee = node.callee;
+      if (callee.type === "MemberExpression" && callee.object.type === "Identifier") {
+        if (callee.object.name === "Events") {
+          if (callee.property.type === "Identifier" && callee.property.name === "send") {
+            const arg = node.arguments[0];
+            if (arg.type === "Identifier") {
+              sendTarget.push(arg);
+            }
+          }
+        }
+      }
     }
   });
 
@@ -170,28 +184,23 @@ export function findReferences(
       const callee = node.callee;
       if (callee.type === "MemberExpression" && callee.object.type === "Identifier") {
         if (callee.object.name === "Events") {
-            if (callee.property.type === "Identifier" && callee.property.name === "or") {
-              for (const arg of node.arguments) {
-                if (arg.type === "Identifier") {
-                  forceVars.push(arg);
-                }
-              }
-            } else if (callee.property.type === "Identifier" && callee.property.name === "send") {
-              const arg = node.arguments[0];
-              if (arg.type === "Identifier") {
-                forceVars.push(arg);
-              }
-            }
-          } else if (callee.object.name === "Behaviors") {
-            if (callee.property.type === "Identifier" && callee.property.name === "collect") {
-              const arg = node.arguments[1];
+          if (callee.property.type === "Identifier" && callee.property.name === "or") {
+            for (const arg of node.arguments) {
               if (arg.type === "Identifier") {
                 forceVars.push(arg);
               }
             }
           }
+        } else if (callee.object.name === "Behaviors") {
+          if (callee.property.type === "Identifier" && callee.property.name === "collect") {
+            const arg = node.arguments[1];
+            if (arg.type === "Identifier") {
+              forceVars.push(arg);
+            }
+          }
         }
       }
-    });
-  return [references, forceVars]
+    }
+  });
+    return [references, forceVars, sendTarget]
 }
