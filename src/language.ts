@@ -260,6 +260,8 @@ export class ProgramState implements ProgramStateType {
     updated: boolean;
     app?: any;
     noTicking: boolean;
+    programStates: Map<string, ProgramStateType>;
+    lastReturned?: Array<any>
     constructor(startTime:number, app?:any, noTicking?:boolean) {
         this.scripts = [];
         this.order = [];
@@ -275,6 +277,7 @@ export class ProgramState implements ProgramStateType {
         this.updated = false;
         this.app = app;
         this.noTicking = noTicking !== undefined ? noTicking : false;
+        this.programStates = new Map();
     }
 
     evaluator() {
@@ -605,45 +608,48 @@ export class ProgramState implements ProgramStateType {
         })
     }
 
-    component(func:Function, optSystem?:any) {
-        const programState =  new ProgramState(0, optSystem);
-        let lastReturned:any = undefined;
-        const {params, returnArray, output} = getFunctionBody(func.toString(), false);
-        // console.log(params, returnArray, output, this);
-        const self = this;
-
-        const receivers = params.map((r) => `const ${r} = undefined;`).join("\n");
-    
-        programState.setupProgram([receivers, output]);
-
-        const trigger = (input:any) => {
-            for (let key in input) {
-                programState.setResolvedForSubgraph(
-                    key,
-                    {value: input[key], time: self.time}
-                )
+    component(func:Function) {
+        return (input:any, key:string) => {
+            let programState = this.programStates.get(key) as ProgramState;
+            if (!programState) {
+                // console.log(key);
+                programState = new ProgramState(this.time);
+                programState.lastReturned = undefined;
+                this.programStates.set(key, programState);
             }
-            programState.evaluate(self.time);
-            const result:any = {};
-            const resultTest = [];
-            if (returnArray) {
-                for (const n of returnArray) {
-                    const v = programState.resolved.get(n);
-                    resultTest.push(v ? v.value : undefined)
-                    if (v && v.value !== undefined) {
-                        result[n] = v.value;
-                    }
+
+            const {params, returnArray, output} = getFunctionBody(func.toString(), false);
+            // console.log(params, returnArray, output, this);
+
+            const receivers = params.map((r) => `const ${r} = undefined;`).join("\n");
+
+            programState.setupProgram([receivers, output]);
+
+            const trigger = (input:any) => {
+                // console.log(input);
+                for (let key in input) {
+                    programState.setResolvedForSubgraph(
+                        key,
+                        {value: input[key], time: this.time}
+                    )
                 }
-                if (!self.equals(lastReturned, resultTest)) {
-                    lastReturned = resultTest;
+                programState.evaluate(this.time);
+                const result:any = {};
+                const resultTest = [];
+                if (returnArray) {
+                    for (const n of returnArray) {
+                        const v = programState.resolved.get(n);
+                        resultTest.push(v ? v.value : undefined)
+                        if (v && v.value !== undefined) {
+                            result[n] = v.value;
+                        }
+                    }
                     return result;
                 }
-            }
-            return undefined;
-
+                return {};
+            };
+            return trigger(input);
         };
-
-        return trigger;
     }
 
     renkonify(func:Function, optSystem?:any) {

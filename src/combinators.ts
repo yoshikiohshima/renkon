@@ -65,6 +65,7 @@ export interface ProgramStateType {
     imports?: Array<string>;
     app?: any;
     noTicking: boolean;
+    programStates: Map<string, ProgramStateType>;
     ready(node: ScriptCell):boolean;
     defaultReady(node: ScriptCell):boolean;
     spliceDelayedQueued(record:QueueRecord, t:number):any;
@@ -72,6 +73,7 @@ export interface ProgramStateType {
     getEventValues(record:QueueRecord, _t:number):any;
     baseVarName(varName:VarName):VarName;
     setResolved(varName:VarName, value:any):void;
+
 }
 
 export interface ValueRecord {}
