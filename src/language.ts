@@ -605,6 +605,47 @@ export class ProgramState implements ProgramStateType {
         })
     }
 
+    component(func:Function, optSystem?:any) {
+        const programState =  new ProgramState(0, optSystem);
+        let lastReturned:any = undefined;
+        const {params, returnArray, output} = getFunctionBody(func.toString(), false);
+        // console.log(params, returnArray, output, this);
+        const self = this;
+
+        const receivers = params.map((r) => `const ${r} = undefined;`).join("\n");
+    
+        programState.setupProgram([receivers, output]);
+
+        const trigger = (input:any) => {
+            for (let key in input) {
+                programState.setResolvedForSubgraph(
+                    key,
+                    {value: input[key], time: self.time}
+                )
+            }
+            programState.evaluate(self.time);
+            const result:any = {};
+            const resultTest = [];
+            if (returnArray) {
+                for (const n of returnArray) {
+                    const v = programState.resolved.get(n);
+                    resultTest.push(v ? v.value : undefined)
+                    if (v && v.value !== undefined) {
+                        result[n] = v.value;
+                    }
+                }
+                if (!self.equals(lastReturned, resultTest)) {
+                    lastReturned = resultTest;
+                    return result;
+                }
+            }
+            return undefined;
+
+        };
+
+        return trigger;
+    }
+
     renkonify(func:Function, optSystem?:any) {
         const programState =  new ProgramState(0, optSystem);
         const {params, returnArray, output} = getFunctionBody(func.toString(), false);
