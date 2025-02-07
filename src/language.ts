@@ -152,8 +152,8 @@ class Events {
           directWindow.postMessage(obj, "*");
         }
     }
-    resolvePart(promise:Promise<any>, object:any) {
-        return new ResolvePart(promise, object, false);
+    resolvePart(object:any) {
+        return new ResolvePart(object, false);
     }
 };
 
@@ -178,8 +178,8 @@ class Behaviors {
     delay(varName:VarName, delay: number):DelayedEvent {
         return new DelayedEvent(delay, varName, true);
     }
-    resolvePart(promise:Promise<any>, object:any) {
-        return new ResolvePart(promise, object, true);
+    resolvePart(object:any) {
+        return new ResolvePart(object, true);
     }
     /*
     startsWith(init:any, varName:VarName) {

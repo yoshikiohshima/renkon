@@ -461,34 +461,54 @@ export class CollectStream<I, T> extends Stream {
 }
 
 export class ResolvePart extends Stream {
-    promise: any|Promise<any>;
+    promise: Promise<any>;
+    indices: Array<number|string>;
     resolved: boolean;
     object: any;
-    constructor(promise:Promise<any>, object:Array<any>|any, isBehavior:boolean) {
+    constructor(object:Array<any>|any, isBehavior:boolean) {
         super(resolvePartType, isBehavior);
-        this.promise = promise;
         this.object = object;
-        this.resolved = !(typeof this.promise === "object" && this.promise.then);
+        if (Array.isArray(this.object)) {
+            const array:Array<any> = this.object;
+            const indices = [...Array(array.length).keys()].filter((i) => {
+                const elem = this.object[i];
+                return typeof elem === "object" && elem !== null && elem.then;
+            });
+            const promises = indices.map((i) => array[i]);
+            this.promise = Promise.all(promises);
+            this.indices = indices;
+        } else {
+            const keys = Object.keys(this.object).filter((k) => {
+                const elem = this.object[k];
+                return typeof elem === "object" && elem !== null && elem.then;
+            });
+            const promises = keys.map((k) => this.object[k]);
+            this.promise = Promise.all(promises);
+            this.indices = keys;
+        }
+        this.resolved = false;
     }
 
     created(state:ProgramStateType, id:VarName):Stream {
         if (!this.resolved) {
-            this.promise.then((value:any) => {
+            this.promise.then((values:Array<Promise<any>>) => {
                 const wasResolved = state.resolved.get(id)?.value;
                 if (!wasResolved) {
                     this.resolved = true;
                     if (Array.isArray(this.object)) {
-                        const promiseIndex = this.object.indexOf(this.promise);
                         const result = [...this.object];
-                        if (promiseIndex < 0) {return result;}
-                        result[promiseIndex] = value;
+                        const indices = this.indices as Array<number>;
+                        for (let i of indices) {
+                            result[indices[i]] = values[i];
+                        }
                         state.setResolved(id, {value: result, time: state.time});
-                        return result; 
+                        return result;
                     } else {
                         const result = {...this.object};
-                        const key = Object.keys(this.object).find((key => this.object[key] === this.promise));
-                        if (!key) {return result;}
-                        result[key] = value;
+                        const indices = this.indices as Array<string>
+                        for (let i = 0; i < indices.length; i++) {
+                           result[indices[i]] = values[i];
+                        }
                         state.setResolved(id, {value: result, time: state.time});
                         return result;
                     }
