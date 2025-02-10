@@ -262,6 +262,7 @@ export class ProgramState implements ProgramStateType {
     noTicking: boolean;
     programStates: Map<string, ProgramStateType>;
     lastReturned?: Array<any>
+    futureScripts?: Array<string>;
     constructor(startTime:number, app?:any, noTicking?:boolean) {
         this.scripts = [];
         this.order = [];
@@ -414,6 +415,15 @@ export class ProgramState implements ProgramStateType {
         }
     }
 
+    updateProgram(scripts:string[]) {
+        // a utility function that triggers a program update
+        // after the current evaluation cycle.
+        // This can be called from the program this ProgramState is 
+        // running the request is treated like an event but processed
+        // right before the next evaluation cycle.
+        this.futureScripts = scripts;
+    }
+
     evaluate(now:number) {
         this.time = now - this.startTime;
         this.updated = false;
@@ -474,6 +484,13 @@ export class ProgramState implements ProgramStateType {
             if (!stream) {continue;}
             stream.conclude(this, id);
         }
+
+        if (this.futureScripts) {
+            const scripts = this.futureScripts;
+            delete this.futureScripts;
+            this.setupProgram(scripts);
+        }
+
         return this.updated;
     }
 
@@ -693,21 +710,6 @@ export class ProgramState implements ProgramStateType {
             }
         }
         return generator;
-    }
-
-    renkonify2(func:Function, optSystem?:any) {
-        const programState =  new ProgramState(0, optSystem);
-        const {params, returnArray, output} = getFunctionBody(func.toString(), false);
-        // console.log(params, returnArray, output, this);
-
-        const receivers = params.map((r) => `const ${r} = undefined;`).join("\n");
-
-        programState.setupProgram([receivers, output]);
-
-        programState.exports = returnArray || undefined;
-        programState.imports = params;
-
-        return programState;
     }
 
     evaluateSubProgram(programState: ProgramState, params:any) {

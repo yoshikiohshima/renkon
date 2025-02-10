@@ -73,7 +73,7 @@ export interface ProgramStateType {
     getEventValues(record:QueueRecord, _t:number):any;
     baseVarName(varName:VarName):VarName;
     setResolved(varName:VarName, value:any):void;
-
+    updateProgram(scripts:Array<string>):void;
 }
 
 export interface ValueRecord {}
