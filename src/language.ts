@@ -338,19 +338,24 @@ export class ProgramState implements ProgramStateType {
         }
     
         // compile code and sort them.
-        const jsNodes: Array<JavaScriptNode> = [];
+        // when there are duplicated definitions for the same name,
+        // the last one will be used.
+        const jsNodes: Map<VarName, JavaScriptNode> = new Map();
     
         let id = 0;
         for (const script of scripts) {
             if (!script) {continue;}
             const nodes = parseJavaScript(script, id, false);
             for (const n of nodes) {
-                jsNodes.push(n);
+                if (jsNodes.get(n.id)) {
+                    console.log(`node "${n.id}" is defined multiple times`);
+                }
+                jsNodes.set(n.id, n);
                 id++;
             }
         }
     
-        const translated = jsNodes.map((jsNode) => ({id: jsNode.id, code: transpileJavaScript(jsNode)}));
+        const translated = [...jsNodes].map(([_id, jsNode]) => ({id: jsNode.id, code: transpileJavaScript(jsNode)}));
         const evaluated = translated.map((tr) => this.evalCode(tr));
         const sorted = topologicalSort(evaluated);
     
