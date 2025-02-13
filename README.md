@@ -419,6 +419,125 @@ You can simply edit the code in the editor, in this video add some
 style to the "words". Notice that the `collection` array is kept when
 you update code so that you can experiment things quickly.
 
+## Combinators
+
+There are numbers of combinators that can be used to combine other FRP nodes.
+
+### Events.listener
+
+```TypeScript
+Events.listener(dom: HTMLElement|string, eventName:string, handler: (evt:any) => void, options?:any)
+```
+
+`Events.listener` creates an event node that fires when a specified DOM event occurs. The first argument can be a string; in that case, the element found with `querySelector` is used.
+
+### Events.delay
+
+```TypeScript
+Events.delay(node, delay: number)
+```
+The event specified in the first argument will trigger `delay` logical milliseconds later. The first argument can be either a behavior or an event; if it is a behavior, the `change` will be delayed with this combinator.
+
+### Events.timer
+
+```TypeScript
+Events.timer(interval: number)
+```
+This creates a node that fires at the specified interval in logical time. The value is a multiple of the interval.
+
+### Events.change
+
+```TypeScript
+Events.change(value:Behavior)
+```
+This converts a behavior to an event. When the value chagnes in the behavior, the event fires.
+
+### Events.or
+
+```TypeScript
+Events.or(...values:Events)
+```
+This event fires when one of the dependencies fires. If two or more dependencies fire at the same logical time, the implementatio chooses the left-most one. The value of the event is the value of the dependency that fired.
+
+### Events.collect
+
+```TypeScript
+Events.collect<I, T>(init:I, event:Event, updater: (c: I, v:T) => I)
+```
+This event fires when the event argument fires. the previous value, starting from the init and the new value of the event is passed to the updater function and the returned value is used as the value of the event. Because this is an event, even though the value is kept internally, the value is not available at the other logical time.
+
+### Events.observe
+
+```TypeScript
+Events.observe(callback:ObserveCallback, options?:any)
+```
+
+This creates an event that fires when the callback function is invoked. For example:
+
+```JavaScript
+const inputs = Events.observe((notifier) => {
+    window.onmessage = (event) => {
+        notifier(event.data);
+    }
+    return () => window.onmessage = null;
+}, {queued: true});
+```
+The optional argument can specify "queued", which returns an array of potentially a multiple values for the same logical time.
+
+### Events.resolvePart
+
+```TypeScript
+Events.resolvePart(object:any)
+```
+The event shallowly scan the object's properties (it may be an array or an object). If there are promises found, they are waited to resolve, and the shallow copy of the object with resolved values is used as the value of the event.
+
+### Events.next
+
+```TypeScript
+Events.next<T>(generator:Generator<T>)
+```
+This event takes an async generator as its argument. The event gets a new value when the promise returned from the generator resolves.
+
+```JavaScript
+const gen = llama(aString, params, config);  // the llama function from the llamacpp 
+const value = Events.next(gen);
+```
+
+### Behavior.keep
+
+```TypeScript
+Behaviors.keep(value:Event)
+```
+This behavior takes an event as argument, and keeps the last value fired as its state.
+
+### Behaviors.collect
+```TypeScript
+Events.collect<I, T>(init:I, event:Event, updater: (c: I, v:T) => I)
+```
+This event fires when the event argument fires. the previous value, starting from the init and the new value of the event is passed to the updater function and the returned value is used as the value of the event.
+
+### Behaviors.timer
+
+```TypeScript
+Behaviors.timer(interval:number)
+```
+This creates a node that fires at the specified interval in logical time. The value is a multiple of the interval.
+
+### Behaviors.delay
+
+```TypeScript
+Behaviors.delay(stream, delay: number)
+```
+The behavior or event specified in the first argument will become the value of the behavior after `delay` logical milliseconds. The first argument can be either a behavior or an event.
+
+
+### Behaviors.resolvePart
+
+```TypeScript
+Events.resolvePart(object:any)
+```
+The event shallowly scan the object's properties (it may be an array or an object). If there are promises found, they are waited to resolve, and the shallow copy of the object with resolved values is used as the value of the event.
+
 ## Comparison to Other Frameworks
 
 ### No `useEffect` Needed
