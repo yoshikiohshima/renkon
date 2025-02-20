@@ -426,7 +426,8 @@ There are numbers of combinators that can be used to combine other FRP nodes.
 ### Events.listener
 
 ```TypeScript
-Events.listener(dom: HTMLElement|string, eventName:string, handler: (evt:any) => void, options?:any)
+Events.listener(dom: HTMLElement|string, eventName:string,
+                                 handler: (evt:any) => void, options?:any)
 ```
 
 `Events.listener` creates an event node that fires when a specified DOM event occurs. The first argument can be a string; in that case, the element found with `querySelector` is used.

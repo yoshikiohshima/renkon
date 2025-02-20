@@ -263,6 +263,7 @@ export class ProgramState implements ProgramStateType {
     programStates: Map<string, ProgramStateType>;
     lastReturned?: Array<any>
     futureScripts?: Array<string>;
+    breakpoints: Set<VarName>;
     constructor(startTime:number, app?:any, noTicking?:boolean) {
         this.scripts = [];
         this.order = [];
@@ -279,6 +280,7 @@ export class ProgramState implements ProgramStateType {
         this.app = app;
         this.noTicking = noTicking !== undefined ? noTicking : false;
         this.programStates = new Map();
+        this.breakpoints = new Set();
     }
 
     evaluator() {
@@ -432,6 +434,10 @@ export class ProgramState implements ProgramStateType {
     evaluate(now:number) {
         this.time = now - this.startTime;
         this.updated = false;
+        let trace:Array<{id:VarName, inputArray: Array<any>, inputs: Array<VarName>,value: any}>|undefined;
+        if (this.breakpoints.size > 0) {
+            trace = [];
+        }
         for (let id of this.order) {
             const node = this.nodes.get(id)!;
             if (!this.ready(node)) {continue;}
@@ -456,7 +462,7 @@ export class ProgramState implements ProgramStateType {
                 }
                 this.inputArray.set(id, inputArray);
                 const maybeValue = outputs;
-               if (maybeValue !== undefined && (maybeValue.then || maybeValue[typeKey])) {
+                if (maybeValue !== undefined && (maybeValue.then || maybeValue[typeKey])) {
                     const ev = maybeValue.then ? new PromiseEvent<any>(maybeValue) : maybeValue;
                     const newStream = ev.created(this, id);
                     this.streams.set(id, newStream);
@@ -480,6 +486,9 @@ export class ProgramState implements ProgramStateType {
             }
     
             if (outputs === undefined) {continue;}
+            if (trace) {
+                trace.push({id, inputArray, inputs: node.inputs, value: outputs});
+            }
             const evStream:Stream = outputs as Stream;
             evStream.evaluate(this, node, inputArray, lastInputArray);
         }
@@ -488,6 +497,11 @@ export class ProgramState implements ProgramStateType {
             const stream = this.streams.get(id);
             if (!stream) {continue;}
             stream.conclude(this, id);
+        }
+
+        if (trace !== undefined) {
+            debugger;
+            console.log(trace);
         }
 
         if (this.futureScripts) {
@@ -764,9 +778,19 @@ export class ProgramState implements ProgramStateType {
         return partialURL;
     }
 
-    /*
-      inspector(flag:boolean, dom?: HTMLElement) {
-        showInspector(this, flag === undefined ? true: flag, dom);
-        }
-    */
+    addBreakpoint(...ids:Array<VarName>) {
+        ids.forEach((id) => {
+            this.breakpoints.add(id);
+        });
+    }
+
+    removeBreakpoint(...ids:Array<VarName>) {
+        ids.forEach((id) => {
+            this.breakpoints.delete(id);
+        });
+    }
+
+    resetBreakpoint() {
+        this.breakpoints = new Set();
+    }
 }
