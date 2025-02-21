@@ -1,5 +1,8 @@
 import {JavaScriptNode, parseJavaScript} from "./javascript/parse"
 import {getFunctionBody, transpileJavaScript} from "./javascript/transpile"
+import packageJson from "../package.json";
+
+export const version = packageJson.version;
 
 import {
     ScriptCell, VarName, NodeId, Stream,
