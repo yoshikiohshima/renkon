@@ -491,6 +491,10 @@ export class ProgramState implements ProgramStateType {
             if (outputs === undefined) {continue;}
             if (trace) {
                 trace.push({id, inputArray, inputs: node.inputs, value: outputs});
+                if (this.breakpoints.has(id)) {
+                    console.log(trace);
+                    debugger;
+                }
             }
             const evStream:Stream = outputs as Stream;
             evStream.evaluate(this, node, inputArray, lastInputArray);
@@ -500,11 +504,6 @@ export class ProgramState implements ProgramStateType {
             const stream = this.streams.get(id);
             if (!stream) {continue;}
             stream.conclude(this, id);
-        }
-
-        if (trace !== undefined) {
-            debugger;
-            console.log(trace);
         }
 
         if (this.futureScripts) {
