@@ -1,10 +1,9 @@
-# Renkon: A reactive UI framework
+# Renkon-Core: An FRP evaluator
 
 ## Introduction
 
-Renkon is a UI framework for building interactive web
-applications. The basic concept is based on Functional Reactive
-Programming (FRP). A program consists of a set of reactive nodes. Each
+Renkon is an FRP (Functional Reactive Programming) evaluator for building interactive web
+and Node.js applications. A program consists of a set of reactive nodes. Each
 node reacts to input changes and produces an output. Other nodes that
 depend on the output, in turn, produce their outputs, and updates on
 nodes propagate through the "dependency network."
@@ -13,7 +12,7 @@ Renkon stands out from other reactive web UI frameworks in three ways:
 
 - Native Promises and Generators in JavaScript are integrated cleanly.
 - Following the original FRP, discrete events and continuous values are separated.
-- The definition of reactive nodes can be edited dynamically from within the environment itself.
+- The definition of reactive nodes can be edited dynamically, even from within the environment itself.
 
 This results in a very simple yet powerful framework compared to some existing ones:
 
@@ -34,7 +33,7 @@ console.log(mod.ten() + hundred + timer);
 
 The first line with `import` returns a promise that resolves to a
 JavaScript module. Let us assume that it exports a function called
-`ten()` that returns 10. The node `hundred` is a Promise that resolves
+`ten()` that returns number ten (10). The node `hundred` is a Promise that resolves
 to 100 after 500ms. `timer` is an event that produces a new value
 every 1000ms. The last line with the `console.log()` call depends on
 three nodes (`mod`, `hundred`, and `timer`), and when each of these
@@ -86,10 +85,17 @@ time, while `null` is used to indicate that the value does exist but
 is empty. In other words, a node won't be evaluated when one of the
 dependencies is `undefined`.
 
+## Renkon-Core, Renkon-Web and Renkon-Node
+The evaluator of Renkon is written in JavaScript (TypeScript), and it independent from Web-based or Node-based execution enviornment. [Renkon-Web](https://github.com/yoshikiohshima/renkon-web) is the web-based environment with in-world code editor. [Renkon-Node](https://github.com/yoshikiohshima/renkon-node) is the Node.js based environment that can load a program from a file.
+
+Refer to the README of each of those for their specifics, including how to set up your program.
+
 ## Renkon by Examples
 
 Let us describe some more building blocks of Renkon. These are called
 "combinators," which combine other FRP nodes to do more things.
+
+The examples below assumes the web-based environment, where the browser built-in features such as `document.querySelector()` is available.
 
 ```JavaScript
 const collection = Behaviors.collect([], Events.or(button, timer), (current, value) => {
@@ -530,7 +536,6 @@ This creates a node that fires at the specified interval in logical time. The va
 Behaviors.delay(stream, delay: number)
 ```
 The behavior or event specified in the first argument will become the value of the behavior after `delay` logical milliseconds. The first argument can be either a behavior or an event.
-
 
 ### Behaviors.resolvePart
 
