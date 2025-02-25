@@ -544,6 +544,160 @@ Events.resolvePart(object:any)
 ```
 The event shallowly scan the object's properties (it may be an array or an object). If there are promises found, they are waited to resolve, and the shallow copy of the object with resolved values is used as the value of the event.
 
+## APIs to manipulate the ProgramState object
+
+The Renkon evaluator holds a set of Renkon FRP nodes and topologically sort them according to their dependency relationship. When an evaluation step starts, the evaluator walks through the sorted list, and evaluate them as necessary.
+
+All runtime data structure is stored in an instance of the `ProgramState` class. The instance itself is visible as global `Renkon` variable. You can instantiate `ProgramState` and set up your program without calling the `view()` function. For example you can use Renkon evaluator in this way in a regular JavaScript code:
+
+```JavaScript
+const state = new ProgramState(0);
+state.setupProgram([`const a = Events.timer(100); const b = a + 10;`]);
+state.evaluate(100);
+```
+
+This code snippets creates an instance of `ProgramState` with the initial time to be zero (0), and setup nodes in it by  calling `setupProgram()` method with the renkon program text. Then the `evaluate()` method with a logical time as argument evaluates necessary nodes.
+
+The following is a list of methods of `ProgramState`
+
+### `constructor`
+
+```TypeScrpt
+constructor(startTime:number, app?:any, noTicking?:boolean);
+```
+
+The arguments are `startTime` for the initial value for the logical time, `app` that is an any object to be stored in the `app` property, and `noTicking` flag to specify if it does not start a animationFrame evaluation cycle.
+
+### `setupProgram`
+
+```TypeScript
+setupProgram(scripts:string[])
+```
+
+This method takes an array of strings that contain renkon programs. A string can contain any number of node definitions, and you can think that all strings are concatenated to form one program.
+
+If there are duplicated definition for the same name, the latter definition is used.
+
+Also refer to the `updateProgram()` method. `setupProgram` mutates the ProgramState and may break the on going evaluation cycle if called from the Renkon program it is running.
+
+### `updateProgram`
+
+```TypeScript
+updateProgram(scripts:string[])
+```
+
+This is similar to `setupProgram()` but intended to be called from the Renkon program itself. The `scripts` value is temporarily kept until the current evaluation cycle finishes, and then it is used to call `setupProgram` on the `ProgramState`. The ProgramState object keepts the array of program text in the `scripts` property, so if you want to add the definition of a node, you can call the method like this:
+
+```TypeScript
+state.updateProgram(...state.scripts, "const x = a + b;")
+```
+
+### `evaluate`
+
+```TypeScript
+evaluate(now:number);
+```
+
+This method triggers an evaluation step. The argument is the logical time. It updates the values of nodes as necessary, and then clears out values of Events with `undefined`.
+
+### `registerEvent`
+
+This method sets the value of a `Event.receiver()`. For example, let us say your program is set up like this:
+
+
+```JavaScript
+const state = new ProgramState(0);
+state.setupProgram([`const rec = Events.receiver(); console.log(rec)`]);
+```
+
+Then you can "inject" a value into the `rec` node by calling registerEvent from outside:
+
+```JavaScript
+state.registerEvent("rec", {text: "hello"});
+```
+
+and then:
+
+```JavaScript
+state.evaluate(100);
+```
+
+will show the result in the console, as the "rec" gets a value and the `console.log(rec)` will be evaluated.
+
+### `merge`
+
+```TypeScript
+merge(...funcs:Function[])
+```
+
+This method takes a set of node definitions from a function definition, and effectively appends the node definitions to exsting `scripts`.
+
+The function has to have the structure that looks like:
+
+```JavaScript
+function component1(a, b) {
+    const c = a + 42;
+    const d = b + Events.timer(100);
+    const {h} = import("../preact.standalone.module.js");
+    const html = h("div", {color: "#d22"}, c, d);
+    return [html];
+}
+```
+
+where the function arguments ("a", "b", etc.) are not relevant for the `merge` operation semantically, but they help the syntax checker to know what are referenced by the set of nodes in the body. The last return value is not used for `merge` but the function has to return an array.
+
+The `merge` operation takes the source code of this function, and "c", "d", "h" and "html" are added to the ProgramState.
+
+### `component`
+
+```TypeScript
+component(func:Function);
+```
+
+The component method creates a separate `ProgramState` instance, sets up the new ProgramState with the definitions in `func`. The `func` function is expected to have the form (the same as `merge`):
+
+```JavaScript
+export function componentFunc(a, b) {
+    const c = a + 42;
+    const d = b + Events.timer(100);
+    const {h} = import("../preact.standalone.module.js");
+    const html = h("div", {color: "#d22"}, c, d);
+    return [html];
+}
+```
+
+On the calling side, you use this function from your owning Renkon program:
+
+```JavaScript
+  const {componentFunc} = import("./component.js");
+  const component = Renkon.component(componentFunc);
+  const a = Events.timer(100);
+  const instanceOfComponent = component({a, b: 10000});
+  const html = instanceOfComponent.html;
+  ...
+```
+
+Here, `component` node is the `component`ized function componentFunc, and the `instanceOfComponent` is an instance of the component. The `html` property is available on `instanceOfComponent` because the last `return` line specifies that that is exposed from the component.
+
+### `renkonify`
+
+### `spaceURL`
+
+```TypeScript
+spaceURL(partialURL:string)
+```
+
+This method takes a partial path, and based on where the base program is installed tries to construct a full URL when running on the substrate OS.
+
+
+### `addBreakpoint(...ids:Array<string>)`
+### `removeBreakpoint(...ids:Array<string>)`
+### `resetBreakpoint()`
+
+The Renkon evaluator allows you to set breakpoints on the evaluation of a node. Those three methods updates the breakpoints for the evaluator.
+
+When the evaluator evaluated a node whose name is in the breakpoints list, it hits the `debugger` statement of the JS developer tool. You can inspect the "trace" displayed in the console that shows the evaluated nodes in that evaluation cycle.
+
 ## Comparison to Other Frameworks
 
 ### No `useEffect` Needed
