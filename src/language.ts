@@ -443,7 +443,14 @@ export class ProgramState implements ProgramStateType {
         }
         for (let id of this.order) {
             const node = this.nodes.get(id)!;
+ 
             if (!this.ready(node)) {continue;}
+
+            if (trace) {
+                if (this.breakpoints.has(id)) {
+                     debugger;
+                 }
+            } 
     
             const change = this.changeList.get(id);
     
@@ -493,7 +500,6 @@ export class ProgramState implements ProgramStateType {
                 trace.push({id, inputArray, inputs: node.inputs, value: outputs});
                 if (this.breakpoints.has(id)) {
                     console.log(trace);
-                    debugger;
                 }
             }
             const evStream:Stream = outputs as Stream;
