@@ -472,7 +472,7 @@ export class ProgramState implements ProgramStateType {
                 }
                 this.inputArray.set(id, inputArray);
                 const maybeValue = outputs;
-                if (maybeValue !== undefined && (maybeValue.then || maybeValue[typeKey])) {
+                if (maybeValue !== undefined && maybeValue !== null && (maybeValue.then || maybeValue[typeKey])) {
                     const ev = maybeValue.then ? new PromiseEvent<any>(maybeValue) : maybeValue;
                     const newStream = ev.created(this, id);
                     this.streams.set(id, newStream);
