@@ -26,6 +26,7 @@ export interface JavaScriptNode {
   declarations: Identifier[]; // null for expressions that can’t declare top-level variables, a.k.a outputs
   references: Identifier[]; // the unbound references, a.k.a. inputs
   forceVars: Identifier[]; // reactive variable names that should still trigger evaluation when it is undefined.
+  extraType: {gather?:string};
   sendTargets: Identifier[]; // A special case where a variable is used for Events.send destination
   imports: ImportReference[];
   input: string;
@@ -50,14 +51,14 @@ function findDecls(input:string) {
 export function parseJavaScript(input:string, initialId:number, flattened: boolean = false): JavaScriptNode[] {
   const decls = findDecls(input);
 
-  const allReferences = [];
+  const allReferences:JavaScriptNode[] = [];
 
   let id = initialId;
 
   for (const decl of decls) {
     id++;
     const b = parseProgram(decl);
-    const [references, forceVars, sendTargets] = findReferences(b);
+    const [references, forceVars, sendTargets, hasGather] = findReferences(b);
     checkAssignments(b, references, input);
     const declarations = findDeclarations(b, input);
 
@@ -73,7 +74,8 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
         forceVars,
         sendTargets,
         imports: [],
-        expression: false,
+        extraType: hasGather ? {"gather": hasGather} : {},
+        // expression: false,
         input: decl
       });
     } else {
@@ -104,13 +106,13 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
             const parsed = parseJavaScript(newPart + newNewInput, initialId, false);
             // console.log(parsed);
             allReferences.push(...parsed);
-            return allReferences as JavaScriptNode[];
+            return allReferences;
         }
       }
       allReferences.push(...parseJavaScript(`${newPart}${overridden ? "" : "\n" + newInput}`, initialId, true));
     }
   }
-  return allReferences as JavaScriptNode[];
+  return allReferences;
 }
 
 export function parseProgram(input: string): Program {

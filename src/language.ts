@@ -6,7 +6,7 @@ export const version = packageJson.version;
 
 import {
     ScriptCell, VarName, NodeId, Stream,
-    DelayedEvent, CollectStream, SelectStream, PromiseEvent, EventType,
+    DelayedEvent, CollectStream, SelectStream, GatherStream, PromiseEvent, EventType,
     GeneratorNextEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent,
     ReceiverEvent, UserEvent, SendEvent, OrEvent, ResolvePart,
     eventType, typeKey,
@@ -193,6 +193,10 @@ class Behaviors {
     _select<I>(init:I, varName:VarName, updaters: Array<(c:I, v:any) => I>):SelectStream<I> {
         return new SelectStream(init, varName, updaters, true);
     }
+
+    gather(regexp:string) {
+        return new GatherStream(regexp, true)
+    }
     /*
     startsWith(init:any, varName:VarName) {
         return new CollectStream(init, varName, (_old, v) => v, true);
@@ -371,6 +375,16 @@ export class ProgramState implements ProgramStateType {
     
         const translated = [...jsNodes].map(([_id, jsNode]) => ({id: jsNode.id, code: transpileJavaScript(jsNode)}));
         const evaluated = translated.map((tr) => this.evalCode(tr));
+        debugger;
+        for (let [id, node] of jsNodes) {
+            if (!node.extraType["gather"]) {continue;}
+            const r = node.extraType["gather"];
+            const ev = evaluated.find((evaled) => evaled.id === id);
+            if (ev) {
+                const ins = evaluated.filter((evaled) => new RegExp(r).test(evaled.id)).map((e) => e.id);
+                ev.inputs = ins;
+            }
+        }
         const sorted = topologicalSort(evaluated);
     
         const newNodes = new Map<NodeId, ScriptCell>();

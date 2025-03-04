@@ -31,6 +31,7 @@ export const orType = "OrType";
 export const sendType = "SendType";
 export const receiverType = "ReceiverType";
 export const changeType = "ChangeType";
+export const gatherType = "GatherType";
 export const generatorNextType = "GeneratorNextType";
 export const resolvePartType = "ResolvePart";
 
@@ -47,6 +48,7 @@ export type EventType =
     typeof sendType |
     typeof receiverType |
     typeof changeType |
+    typeof gatherType |
     typeof generatorNextType |
     typeof resolvePartType;
 
@@ -531,6 +533,39 @@ export class SelectStream<I> extends Stream {
     }
 }
 
+export class GatherStream extends Stream {
+    regexp: RegExp;
+    constructor(regexp:string, isBehavior: boolean) {
+        super(gatherType, isBehavior);
+        this.regexp = new RegExp(regexp);
+    }
+
+    created(_state:ProgramStateType, _id:VarName):Stream {
+        return this;
+    }
+
+    evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+        const validValues = inputArray.filter((e) => e !== undefined);
+        const hasPromise = validValues.find((e) => e !== null && ((e as unknown) as Promise<any>).then) > 0;
+        if (hasPromise) {
+            Promise.all(validValues).then((values:Array<any>) => {
+                    state.setResolved(node.id, {value: values, time: state.time});
+                })
+        } else {
+            state.setResolved(node.id, {value: validValues, time: state.time});
+        }
+    }
+
+    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        super.conclude(state, varName);
+        if (this[isBehaviorKey]) {return;}
+        if (state.resolved.get(varName)?.value !== undefined) {
+            state.resolved.delete(varName);
+            return varName;
+        }
+        return;
+    }
+}
 
 export class ResolvePart extends Stream {
     promise: Promise<any>;

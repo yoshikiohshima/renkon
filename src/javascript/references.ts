@@ -10,6 +10,7 @@ import type {
   FunctionDeclaration,
   FunctionExpression,
   Identifier,
+  Literal,
   Node,
   Pattern,
   Program
@@ -53,7 +54,7 @@ export function findReferences(
     globals?: Set<string>;
     filterDeclaration?: (identifier: {name: string}) => any;
   } = {}
-): [Identifier[], Identifier[], Identifier[]] {
+): [Identifier[], Identifier[], Identifier[], string?] {
   const locals = new Map<Node, Set<string>>();
   const references: Identifier[] = [];
   const sendTarget: Identifier[] = [];
@@ -178,6 +179,7 @@ export function findReferences(
   });
 
   const forceVars:Identifier[] = [];
+  let hasGather:(string|undefined) = undefined;
 
   simple(node, {
     CallExpression(node) {
@@ -197,10 +199,12 @@ export function findReferences(
             if (arg.type === "Identifier") {
               forceVars.push(arg);
             }
+          } else if (callee.property.type === "Identifier" && callee.property.name === "gather") {
+            hasGather = (node.arguments[0] as Literal).value as string;
           }
         }
       }
     }
   });
-    return [references, forceVars, sendTarget]
+    return [references, forceVars, sendTarget, hasGather]
 }
