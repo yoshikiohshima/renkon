@@ -133,6 +133,16 @@ is a number, it appends the value to the collection. If not, it resets
 `collection` to an empty array. In effect, the collection gets a new
 element each second but resets when the user presses the button.
 
+It is cumbersome to write the test of incoming value in `collect`. There is a variation called `select` that can take a pair of the triggering event and reducer function as variable-length arguments. The above `collection` node can be written as:
+
+```JavaScript
+const collection = Behaviors.select([], button (current, value) => [], timer, (current, value) => {
+  return [...current, value];
+});
+```
+
+There are two pairs. One is for the button trigger and its reaction, and another is `timer` trigger and its reaction.
+
 Some combinators have both the "Event" variant and "Behavior" variant,
 depending on whether the value should be available only at the instant
 or kept until it changes again. In the example above, `collect` and
@@ -519,9 +529,15 @@ This behavior takes an event as argument, and keeps the last value fired as its 
 
 ### Behaviors.collect
 ```TypeScript
-Events.collect<I, T>(init:I, event:Event, updater: (c: I, v:T) => I)
+Behaviors.collect<I, T>(init:I, event:Event, updater: (c: I, v:T) => I)
 ```
-This event fires when the event argument fires. the previous value, starting from the init and the new value of the event is passed to the updater function and the returned value is used as the value of the event.
+This behavior updates when the event argument fires. the previous value, starting from the init and the new value of the event is passed to the updater function and the returned value is used as the value of the event.
+
+### Behaviors.select
+```TypeScript
+Behaviors.select<I>(init:I, ...event:Event, updater: (c: I, v:any) => I, ...)
+```
+This behavior updates when one of the events fires. The corresponding two-argument function is called with the current value and the event's value, and the value returned becomes the node's new value.
 
 ### Behaviors.timer
 
@@ -543,6 +559,12 @@ The behavior or event specified in the first argument will become the value of t
 Events.resolvePart(object:any)
 ```
 The event shallowly scan the object's properties (it may be an array or an object). If there are promises found, they are waited to resolve, and the shallow copy of the object with resolved values is used as the value of the event.
+
+### Behaviors.gather
+```TypeScript
+Behaviors.gather(regexp:string)
+```
+This behavior applies the regexp to the names of the existing nodes, and gather the values of them as an object, keyed by the name.  Note that the test to find matching node names is done once at `setupProgram` (or `updateProgram`) call. In other words, this node is not reactive to the `regexp` change. It is adviced to give a constant string as the regexp argument to avoid confusion.
 
 ## APIs to manipulate the ProgramState object
 

@@ -375,7 +375,6 @@ export class ProgramState implements ProgramStateType {
     
         const translated = [...jsNodes].map(([_id, jsNode]) => ({id: jsNode.id, code: transpileJavaScript(jsNode)}));
         const evaluated = translated.map((tr) => this.evalCode(tr));
-        debugger;
         for (let [id, node] of jsNodes) {
             if (!node.extraType["gather"]) {continue;}
             const r = node.extraType["gather"];

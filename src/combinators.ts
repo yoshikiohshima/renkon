@@ -545,14 +545,35 @@ export class GatherStream extends Stream {
     }
 
     evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
-        const validValues = inputArray.filter((e) => e !== undefined);
-        const hasPromise = validValues.find((e) => e !== null && ((e as unknown) as Promise<any>).then) > 0;
+        const inputs = node.inputs;
+        const validInputNames:Array<string> = [];
+        const validInputs = [];
+
+        let hasPromise = false;
+        for (let i = 0; i < inputs.length; i++) {
+            const v = inputArray[i];
+            if (v !== undefined) {
+                validInputNames.push(inputs[i]);
+                validInputs.push(v);
+                if (v !== null && v.then) {
+                    hasPromise = true;
+                }
+            }
+        }
         if (hasPromise) {
-            Promise.all(validValues).then((values:Array<any>) => {
-                    state.setResolved(node.id, {value: values, time: state.time});
-                })
+            Promise.all(validInputs).then((values:Array<any>) => {
+                const result:any = {};
+                for (let i = 0; i < validInputNames.length; i++) {
+                    result[validInputNames[i]] = values[i];
+                }
+                state.setResolved(node.id, {value: result, time: state.time});
+            });
         } else {
-            state.setResolved(node.id, {value: validValues, time: state.time});
+            const result:any = {};
+            for (let i = 0; i < validInputNames.length; i++) {
+                result[validInputNames[i]] = validInputs[i];
+            }
+            state.setResolved(node.id, {value: result, time: state.time});
         }
     }
 
