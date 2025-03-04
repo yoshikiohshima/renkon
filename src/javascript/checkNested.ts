@@ -34,7 +34,7 @@ function rewriteNestedCalls(
             const isSelectCall = isSelect(node, ancestors);
             if (isSelectCall) {
                 const rewrite = rewriteSelect(node, ancestors);
-                rewriteSpecs.push(rewrite);
+                rewriteSpecs.unshift(rewrite);
             }
             if (isEvent && !inFunction) {
                 rewriteSpecs.push({start: node.start, end: node.end, name: `_${baseId}_${rewriteSpecs.length}`, type: "range"});

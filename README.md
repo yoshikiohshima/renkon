@@ -539,6 +539,12 @@ Behaviors.select<I>(init:I, ...event:Event, updater: (c: I, v:any) => I, ...)
 ```
 This behavior updates when one of the events fires. The corresponding two-argument function is called with the current value and the event's value, and the value returned becomes the node's new value.
 
+In the current implementation, Behaviors.select has to be a top-level node such as:
+
+```JavaScript
+const v = Behaviors.select(0, ...);
+```
+
 ### Behaviors.timer
 
 ```TypeScript
