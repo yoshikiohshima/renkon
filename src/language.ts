@@ -6,7 +6,7 @@ export const version = packageJson.version;
 
 import {
     ScriptCell, VarName, NodeId, Stream,
-    DelayedEvent, CollectStream, PromiseEvent, EventType,
+    DelayedEvent, CollectStream, SelectStream, PromiseEvent, EventType,
     GeneratorNextEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent,
     ReceiverEvent, UserEvent, SendEvent, OrEvent, ResolvePart,
     eventType, typeKey,
@@ -125,7 +125,10 @@ class Events {
         return new GeneratorNextEvent(generator);
     }
     or(...varNames:Array<VarName>) {
-        return new OrEvent(varNames)
+        return new OrEvent(varNames, false)
+    }
+    _or_index(...varNames:Array<VarName>) {
+        return new OrEvent(varNames, true);
     }
     collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
         return new CollectStream(init, varName, updater, false);
@@ -183,6 +186,12 @@ class Behaviors {
     }
     resolvePart(object:any) {
         return new ResolvePart(object, true);
+    }
+    select<I>(_init:I, ..._pairs:Array<any>) {
+        // this is a definition that transpiler transforms to _select
+    }
+    _select<I>(init:I, varName:VarName, updaters: Array<(c:I, v:any) => I>):SelectStream<I> {
+        return new SelectStream(init, varName, updaters, true);
     }
     /*
     startsWith(init:any, varName:VarName) {

@@ -184,7 +184,7 @@ export function findReferences(
       const callee = node.callee;
       if (callee.type === "MemberExpression" && callee.object.type === "Identifier") {
         if (callee.object.name === "Events") {
-          if (callee.property.type === "Identifier" && callee.property.name === "or") {
+          if (callee.property.type === "Identifier" && (callee.property.name === "or" || callee.property.name === "_or_index")) {
             for (const arg of node.arguments) {
               if (arg.type === "Identifier") {
                 forceVars.push(arg);

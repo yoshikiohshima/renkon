@@ -23,6 +23,7 @@ export const eventType = "EventType";
 export const delayType = "DelayType";
 export const timerType = "TimerType";
 export const collectType = "CollectType";
+export const selectType = "SelectType"
 export const promiseType = "PromiseType";
 export const behaviorType = "BehaviorType";
 export const onceType = "OnceType";
@@ -38,6 +39,7 @@ export type EventType =
     typeof delayType |
     typeof timerType |
     typeof collectType |
+    typeof selectType |
     typeof promiseType |
     typeof behaviorType |
     typeof onceType |
@@ -244,16 +246,22 @@ export class PromiseEvent<T> extends Stream {
 
 export class OrEvent extends Stream {
     varNames: Array<VarName>;
-    constructor(varNames:Array<VarName>) {
+    useIndex:boolean;
+    constructor(varNames:Array<VarName>, useIndex:boolean) {
         super(orType, false);
         this.varNames = varNames;
+        this.useIndex = useIndex;
     }
 
     evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         for (let i = 0; i < node.inputs.length; i++) {
             const myInput = inputArray[i];
             if (myInput !== undefined) {
+                if (this.useIndex) {
+                    state.setResolved(node.id, {value: {index: i, value: myInput}, time: state.time}); 
+                } else {
                 state.setResolved(node.id, {value: myInput, time: state.time});
+                }
                 return;
             }
         }
@@ -459,6 +467,70 @@ export class CollectStream<I, T> extends Stream {
         return;
     }
 }
+
+export class SelectStream<I> extends Stream {
+    init: I|Promise<I>;
+    varName: VarName;
+    updaters: Array<(acc:I, v: any) => I>;
+    constructor(init:I|Promise<I>, varName:VarName, updaters:Array<(acc:I, v: any) => I>, isBehavior: boolean) {
+        super(selectType, isBehavior);
+        this.init = init;
+        this.varName = varName;
+        this.updaters = updaters;
+    }
+
+    created(state:ProgramStateType, id:VarName):Stream {
+        if (this.init && typeof this.init === "object" && (this.init as any).then) {
+            (this.init as any).then((value:any) => {
+                state.streams.set(id, this);
+                this.init = value;
+                state.setResolved(id, {value, time: state.time});
+                state.scratch.set(id, {current: this.init});
+            });
+            return this;
+        }
+        if (!state.scratch.get(id)) {
+            state.streams.set(id, this);
+            state.setResolved(id, {value: this.init, time: state.time});
+            state.scratch.set(id, {current: this.init});
+        }
+        return this;
+    }
+
+    evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+        type ArgTypes = Parameters<typeof this.updaters[0]>;
+        const scratch = state.scratch.get(node.id) as CollectRecord<ArgTypes[0]>;
+        if (scratch === undefined) {return;}
+        const inputIndex = node.inputs.indexOf(this.varName);
+        const orRecord = inputArray[inputIndex];
+        if (orRecord !== undefined) {
+            const newValue = this.updaters[orRecord.index](scratch.current, orRecord.value);
+            if (newValue !== undefined) {
+                // this check feels like unfortunate.
+                if (newValue !== null && (newValue as unknown as Promise<any>).then) {
+                    (newValue as unknown as Promise<any>).then((value:any) => {
+                        state.setResolved(node.id, {value, time: state.time});
+                        state.scratch.set(node.id, {current: value});
+                    })
+                } else {
+                    state.setResolved(node.id, {value: newValue, time: state.time});
+                    state.scratch.set(node.id, {current: newValue});
+                }
+            }
+        }
+    }
+
+    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        super.conclude(state, varName);
+        if (this[isBehaviorKey]) {return;}
+        if (state.resolved.get(varName)?.value !== undefined) {
+            state.resolved.delete(varName);
+            return varName;
+        }
+        return;
+    }
+}
+
 
 export class ResolvePart extends Stream {
     promise: Promise<any>;

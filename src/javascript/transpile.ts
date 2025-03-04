@@ -90,20 +90,20 @@ function rewriteRenkonCalls(
           if (callee.property.type === "Identifier") {
             if (callee.property.name === "delay") {
               quote(node.arguments[0], output);
-            } else if (callee.property.name === "or") {
+            } else if (callee.property.name === "or" || callee.property.name === "_or_index") {
               for (const arg of node.arguments) {
                 quote(arg, output);            
               }
             } else if (callee.property.name === "send") {
               quote(node.arguments[0], output);
-            } else if (callee.property.name === "collect") {
+            } else if (callee.property.name === "collect" || callee.property.name === "_select") {
               quote(node.arguments[1], output);
             }
           }
         } else if (callee.object.name === "Behaviors") {
           output.insertRight(callee.object.end, ".create(Renkon)");
           if (callee.property.type === "Identifier") {
-            if (callee.property.name === "collect") {
+            if (callee.property.name === "collect" || callee.property.name === "_select") {
               quote(node.arguments[1], output);
             }
           }

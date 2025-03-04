@@ -93,6 +93,18 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
         } else if (spec.type === "override") {
           overridden = true;
           newPart += spec.definition + "\n";
+        } else if (spec.type === "select") {
+            // for now, Behaviors.select has to be at the top level node decl.
+            overridden = true;
+            const sub = spec.triggers.map((spec) => newInput.slice(spec.start, spec.end));
+            const trigger = `Events._or_index(${sub.join(", ")})`;
+            const funcs = spec.funcs.map((spec) => newInput.slice(spec.start, spec.end));
+            const init = newInput.slice(spec.init.start, spec.init.end);
+            const newNewInput = `const ${declarations[0].name} = ${spec.classType}._select(${init}, ${trigger}, [${funcs}]);`;
+            const parsed = parseJavaScript(newPart + newNewInput, initialId, false);
+            // console.log(parsed);
+            allReferences.push(...parsed);
+            return allReferences as JavaScriptNode[];
         }
       }
       allReferences.push(...parseJavaScript(`${newPart}${overridden ? "" : "\n" + newInput}`, initialId, true));
