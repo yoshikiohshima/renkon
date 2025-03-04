@@ -106,7 +106,6 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
             const parsed = parseJavaScript(newPart + newNewInput, initialId, false);
             // console.log(parsed);
             allReferences.push(...parsed);
-            return allReferences;
         }
       }
       allReferences.push(...parseJavaScript(`${newPart}${overridden ? "" : "\n" + newInput}`, initialId, true));

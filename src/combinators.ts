@@ -71,6 +71,7 @@ export interface ProgramStateType {
     noTicking: boolean;
     programStates: Map<string, ProgramStateType>;
     ready(node: ScriptCell):boolean;
+    equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>):boolean;
     defaultReady(node: ScriptCell):boolean;
     spliceDelayedQueued(record:QueueRecord, t:number):any;
     getEventValue(record:QueueRecord, _t:number):any;
@@ -544,7 +545,10 @@ export class GatherStream extends Stream {
         return this;
     }
 
-    evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+    evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, lastInputArray:Array<any>|undefined):void {
+        if (state.equals(inputArray, lastInputArray)) {
+            return;
+        }
         const inputs = node.inputs;
         const validInputNames:Array<string> = [];
         const validInputs = [];
