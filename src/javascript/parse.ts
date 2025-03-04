@@ -82,6 +82,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
       let newInput = decl;
       let newPart = "";
       let overridden = false;
+      let again = false;
       for (let i = 0; i < rewriteSpecs.length; i++) {
         const spec = rewriteSpecs[i];
         if (spec.type === "range") {
@@ -97,18 +98,22 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
           newPart += spec.definition + "\n";
         } else if (spec.type === "select") {
             // for now, Behaviors.select has to be at the top level node decl.
-            overridden = true;
+            overridden = false;
             const sub = spec.triggers.map((spec) => newInput.slice(spec.start, spec.end));
             const trigger = `Events._or_index(${sub.join(", ")})`;
             const funcs = spec.funcs.map((spec) => newInput.slice(spec.start, spec.end));
             const init = newInput.slice(spec.init.start, spec.init.end);
             const newNewInput = `const ${declarations[0].name} = ${spec.classType}._select(${init}, ${trigger}, [${funcs}]);`;
-            const parsed = parseJavaScript(newPart + newNewInput, initialId, false);
+            newInput = newNewInput;
+            //const parsed = parseJavaScript(newPart + newNewInput, initialId, false);
             // console.log(parsed);
-            allReferences.push(...parsed);
+            //allReferences.push(...parsed);
+            again = true;
+            id++;
+            break;
         }
       }
-      allReferences.push(...parseJavaScript(`${newPart}${overridden ? "" : "\n" + newInput}`, initialId, true));
+      allReferences.push(...parseJavaScript(`${newPart}${overridden ? "" : "\n" + newInput}`, again ? id : initialId, !again));
     }
   }
   return allReferences;
