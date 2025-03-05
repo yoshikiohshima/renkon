@@ -133,9 +133,12 @@ class Events {
     collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
         return new CollectStream(init, varName, updater, false);
     }
-    /*map<S, T>(varName:VarName, updater: (arg:S) => T) {
-        return new CollectStream(undefined, varName, (_a, b) => updater(b), false);
-    },*/
+    select<I>(_init:I, ..._pairs:Array<any>) {
+        // this is a definition that transpiler transforms to _select
+    }
+    _select<I>(init:I, varName:VarName, updaters: Array<(c:I, v:any) => I>):SelectStream<I> {
+        return new SelectStream(init, varName, updaters, false);
+    }
     send(receiver:VarName, value:any) {
         this.programState.registerEvent(receiver, value);
         return new SendEvent();
@@ -193,7 +196,6 @@ class Behaviors {
     _select<I>(init:I, varName:VarName, updaters: Array<(c:I, v:any) => I>):SelectStream<I> {
         return new SelectStream(init, varName, updaters, true);
     }
-
     gather(regexp:string) {
         return new GatherStream(regexp, true)
     }

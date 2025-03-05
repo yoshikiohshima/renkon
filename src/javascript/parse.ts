@@ -113,7 +113,8 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
             break;
         }
       }
-      allReferences.push(...parseJavaScript(`${newPart}${overridden ? "" : "\n" + newInput}`, again ? id : initialId, !again));
+      const parsed = parseJavaScript(`${newPart}${overridden ? "" : "\n" + newInput}`, again ? id - 1: initialId, !again);
+      allReferences.push(...parsed);
     }
   }
   return allReferences;
