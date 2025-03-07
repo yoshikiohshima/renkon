@@ -330,9 +330,17 @@ export class ProgramState implements ProgramStateType {
         // how that would work without introducing too much complexity.
     }
 
-    setupProgram(scripts:string[]) {
+    setupProgram(scriptsArg:(string[]|Array<{blockId: string, code: string}>)) {
         const invalidatedStreamNames:Set<VarName> = new Set();
-    
+
+        const scripts = (scriptsArg.map((s) => {
+            if (typeof s === "string") {return s};
+            return s.code;
+        }));
+        const blockIds = scriptsArg.map((s, i) => {
+            if (typeof s === "string") {return `${i}`}
+            return s.blockId;
+        });
         // clear all output from events anyway, as re evaluation should not run a cell that depends on an event.
         // This should not be necessary if the DOM element that an event listener is attached stays the same.
     
@@ -363,13 +371,16 @@ export class ProgramState implements ProgramStateType {
         const jsNodes: Map<VarName, JavaScriptNode> = new Map();
     
         let id = 0;
-        for (const script of scripts) {
+        for (let scriptIndex = 0; scriptIndex < scripts.length; scriptIndex++) {
+            const blockId = blockIds[scriptIndex];
+            const script = scripts[scriptIndex];
             if (!script) {continue;}
             const nodes = parseJavaScript(script, id, false);
             for (const n of nodes) {
                 if (jsNodes.get(n.id)) {
                     console.log(`node "${n.id}" is defined multiple times`);
                 }
+                n.blockId = blockId;
                 jsNodes.set(n.id, n);
                 id++;
             }
