@@ -236,9 +236,7 @@ have the `collection` in the example above, you can make a list of
 `span`s for each element and "render" them:
 
 ```JavaScript
-const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
-const html = preactModule.html;
-const render = preactModule.render;
+const {html, render} = import('https://unpkg.com/htm/preact/standalone.module.js');
 
 const dom = html`<div class="foo">${collection.map((word) => html`<span>${word}</span>`)}</div>`;
 render(dom, document.querySelector("#output"));
