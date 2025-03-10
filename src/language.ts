@@ -7,7 +7,7 @@ export const version = packageJson.version;
 import {
     ScriptCell, VarName, NodeId, Stream,
     DelayedEvent, CollectStream, SelectStream, GatherStream, PromiseEvent, EventType,
-    GeneratorNextEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent,
+    GeneratorNextEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent, OnceEvent,
     ReceiverEvent, UserEvent, SendEvent, OrEvent, ResolvePart,
     eventType, typeKey,
     isBehaviorKey,
@@ -118,8 +118,11 @@ class Events {
     timer(interval:number):TimerEvent {
         return new TimerEvent(interval, false);
     }
-    change(value:any):ChangeEvent{
+    change(value:any):ChangeEvent {
         return new ChangeEvent(value);
+    }
+    once(value:any):ChangeEvent {
+        return new OnceEvent(value);
     }
     next<T>(generator:GeneratorWithFlag<T>):(GeneratorNextEvent<T>) {
         return new GeneratorNextEvent(generator);
@@ -278,6 +281,7 @@ export class ProgramState implements ProgramStateType {
     updated: boolean;
     app?: any;
     noTicking: boolean;
+    log:(...values:any) => void;
     programStates: Map<string, ProgramStateType>;
     lastReturned?: Array<any>
     futureScripts?: Array<string>;
@@ -296,6 +300,7 @@ export class ProgramState implements ProgramStateType {
         this.evaluatorRunning = 0;
         this.updated = false;
         this.app = app;
+        this.log = (...values) => {console.log(...values);}
         this.noTicking = noTicking !== undefined ? noTicking : false;
         this.programStates = new Map();
         this.breakpoints = new Set();
@@ -308,7 +313,7 @@ export class ProgramState implements ProgramStateType {
             this.evaluate(Date.now());
         } catch (e) {
             console.error(e);
-            console.log("stopping animation");
+            this.log("stopping animation");
             window.cancelAnimationFrame(this.evaluatorRunning);
             this.evaluatorRunning = 0;
         }
@@ -378,7 +383,7 @@ export class ProgramState implements ProgramStateType {
             const nodes = parseJavaScript(script, id, false);
             for (const n of nodes) {
                 if (jsNodes.get(n.id)) {
-                    console.log(`node "${n.id}" is defined multiple times`);
+                    this.log(`node "${n.id}" is defined multiple times`);
                 }
                 n.blockId = blockId;
                 jsNodes.set(n.id, n);
@@ -408,7 +413,7 @@ export class ProgramState implements ProgramStateType {
         const unsortedVarnames = difference(new Set(evaluated.map(e => e.id)), new Set(sorted));
     
         for (const u of unsortedVarnames) {
-            console.log(`Node ${u} is not going to be evaluated because it is in a cycle or depends on a undefined variable.`);
+            this.log(`Node ${u} is not going to be evaluated because it is in a cycle or depends on a undefined variable.`);
         }
     
         // nested ones also have to be checked?
@@ -454,7 +459,7 @@ export class ProgramState implements ProgramStateType {
             const nodeNames = [...this.nodes].map(([id, _body]) => id);
             for (const input of node.inputs) {
                 if (!nodeNames.includes(this.baseVarName(input))) {
-                    console.log(`Node ${varName} won't be evaluated as it depends on an undefined variable ${input}.`);
+                    this.log(`Node ${varName} won't be evaluated as it depends on an undefined variable ${input}.`);
                 }
             }
         }
@@ -534,7 +539,7 @@ export class ProgramState implements ProgramStateType {
             if (trace) {
                 trace.push({id, inputArray, inputs: node.inputs, value: outputs});
                 if (this.breakpoints.has(id)) {
-                    console.log(trace);
+                    this.log(trace);
                 }
             }
             const evStream:Stream = outputs as Stream;
@@ -835,5 +840,9 @@ export class ProgramState implements ProgramStateType {
 
     resetBreakpoint() {
         this.breakpoints = new Set();
+    }
+
+    setLog(func:(...values:any) => void) {
+        this.log = func;
     }
 }

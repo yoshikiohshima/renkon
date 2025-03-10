@@ -69,6 +69,7 @@ export interface ProgramStateType {
     imports?: Array<string>;
     app?: any;
     noTicking: boolean;
+    log:(...values:any) => void;
     programStates: Map<string, ProgramStateType>;
     ready(node: ScriptCell):boolean;
     equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>):boolean;
@@ -79,6 +80,7 @@ export interface ProgramStateType {
     baseVarName(varName:VarName):VarName;
     setResolved(varName:VarName, value:any):void;
     updateProgram(scripts:Array<string>):void;
+    setLog(func:(...values:any) => void):void;
 }
 
 export interface ValueRecord {}
@@ -393,6 +395,38 @@ export class ChangeEvent extends Stream {
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
         super.conclude(state, varName);
+        if (state.resolved.get(varName)?.value !== undefined) {
+            // console.log("deleting", varName);
+            state.resolved.delete(varName);
+            return varName;
+        }
+        return;
+    }
+}
+
+export class OnceEvent extends Stream {
+    value: any;
+    constructor(value:any) {
+        super(onceType, false);
+        this.value = value;
+    }
+
+    created(state:ProgramStateType, id:VarName):Stream {
+        state.scratch.set(id, this.value);
+        return this;
+    }
+
+    ready(node: ScriptCell, state:ProgramStateType):boolean {
+        return state.scratch.get(node.id) !== undefined;
+    }
+
+    evaluate(state:ProgramStateType, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+        state.setResolved(node.id, {value: this.value, time: state.time});
+    }
+
+    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
+        super.conclude(state, varName);
+        state.scratch.delete(varName);
         if (state.resolved.get(varName)?.value !== undefined) {
             // console.log("deleting", varName);
             state.resolved.delete(varName);
