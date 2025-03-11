@@ -26,7 +26,7 @@ export interface JavaScriptNode {
   declarations: Identifier[]; // null for expressions that can’t declare top-level variables, a.k.a outputs
   references: Identifier[]; // the unbound references, a.k.a. inputs
   forceVars: Identifier[]; // reactive variable names that should still trigger evaluation when it is undefined.
-  extraType: {gather?:string};
+  extraType: {gather?:string, isSelect?:boolean};
   sendTargets: Identifier[]; // A special case where a variable is used for Events.send destination
   imports: ImportReference[];
   blockId?: string,
@@ -59,7 +59,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
   for (const decl of decls) {
     id++;
     const b = parseProgram(decl);
-    const [references, forceVars, sendTargets, hasGather] = findReferences(b);
+    const [references, forceVars, sendTargets, extraType] = findReferences(b);
     checkAssignments(b, references, input);
     const declarations = findDeclarations(b, input);
 
@@ -67,6 +67,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
 
     if (rewriteSpecs.length === 0) {
       const myId = declarations[0]?.name || `${id}`;
+
       allReferences.push({
         id: myId,
         body: b,
@@ -75,7 +76,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
         forceVars,
         sendTargets,
         imports: [],
-        extraType: hasGather ? {"gather": hasGather} : {},
+        extraType,
         // expression: false,
         input: decl
       });

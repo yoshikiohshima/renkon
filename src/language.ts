@@ -394,12 +394,19 @@ export class ProgramState implements ProgramStateType {
         const translated = [...jsNodes].map(([_id, jsNode]) => ({id: jsNode.id, code: transpileJavaScript(jsNode)}));
         const evaluated = translated.map((tr) => this.evalCode(tr));
         for (let [id, node] of jsNodes) {
-            if (!node.extraType["gather"]) {continue;}
-            const r = node.extraType["gather"];
-            const ev = evaluated.find((evaled) => evaled.id === id);
-            if (ev) {
-                const ins = evaluated.filter((evaled) => new RegExp(r).test(evaled.id)).map((e) => e.id);
-                ev.inputs = ins;
+            if (node.extraType["gather"]) {
+                const r = node.extraType["gather"];
+                const ev = evaluated.find((evaled) => evaled.id === id);
+                if (ev) {
+                    const ins = evaluated.filter((evaled) => new RegExp(r).test(evaled.id)).map((e) => e.id);
+                    ev.inputs = ins;
+                }
+            }
+            if (node.extraType["isSelect"]) {
+                const ev = evaluated.find((evaled) => evaled.id === id);
+                if (ev) {
+                    ev.extraType = "select";
+                }
             }
         }
         const sorted = topologicalSort(evaluated);
@@ -583,7 +590,11 @@ export class ProgramState implements ProgramStateType {
         if (stream) {
             return stream.ready(node, this);
         }
-    
+
+        if (node.extraType === "select" && this.scratch.get("node.id") === undefined) {
+            return true;
+        }
+   
         return this.defaultReady(node);
     }
 

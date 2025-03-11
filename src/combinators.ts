@@ -8,7 +8,8 @@ export type ScriptCell = {
     id: NodeId,
     inputs: Array<VarName>,
     forceVars: Array<VarName>,
-    outputs: VarName
+    outputs: VarName,
+    extraType?:any
 }
 
 export type ResolveRecord = {

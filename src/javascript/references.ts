@@ -54,7 +54,7 @@ export function findReferences(
     globals?: Set<string>;
     filterDeclaration?: (identifier: {name: string}) => any;
   } = {}
-): [Identifier[], Identifier[], Identifier[], string?] {
+): [Identifier[], Identifier[], Identifier[], {gather?:string, isSelect?:boolean}] {
   const locals = new Map<Node, Set<string>>();
   const references: Identifier[] = [];
   const sendTarget: Identifier[] = [];
@@ -179,7 +179,7 @@ export function findReferences(
   });
 
   const forceVars:Identifier[] = [];
-  let hasGather:(string|undefined) = undefined;
+  const extraType:{gather?:string, isSelect?:boolean} = {};
 
   simple(node, {
     CallExpression(node) {
@@ -199,12 +199,14 @@ export function findReferences(
             if (arg.type === "Identifier") {
               forceVars.push(arg);
             }
+          } else if (callee.property.type === "Identifier" && callee.property.name === "_select") {
+            extraType["isSelect"] = true;
           } else if (callee.property.type === "Identifier" && callee.property.name === "gather") {
-            hasGather = (node.arguments[0] as Literal).value as string;
+            extraType["gather"] = (node.arguments[0] as Literal).value as string;
           }
         }
       }
     }
   });
-    return [references, forceVars, sendTarget, hasGather]
+    return [references, forceVars, sendTarget, extraType]
 }
