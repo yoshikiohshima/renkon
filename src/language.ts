@@ -402,12 +402,6 @@ export class ProgramState implements ProgramStateType {
                     ev.inputs = ins;
                 }
             }
-            if (node.extraType["isSelect"]) {
-                const ev = evaluated.find((evaled) => evaled.id === id);
-                if (ev) {
-                    ev.extraType = "select";
-                }
-            }
         }
         const sorted = topologicalSort(evaluated);
     
@@ -591,10 +585,6 @@ export class ProgramState implements ProgramStateType {
             return stream.ready(node, this);
         }
 
-        if (node.extraType === "select" && this.scratch.get("node.id") === undefined) {
-            return true;
-        }
-   
         return this.defaultReady(node);
     }
 

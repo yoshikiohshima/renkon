@@ -200,7 +200,13 @@ export function findReferences(
               forceVars.push(arg);
             }
           } else if (callee.property.type === "Identifier" && callee.property.name === "_select") {
-            extraType["isSelect"] = true;
+            if (node.arguments[1].type === "Identifier") {
+              const name = node.arguments[1].name;
+              if (/^_[0-9]/.exec(name)) {
+                forceVars.push(node.arguments[1]);
+              }
+              extraType["isSelect"] = true;
+            }
           } else if (callee.property.type === "Identifier" && callee.property.name === "gather") {
             extraType["gather"] = (node.arguments[0] as Literal).value as string;
           }
