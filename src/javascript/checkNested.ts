@@ -1,4 +1,4 @@
-import type {CallExpression, MemberExpression, VariableDeclarator, ObjectPattern, Node, Identifier, AssignmentProperty} from "acorn";
+import type {CallExpression, MemberExpression, VariableDeclarator, ObjectPattern, ArrayPattern, Node, Identifier, AssignmentProperty} from "acorn";
 import {ancestor} from "acorn-walk";
 
 type RewriteSpec = ({
@@ -45,6 +45,7 @@ function rewriteNestedCalls(
             // that defines variables.
             // Then, make a subnode on the right hand side, and
             // generate specs for each propertyon the left hand side.
+
             if (isTopObjectDeclaration(node, ancestors) && node.init) {
                 const baseName = `_${baseId}_${rewriteSpecs.length}`;
                 rewriteSpecs.push({start: node.init.start, end: node.init.end, name: baseName, type: "range"});
@@ -63,6 +64,28 @@ function rewriteNestedCalls(
                     }
                 }
             }
+            if (isTopArrayDeclaration(node, ancestors) && node.init) {
+                const baseName = `_${baseId}_${rewriteSpecs.length}`;
+                rewriteSpecs.push({start: node.init.start, end: node.init.end, name: baseName, type: "range"});
+                const id:ArrayPattern = node.id as ArrayPattern;
+                const elements = id.elements;
+
+                for (let ind = 0; ind < elements.length; ind++) {
+                    const element = elements[ind];
+                    if (!element) {return;}
+                    if (element.type === "RestElement") {
+                        console.log("unsupported style of assignment");
+                        continue;
+                    }
+                    const p = element;
+                    if (p.type === "Identifier") {
+                        rewriteSpecs.push({definition: `const ${p.name} = ${baseName}[${ind}]`, type: "override"});
+                    } else {
+                        console.log("unsupported style of assignment");
+                    }
+                }
+            }
+
         }
     });
     return rewriteSpecs;
@@ -113,6 +136,12 @@ function hasFunctionDeclaration(_node:Node, ancestors:Array<Node>) {
 function isTopObjectDeclaration(node:VariableDeclarator, ancestors:Array<Node>) {
     return node.type === "VariableDeclarator" &&
         node.id.type === "ObjectPattern" &&
+        ancestors.length === 3;
+}
+
+function isTopArrayDeclaration(node:VariableDeclarator, ancestors:Array<Node>) {
+    return node.type === "VariableDeclarator" &&
+        node.id.type === "ArrayPattern" &&
         ancestors.length === 3;
 }
 

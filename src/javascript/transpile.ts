@@ -106,6 +106,10 @@ function rewriteRenkonCalls(
           if (callee.property.type === "Identifier") {
             if (callee.property.name === "collect" || callee.property.name === "_select") {
               quote(node.arguments[1], output);
+            } else if (callee.property.name === "or" || callee.property.name === "_or_index") {
+              for (const arg of node.arguments) {
+                quote(arg, output);            
+              }
             }
           }
         }
