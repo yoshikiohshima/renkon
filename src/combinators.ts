@@ -250,11 +250,11 @@ export class PromiseEvent<T> extends Stream {
     }
 }
 
-export class OrEvent extends Stream {
+export class OrStream extends Stream {
     varNames: Array<VarName>;
     useIndex:boolean;
-    constructor(varNames:Array<VarName>, useIndex:boolean) {
-        super(orType, false);
+    constructor(varNames:Array<VarName>, useIndex:boolean, isBehavior:boolean = false) {
+        super(orType, isBehavior);
         this.varNames = varNames;
         this.useIndex = useIndex;
     }
@@ -275,6 +275,7 @@ export class OrEvent extends Stream {
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
         super.conclude(state, varName);
+        if (this[isBehaviorKey]) {return;}
         if (state.resolved.get(varName)?.value !== undefined) {
             // console.log("deleting", varName);
             state.resolved.delete(varName);

@@ -8,7 +8,7 @@ import {
     ScriptCell, VarName, NodeId, Stream,
     DelayedEvent, CollectStream, SelectStream, GatherStream, PromiseEvent, EventType,
     GeneratorNextEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent, OnceEvent,
-    ReceiverEvent, UserEvent, SendEvent, OrEvent, ResolvePart,
+    ReceiverEvent, UserEvent, SendEvent, OrStream, ResolvePart,
     eventType, typeKey,
     isBehaviorKey,
     GeneratorWithFlag,
@@ -128,10 +128,10 @@ class Events {
         return new GeneratorNextEvent(generator);
     }
     or(...varNames:Array<VarName>) {
-        return new OrEvent(varNames, false)
+        return new OrStream(varNames, false)
     }
     _or_index(...varNames:Array<VarName>) {
-        return new OrEvent(varNames, true);
+        return new OrStream(varNames, true);
     }
     collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
         return new CollectStream(init, varName, updater, false);
@@ -198,6 +198,9 @@ class Behaviors {
     }
     _select<I>(init:I, varName:VarName, updaters: Array<(c:I, v:any) => I>):SelectStream<I> {
         return new SelectStream(init, varName, updaters, true);
+    }
+    or(...varNames:Array<VarName>) {
+        return new OrStream(varNames, false, true)
     }
     gather(regexp:string) {
         return new GatherStream(regexp, true)

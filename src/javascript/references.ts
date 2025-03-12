@@ -209,6 +209,12 @@ export function findReferences(
             }
           } else if (callee.property.type === "Identifier" && callee.property.name === "gather") {
             extraType["gather"] = (node.arguments[0] as Literal).value as string;
+          } else if (callee.property.type === "Identifier" && (callee.property.name === "or" || callee.property.name === "_or_index")) {
+            for (const arg of node.arguments) {
+              if (arg.type === "Identifier") {
+                forceVars.push(arg);
+              }
+            }
           }
         }
       }
