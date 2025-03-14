@@ -48,6 +48,10 @@ surface syntax of it draws upon JavaScript. In other words, a
 JavaScript parser can parse any Renkon program but they work
 differently.
 
+Renkon accepts code written in TypeScript syntax. The transpiler
+simply removes type annotations. A program editor that supports syntax
+and type checking can be used to detect simple errors earlier.
+
 ## FRP in Nutshell
 
 Functional Reactive Programming is a clean way to describe an

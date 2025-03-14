@@ -289,7 +289,7 @@ export class ProgramState implements ProgramStateType {
     log:(...values:any) => void;
     programStates: Map<string, SubProgramState>;
     lastReturned?: Array<any>
-    futureScripts?: Array<string>;
+    futureScripts?: {scripts: Array<string>, path: string};
     breakpoints: Set<VarName>;
     constructor(startTime:number, app?:any, noTicking?:boolean) {
         this.scripts = [];
@@ -340,7 +340,7 @@ export class ProgramState implements ProgramStateType {
         // how that would work without introducing too much complexity.
     }
 
-    setupProgram(scriptsArg:(string[]|Array<{blockId: string, code: string}>)) {
+    setupProgram(scriptsArg:(string[]|Array<{blockId: string, code: string}>), path:string = "") {
         const invalidatedStreamNames:Set<VarName> = new Set();
 
         const scripts = (scriptsArg.map((s) => {
@@ -397,7 +397,7 @@ export class ProgramState implements ProgramStateType {
         }
     
         const translated = [...jsNodes].map(([_id, jsNode]) => ({id: jsNode.id, code: transpileJavaScript(jsNode)}));
-        const evaluated = translated.map((tr) => this.evalCode(tr));
+        const evaluated = translated.map((tr) => this.evalCode(tr, path));
         for (let [id, node] of jsNodes) {
             if (node.extraType["gather"]) {
                 const r = node.extraType["gather"];
@@ -471,13 +471,13 @@ export class ProgramState implements ProgramStateType {
         }
     }
 
-    updateProgram(scripts:string[]) {
+    updateProgram(scripts:string[], path:string = "") {
         // a utility function that triggers a program update
         // after the current evaluation cycle.
         // This can be called from the program this ProgramState is 
         // running the request is treated like an event but processed
         // right before the next evaluation cycle.
-        this.futureScripts = scripts;
+        this.futureScripts = {scripts, path};
     }
 
     evaluate(now:number) {
@@ -562,22 +562,24 @@ export class ProgramState implements ProgramStateType {
         }
 
         if (this.futureScripts) {
-            const scripts = this.futureScripts;
+            const {scripts, path} = this.futureScripts;
             delete this.futureScripts;
-            this.setupProgram(scripts);
+            this.setupProgram(scripts, path);
         }
 
         return this.updated;
     }
 
-    evalCode(arg:{id:VarName, code:string}):ScriptCell {
+    evalCode(arg:{id:VarName, code:string}, path:string):ScriptCell {
         const {id, code} = arg;
         const hasWindow = typeof window !== "undefined";
         let body;
+        const p = path === "" || !path.endsWith("/") ? path : path.slice(0, -1);
         if (hasWindow) {
-            body = `return ${code} //# sourceURL=${window.location.origin}/node/${id}`;
+            const base = window.location.origin === "null" ? window.location.pathname : window.location.origin;
+            body = `return ${code} //# sourceURL=${base}/${p}/node/${id}`;
         } else {
-            body = `return ${code} //# sourceURL=/node/${id}`;
+            body = `return ${code} //# sourceURL=/${p}/node/${id}`;
         }
         let func = new Function("Events", "Behaviors", "Renkon", body);
         let val = func(Events, Behaviors, this);
@@ -735,7 +737,7 @@ export class ProgramState implements ProgramStateType {
                 returnValues = returnArray;
                 // console.log(params, returnArray, output, this);
                 const receivers = params.map((r) => `const ${r} = Events.receiver();`).join("\n");
-                programState.setupProgram([receivers, output]);
+                programState.setupProgram([receivers, output], func.name);
                 this.programStates.set(key, {programState, func, returnArray});
             }
 
