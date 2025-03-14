@@ -53,6 +53,12 @@ export type EventType =
     typeof generatorNextType |
     typeof resolvePartType;
 
+export type SubProgramState = {
+    programState: ProgramStateType,
+    func:Function,
+    returnArray:Array<string>|null
+};
+
 export interface ProgramStateType {
     scripts: Array<string>;
     order: Array<NodeId>;
@@ -71,7 +77,7 @@ export interface ProgramStateType {
     app?: any;
     noTicking: boolean;
     log:(...values:any) => void;
-    programStates: Map<string, ProgramStateType>;
+    programStates: Map<string, SubProgramState>;
     ready(node: ScriptCell):boolean;
     equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>):boolean;
     defaultReady(node: ScriptCell):boolean;
@@ -341,16 +347,14 @@ export class SendEvent extends Stream {
 }
 
 export class ReceiverEvent extends Stream {
-    value: any;
-    constructor(value:any) {
-        super(receiverType, false);
-        this.value = value;
+    queued: boolean;
+    constructor(options?:any) {
+        const isBehavior = !!options?.isBehavior;
+        super(receiverType, isBehavior);
+        this.queued = !!options?.queued;
     }
 
-    created(state:ProgramStateType, id:VarName):Stream {
-        if (this.value !== undefined) {
-            state.scratch.set(id, this.value);
-        }
+    created(_state:ProgramStateType, _id:VarName):Stream {
         return this;
     }
 
@@ -363,6 +367,7 @@ export class ReceiverEvent extends Stream {
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
         super.conclude(state, varName);
+        if (this[isBehaviorKey]) {return;}
         if (state.resolved.get(varName)?.value !== undefined) {
             state.resolved.delete(varName);
             state.scratch.delete(varName);

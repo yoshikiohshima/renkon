@@ -15,6 +15,7 @@ import {
     ProgramStateType,
     ValueRecord,
     ResolveRecord,
+    SubProgramState,
 } from "./combinators";
 import { translateTS } from "./typescript";
 
@@ -146,8 +147,8 @@ class Events {
         this.programState.registerEvent(receiver, value);
         return new SendEvent();
     }
-    receiver() {
-        return new ReceiverEvent(undefined);
+    receiver(options?:any) {
+        return new ReceiverEvent(options);
     }
     observe(callback:ObserveCallback, options?:any) {
         return eventBody({type: eventType, forObserve: true, callback, state:this.programState, queued: options?.queued});
@@ -205,10 +206,11 @@ class Behaviors {
     gather(regexp:string) {
         return new GatherStream(regexp, true)
     }
-    /*
-    startsWith(init:any, varName:VarName) {
-        return new CollectStream(init, varName, (_old, v) => v, true);
-    }*/
+    receiver(options?:any) {
+        let args = {...options};
+        args.isBehavior = true;
+        return new ReceiverEvent(args);
+    }
 }
 
 function topologicalSort(nodes:Array<ScriptCell>) {
@@ -285,7 +287,7 @@ export class ProgramState implements ProgramStateType {
     app?: any;
     noTicking: boolean;
     log:(...values:any) => void;
-    programStates: Map<string, ProgramStateType>;
+    programStates: Map<string, SubProgramState>;
     lastReturned?: Array<any>
     futureScripts?: Array<string>;
     breakpoints: Set<VarName>;
@@ -512,7 +514,10 @@ export class ProgramState implements ProgramStateType {
                     );
                 } else {
                     this.changeList.delete(id);
-                    outputs = new ReceiverEvent(change);
+                    if (change !== undefined) {
+                        this.setResolved(id, {value: change, time: this.time});
+                    }
+                    outputs = this.streams.get(id);
                 }
                 this.inputArray.set(id, inputArray);
                 const maybeValue = outputs;
@@ -652,7 +657,18 @@ export class ProgramState implements ProgramStateType {
     }
 
     registerEvent(receiver:VarName, value:any) {
-        this.changeList.set(receiver, value);
+        const stream = this.streams.get(receiver) as ReceiverEvent;
+        if (!stream) {return;}
+        if (stream.queued) {
+            let ary = this.changeList.get(receiver);
+            if (!ary) {
+                ary = [];
+                this.changeList.set(receiver, ary);
+            }
+            ary.push(value);
+        } else {
+            this.changeList.set(receiver, value);
+        }
         if (this.noTicking) {
             this.noTickingEvaluator();
         }
@@ -698,20 +714,30 @@ export class ProgramState implements ProgramStateType {
 
     component(func:Function) {
         return (input:any, key:string) => {
-            let programState = this.programStates.get(key) as ProgramState;
-            if (!programState) {
+            let programState:ProgramState;
+            let returnValues:Array<string>|null = null;
+            let newProgramState = false;
+            let subProgramState = this.programStates.get(key);
+            if (!subProgramState) {
+                newProgramState = true;
                 // console.log(key);
                 programState = new ProgramState(this.time);
                 programState.lastReturned = undefined;
-                this.programStates.set(key, programState);
+            } else {
+                programState = subProgramState.programState as ProgramState;
+                returnValues = subProgramState.returnArray;
             }
 
-            const {params, returnArray, output} = getFunctionBody(func.toString(), false);
-            // console.log(params, returnArray, output, this);
+            const maybeOldFunc = subProgramState?.func;
 
-            const receivers = params.map((r) => `const ${r} = undefined;`).join("\n");
-
-            programState.setupProgram([receivers, output]);
+            if (newProgramState || func !== maybeOldFunc) {
+                const {params, returnArray, output} = getFunctionBody(func.toString(), false);
+                returnValues = returnArray;
+                // console.log(params, returnArray, output, this);
+                const receivers = params.map((r) => `const ${r} = Events.receiver();`).join("\n");
+                programState.setupProgram([receivers, output]);
+                this.programStates.set(key, {programState, func, returnArray});
+            }
 
             const trigger = (input:any) => {
                 // console.log(input);
@@ -724,8 +750,8 @@ export class ProgramState implements ProgramStateType {
                 programState.evaluate(this.time);
                 const result:any = {};
                 const resultTest = [];
-                if (returnArray) {
-                    for (const n of returnArray) {
+                if (returnValues) {
+                    for (const n of returnValues) {
                         const v = programState.resolved.get(n);
                         resultTest.push(v ? v.value : undefined)
                         if (v && v.value !== undefined) {

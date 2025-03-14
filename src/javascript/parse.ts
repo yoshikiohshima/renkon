@@ -6,6 +6,7 @@ import {findDeclarations} from "./declarations.js";
 import type {ImportReference} from "./imports.js";
 import {findReferences} from "./references.js";
 import { checkNested } from "./checkNested.js";
+import { detype } from "./detype.js";
 // import {syntaxError} from "./syntaxError.js";
 
 export interface ParseOptions {
@@ -50,6 +51,7 @@ function findDecls(input:string) {
  * the specified inline JavaScript expression.
  */
 export function parseJavaScript(input:string, initialId:number, flattened: boolean = false): JavaScriptNode[] {
+  input = detype(input);
   const decls = findDecls(input);
 
   const allReferences:JavaScriptNode[] = [];
