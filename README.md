@@ -467,6 +467,13 @@ Events.change(value:Behavior)
 ```
 This converts a behavior to an event. When the value chagnes in the behavior, the event fires.
 
+### Events.once
+
+```TypeScript
+Events.once(value:any)
+```
+This fires only once when the value (a Behavior including constant, or an Event) is available.
+
 ### Events.or
 
 ```TypeScript
@@ -480,6 +487,18 @@ This event fires when one of the dependencies fires. If two or more dependencies
 Events.collect<I, T>(init:I, event:Event, updater: (c: I, v:T) => I)
 ```
 This event fires when the event argument fires. the previous value, starting from the init and the new value of the event is passed to the updater function and the returned value is used as the value of the event. Because this is an event, even though the value is kept internally, the value is not available at the other logical time.
+
+### Events.select
+```TypeScript
+Events.select<I>(init:I, ...event:Event, updater: (c: I, v:any) => I, ...)
+```
+This behavior updates when one of the events fires. The corresponding two-argument function is called with the current value and the event's value, and the value returned becomes the node's new value.
+
+In the current implementation, Events.select has to be a top-level node such as:
+
+```JavaScript
+const v = Behaviors.select(0, ...);
+```
 
 ### Events.observe
 
@@ -517,6 +536,13 @@ This event takes an async generator as its argument. The event gets a new value 
 const gen = llama(aString, params, config);  // the llama function from the llamacpp 
 const value = Events.next(gen);
 ```
+
+### Events.send
+
+```TypeScript
+Events.send(receiver:ReceiverStream, value)
+```
+This event registers an event to be inserted into the receiver at next evaluation cycle.
 
 ### Behavior.keep
 
@@ -563,6 +589,13 @@ The behavior or event specified in the first argument will become the value of t
 Events.resolvePart(object:any)
 ```
 The event shallowly scan the object's properties (it may be an array or an object). If there are promises found, they are waited to resolve, and the shallow copy of the object with resolved values is used as the value of the event.
+
+### Behaviors.or
+
+```TypeScript
+Behaviors.or(...values:Array<Stream>)
+```
+This event fires when one of the dependencies has a value. The implementatio chooses the left-most one, so if there is a Behavior that always has a value at the earlier part of the argument list, the value will be always used. It is handy if some of those are events, or a Behavior where the value becomes `undefined`, then the later values will be selected.
 
 ### Behaviors.gather
 ```TypeScript
