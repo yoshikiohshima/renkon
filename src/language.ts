@@ -32,6 +32,7 @@ type EventBodyType = {
     eventHandler?: (evt:any) => any | null;
     dom?: HTMLElement | string;
     type: EventType;
+    options?: {useCapture?:boolean, passive?:boolean, once?:boolean},
     eventName?: UserEventType,
     state: ProgramState,
 };
@@ -46,10 +47,15 @@ function isGenerator(value:any):boolean {
 
 const defaultHandler = (ev:any) => ev;
 
-function eventBody(options:EventBodyType) {
-    let {forObserve, callback, dom, eventName, eventHandler, state, queued} = options;
+function eventBody(args:EventBodyType) {
+    let {forObserve, callback, dom, eventName, eventHandler, state, queued, options} = args;
     let record:QueueRecord = {queue:[]};
     let myHandler: ((evt:any) => any) | null;
+    let myOptions;
+
+    if (options) {
+        myOptions = {...options};
+    }
 
     let realDom:HTMLElement|undefined;
     if (typeof dom === "string") {
@@ -77,7 +83,11 @@ function eventBody(options:EventBodyType) {
             myHandler = defaultHandler;
         }
         if (myHandler) {
-            realDom.addEventListener(eventName, myHandler);
+            if (myOptions) {
+                realDom.addEventListener(eventName, myHandler, myOptions);
+            } else {
+                realDom.addEventListener(eventName, myHandler);
+            }
         }
         if (eventHandler === null) {
             realDom.removeEventListener(eventName, myHandler);
@@ -111,7 +121,17 @@ class Events {
     }
 
     listener(dom: HTMLElement|string, eventName:string, handler: (evt:any) => void, options?:any) {
-        return eventBody({type: eventType, forObserve: false, dom, eventName: eventName, eventHandler: handler, state: this.programState, queued: !!options?.queued});
+        let myOptions;
+        if (options) {
+            myOptions = {...options};
+            delete myOptions.queued;
+        }
+        const queued = !!options?.queued;
+
+        return eventBody({
+            type: eventType, forObserve: false, dom,
+            eventName: eventName, eventHandler: handler,
+            state: this.programState, queued, options: myOptions});
     }
     delay(varName:VarName, delay: number):DelayedEvent {
         return new DelayedEvent(delay, varName, false);
@@ -151,7 +171,10 @@ class Events {
         return new ReceiverEvent(options);
     }
     observe(callback:ObserveCallback, options?:any) {
-        return eventBody({type: eventType, forObserve: true, callback, state:this.programState, queued: options?.queued});
+        return eventBody({
+            type: eventType, forObserve: true, callback,
+            state:this.programState, queued: options?.queued
+        });
     }
     message(event:string, data:any, directWindow?:Window) {
         const isInIframe =  window.top !== window;

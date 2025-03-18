@@ -15,7 +15,7 @@ export class TSCompiler {
             return compiled;
         } catch (error) {
             const e = error as unknown as SyntaxError & {pos:number};
-            const message = e.message + ": error around -> " + `\n"${input.slice(e.pos - 30, e.pos + 30)}`;
+            const message = e.message + ": error around -> " + `\n"${tsCode.slice(e.pos - 30, e.pos + 30)}`;
             console.log(message);
             throw error;
         }
