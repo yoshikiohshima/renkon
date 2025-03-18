@@ -35,15 +35,9 @@ export interface JavaScriptNode {
 }
 
 function findDecls(input:string) {
-  try {
-    const body = parseProgram(input);
-    const list = (body as Program).body;
-    return list.map((decl) => input.slice(decl.start, decl.end));
-  } catch (error) {
-    const e = error as unknown as SyntaxError & {pos:number};
-    console.log(e.message, ": error around -> ", `"${input.slice(e.pos - 30, e.pos + 30)}"`);
-    return [];
-  }
+  const body = parseProgram(input);
+  const list = (body as Program).body;
+  return list.map((decl) => input.slice(decl.start, decl.end));
 }
 
 /**
@@ -51,8 +45,16 @@ function findDecls(input:string) {
  * the specified inline JavaScript expression.
  */
 export function parseJavaScript(input:string, initialId:number, flattened: boolean = false): JavaScriptNode[] {
-  input = detype(input);
-  const decls = findDecls(input);
+  let decls;
+  try {
+    input = detype(input);
+    decls = findDecls(input);
+  } catch (error) {
+     const e = error as unknown as SyntaxError & {pos:number};
+     const message = e.message + ": error around -> " + `\n"${input.slice(e.pos - 30, e.pos + 30)}`;
+     console.log(message);
+     throw error;
+  }
 
   const allReferences:JavaScriptNode[] = [];
 

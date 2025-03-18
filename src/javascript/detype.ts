@@ -1,13 +1,12 @@
 import * as acorn from 'acorn';
 import tsPlugin from 'acorn-typescript';
-import {simple} from "acorn-walk";
 import {Sourcemap} from "./sourcemap.ts";
 
 /*
 *
 * */
 
-export function detype(input) {
+export function detype(input:string) {
     const ts = tsPlugin();
     const node = acorn.Parser.extend(ts).parse(input, {
         sourceType: 'module',
@@ -22,7 +21,7 @@ export function detype(input) {
     return String(output);
 }
 
-function removeTypeNode(output, node) {
+function removeTypeNode(output:Sourcemap, node:acorn.Node) {
     if (node.type.startsWith("TS")) {
         output.delete(node.start, node.end);
         return;
