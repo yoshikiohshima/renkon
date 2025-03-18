@@ -90,7 +90,11 @@ function eventBody(args:EventBodyType) {
             }
         }
         if (eventHandler === null) {
-            realDom.removeEventListener(eventName, myHandler);
+            if (myOptions) {
+                realDom.removeEventListener(eventName, myHandler, myOptions as EventListenerOptions);
+            } else {
+                realDom.removeEventListener(eventName, myHandler);
+            }
         }
     }
 
