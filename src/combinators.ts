@@ -270,12 +270,12 @@ export class OrStream extends Stream {
     evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         if (this.collection) {
             const indices = [];
-            const values:any = {}
+            const values:Array<any> = [];
             for (let i = 0; i < node.inputs.length; i++) {
                 if (inputArray[i] !== undefined) {
                     indices.push(i);
                 }
-                values[node.inputs[i]] = inputArray[i];
+                values[i] = inputArray[i];
             }
 
             if (indices.length === 0) {

@@ -488,9 +488,9 @@ This event fires when one of the dependencies fires. If two or more dependencies
 ### Events.some
 
 ```TypeScript
-Events.some(...values:Events)
+Events.some(...values:Events):Array<any>
 ```
-This event is similar to `Events.or` and fires when one of the dependencies fires. It returns an object whose keys are the input node names and whose values are the value of the input events, regardless whether it is `undefined` or not.
+This event is similar to `Events.or` and fires when one of the dependencies fires. It returns an array with the input values for this combinator, regardless whether they are `undefined` or not.
 
 ### Events.collect
 
