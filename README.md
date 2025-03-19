@@ -485,6 +485,13 @@ Events.or(...values:Events)
 ```
 This event fires when one of the dependencies fires. If two or more dependencies fire at the same logical time, the implementatio chooses the left-most one. The value of the event is the value of the dependency that fired.
 
+### Events.some
+
+```TypeScript
+Events.some(...values:Events)
+```
+This event is similar to `Events.or` and fires when one of the dependencies fires. It returns an object whose keys are the input node names and whose values are the value of the input events, regardless whether it is `undefined` or not.
+
 ### Events.collect
 
 ```TypeScript

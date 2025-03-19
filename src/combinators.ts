@@ -259,13 +259,35 @@ export class PromiseEvent<T> extends Stream {
 export class OrStream extends Stream {
     varNames: Array<VarName>;
     useIndex:boolean;
-    constructor(varNames:Array<VarName>, useIndex:boolean, isBehavior:boolean = false) {
+    collection: boolean;
+    constructor(varNames:Array<VarName>, useIndex:boolean, collection:boolean, isBehavior:boolean = false) {
         super(orType, isBehavior);
         this.varNames = varNames;
         this.useIndex = useIndex;
+        this.collection = collection;
     }
 
     evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+        if (this.collection) {
+            const indices = [];
+            const values:any = {}
+            for (let i = 0; i < node.inputs.length; i++) {
+                if (inputArray[i] !== undefined) {
+                    indices.push(i);
+                }
+                values[node.inputs[i]] = inputArray[i];
+            }
+
+            if (indices.length === 0) {
+                return;
+            }
+            if (this.useIndex) {
+                state.setResolved(node.id, {value: indices, time: state.time}); 
+            } else {
+                state.setResolved(node.id, {value: values, time: state.time});
+            }
+            return;
+        }
         for (let i = 0; i < node.inputs.length; i++) {
             const myInput = inputArray[i];
             if (myInput !== undefined) {

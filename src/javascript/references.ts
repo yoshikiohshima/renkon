@@ -2,6 +2,7 @@ import type {
   AnonymousFunctionDeclaration,
   ArrowFunctionExpression,
   BlockStatement,
+  CallExpression,
   CatchClause,
   Class,
   ForInStatement,
@@ -43,6 +44,18 @@ function isBlockScope(node: Node): node is FunctionNode | Program | BlockStateme
     node.type === "ForStatement" ||
     isScope(node)
   );
+}
+
+export function isCombinatorOf(node:CallExpression, cls: "Events"|"Behaviors", sels: string[]):boolean {
+  const callee = node.callee;
+  if (callee.type === "MemberExpression" && callee.object.type === "Identifier") {
+    if (callee.object.name === cls) {
+      if (callee.property.type === "Identifier" && sels.includes(callee.property.name)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 export function findReferences(
@@ -142,15 +155,10 @@ export function findReferences(
       node.specifiers.forEach((specifier) => declareLocal(root, specifier.local));
     },
     CallExpression(node) {
-      const callee = node.callee;
-      if (callee.type === "MemberExpression" && callee.object.type === "Identifier") {
-        if (callee.object.name === "Events") {
-          if (callee.property.type === "Identifier" && callee.property.name === "send") {
-            const arg = node.arguments[0];
-            if (arg.type === "Identifier") {
-              sendTarget.push(arg);
-            }
-          }
+      if (isCombinatorOf(node, "Events", ["send"])) {
+        const arg = node.arguments[0];
+        if (arg.type === "Identifier") {
+          sendTarget.push(arg);
         }
       }
     }
@@ -183,38 +191,31 @@ export function findReferences(
 
   simple(node, {
     CallExpression(node) {
-      const callee = node.callee;
-      if (callee.type === "MemberExpression" && callee.object.type === "Identifier") {
-        if (callee.object.name === "Events") {
-          if (callee.property.type === "Identifier" && (callee.property.name === "or" || callee.property.name === "_or_index")) {
-            for (const arg of node.arguments) {
-              if (arg.type === "Identifier") {
-                forceVars.push(arg);
-              }
-            }
+      if (isCombinatorOf(node, "Events", ["or", "_or_index", "some"])) {
+        for (const arg of node.arguments) {
+          if (arg.type === "Identifier") {
+            forceVars.push(arg);
           }
-        } else if (callee.object.name === "Behaviors") {
-          if (callee.property.type === "Identifier" && callee.property.name === "collect") {
-            const arg = node.arguments[1];
-            if (arg.type === "Identifier") {
-              forceVars.push(arg);
-            }
-          } else if (callee.property.type === "Identifier" && callee.property.name === "_select") {
-            if (node.arguments[1].type === "Identifier") {
-              const name = node.arguments[1].name;
-              if (/^_[0-9]/.exec(name)) {
-                forceVars.push(node.arguments[1]);
-              }
-              extraType["isSelect"] = true;
-            }
-          } else if (callee.property.type === "Identifier" && callee.property.name === "gather") {
-            extraType["gather"] = (node.arguments[0] as Literal).value as string;
-          } else if (callee.property.type === "Identifier" && (callee.property.name === "or" || callee.property.name === "_or_index")) {
-            for (const arg of node.arguments) {
-              if (arg.type === "Identifier") {
-                forceVars.push(arg);
-              }
-            }
+        }
+      } else if (isCombinatorOf(node, "Behaviors", ["collect"])) {
+        const arg = node.arguments[1];
+        if (arg.type === "Identifier") {
+          forceVars.push(arg);
+        }
+      } else if (isCombinatorOf(node, "Behaviors", ["_select"])) {
+        if (node.arguments[1].type === "Identifier") {
+          const name = node.arguments[1].name;
+          if (/^_[0-9]/.exec(name)) {
+            forceVars.push(node.arguments[1]);
+          }
+          extraType["isSelect"] = true;
+        }
+      } else if (isCombinatorOf(node, "Behaviors", ["gather"])) {
+        extraType["gather"] = (node.arguments[0] as Literal).value as string;
+      } else if (isCombinatorOf(node, "Behaviors", ["or", "_or_index", "some"])) {
+        for (const arg of node.arguments) {
+          if (arg.type === "Identifier") {
+            forceVars.push(arg);
           }
         }
       }

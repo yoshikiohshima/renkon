@@ -153,10 +153,13 @@ class Events {
         return new GeneratorNextEvent(generator);
     }
     or(...varNames:Array<VarName>) {
-        return new OrStream(varNames, false)
+        return new OrStream(varNames, false, false)
+    }
+    some(...varNames:Array<VarName>) {
+        return new OrStream(varNames, false, true)
     }
     _or_index(...varNames:Array<VarName>) {
-        return new OrStream(varNames, true);
+        return new OrStream(varNames, true, false);
     }
     collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
         return new CollectStream(init, varName, updater, false);

@@ -89,24 +89,26 @@ function rewriteRenkonCalls(
         if (callee.object.name === "Events") {
           output.insertRight(callee.object.end, ".create(Renkon)");
           if (callee.property.type === "Identifier") {
-            if (callee.property.name === "delay") {
+            const selector = callee.property.name;
+            if (selector === "delay") {
               quote(node.arguments[0], output);
-            } else if (callee.property.name === "or" || callee.property.name === "_or_index") {
+            } else if (["or", "_or_index", "some"].includes(selector)) {
               for (const arg of node.arguments) {
                 quote(arg, output);            
               }
-            } else if (callee.property.name === "send") {
+            } else if (selector === "send") {
               quote(node.arguments[0], output);
-            } else if (callee.property.name === "collect" || callee.property.name === "_select") {
+            } else if (["collect", "_select"].includes(selector)) {
               quote(node.arguments[1], output);
             }
           }
         } else if (callee.object.name === "Behaviors") {
           output.insertRight(callee.object.end, ".create(Renkon)");
           if (callee.property.type === "Identifier") {
-            if (callee.property.name === "collect" || callee.property.name === "_select") {
+            const selector = callee.property.name;
+            if (["collect", "_select"].includes(selector)) {
               quote(node.arguments[1], output);
-            } else if (callee.property.name === "or" || callee.property.name === "_or_index") {
+            } else if (["or", "_or_index", "some"].includes(selector)) {
               for (const arg of node.arguments) {
                 quote(arg, output);            
               }
