@@ -40,6 +40,24 @@ function findDecls(input:string) {
   return list.map((decl) => input.slice(decl.start, decl.end));
 }
 
+function isCompilerArtifact(b:Program):boolean {
+  // A hack when the input program looks like:
+  // Events.listener(...);
+  // This "combinator" is called without the variable declaration on the left when the callback's job is to 
+  // call preventDefault() but the event value itself is not used.
+  // The resulting compilation is:
+  // const _1_0 = Events.listener(...);
+  // _1_0;
+  // because the Events.combinator is extracted and the remaining part is replaced with the name of it.
+  // this causes (for some reason) to make the length of the decls and the id go out of sync, and causes
+  // duplicated names for nodes.
+  // The following test detects if b is an expression statement with one variable whose name is _[0-9]
+  if (b.type !== "Program") {return false;}
+  if (b.body[0].type !== "ExpressionStatement") {return false;}
+  if (b.body[0].expression.type !== "Identifier")  {return false;}
+  return /^_[0-9]/.test(b.body[0].expression.name);
+}
+
 /**
  * Parses the specified JavaScript code block, or if the inline option is true,
  * the specified inline JavaScript expression.
@@ -68,6 +86,8 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
     const declarations = findDeclarations(b, input);
 
     const rewriteSpecs = flattened ? [] : checkNested(b, id);
+
+    if (isCompilerArtifact(b)) {continue;}
 
     if (rewriteSpecs.length === 0) {
       const myId = declarations[0]?.name || `${id}`;

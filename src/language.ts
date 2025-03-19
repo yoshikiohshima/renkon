@@ -32,7 +32,7 @@ type EventBodyType = {
     eventHandler?: (evt:any) => any | null;
     dom?: HTMLElement | string;
     type: EventType;
-    options?: {useCapture?:boolean, passive?:boolean, once?:boolean},
+    options?: {capture?:boolean, passive?:boolean, once?:boolean},
     eventName?: UserEventType,
     state: ProgramState,
 };
