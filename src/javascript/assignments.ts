@@ -1,6 +1,6 @@
 import type {Expression, Identifier, Node, Pattern, VariableDeclaration} from "acorn";
 import {simple} from "acorn-walk";
-import {defaultGlobals} from "./globals.js";
+import {globals} from "./globals.js";
 import {syntaxError} from "./syntaxError.js";
 
 type Assignable = Expression | Pattern | VariableDeclaration;
@@ -11,7 +11,7 @@ export function checkAssignments(node: Node, references: Identifier[], input: st
     switch (node.type) {
       case "Identifier":
         if (references.includes(node)) throw syntaxError(`Assignment to external variable '${node.name}'`, node, input);
-        if (defaultGlobals.has(node.name)) throw syntaxError(`Assignment to global '${node.name}'`, node, input);
+        if (globals[node.name] === false) throw syntaxError(`Assignment to global '${node.name}'`, node, input);
         break;
       case "ObjectPattern":
         node.properties.forEach((node) => checkConst(node.type === "Property" ? node.value : node));

@@ -84,3 +84,11 @@ export const defaultGlobals = new Set([
   "Worker",
   "window"
 ]);
+
+export const renkonGlobals = new Set([
+  "Events",
+  "Behaviors",
+  "Renkon",
+]);
+
+export const globals = Object.fromEntries([...defaultGlobals.union(renkonGlobals)].map(k => ([k, false])));

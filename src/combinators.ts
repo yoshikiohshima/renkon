@@ -6,6 +6,7 @@ export type ScriptCell = {
     code: string,
     body: (...args: any[]) => Array<any>,
     id: NodeId,
+    isTopEvent: boolean,
     inputs: Array<VarName>,
     forceVars: Array<VarName>,
     outputs: VarName,
@@ -131,7 +132,7 @@ export class Stream {
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
         // this after all was needed...
-        // When there is an event that is either have the value of undefined or the same value,
+        // When there is an event that either have the value of undefined or the same value,
         // the inputArray for a node that depends on that event has to be cleared.
         const inputArray = state.inputArray.get(varName);
         const inputs = state.nodes.get(varName)!.inputs;

@@ -1,5 +1,3 @@
-//import {ModuleKind, ScriptTarget, createProgram, createSourceFile, getDefaultLibFileName} from "typescript";
-
 import {detype} from "./javascript/detype";
 
 export class TSCompiler {

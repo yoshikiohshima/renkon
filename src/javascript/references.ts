@@ -17,7 +17,7 @@ import type {
   Program
 } from "acorn";
 import {ancestor, simple} from "acorn-walk";
-import {defaultGlobals} from "./globals.js";
+import {globals} from "./globals.js";
 
 // Based on https://github.com/ForbesLindesay/acorn-globals
 // Portions copyright 2014 Forbes Lindesay.
@@ -58,13 +58,7 @@ export function isCombinatorOf(node:CallExpression, cls: "Events"|"Behaviors", s
   return false;
 }
 
-export function findReferences(
-  node: Node,
-  {
-    globals = defaultGlobals,
-    filterDeclaration = () => true
-  }: {
-    globals?: Set<string>;
+export function findReferences(node: Node, {filterDeclaration = () => true}: {
     filterDeclaration?: (identifier: {name: string}) => any;
   } = {}
 ): [Identifier[], Identifier[], Identifier[], {gather?:string, isSelect?:boolean}] {
@@ -172,7 +166,7 @@ export function findReferences(
         return;
       }
     }
-    if (!globals.has(name)) {
+    if (globals[name] !== false) {
       references.push(node);
     }
   }

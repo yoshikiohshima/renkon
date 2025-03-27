@@ -1,6 +1,6 @@
 import {Parser, tokTypes} from "acorn";
 import jsx from "acorn-jsx";
-import type {Expression, Identifier, Options, Program} from "acorn";
+import type {CallExpression, Expression, Identifier, Options, Program} from "acorn";
 import {checkAssignments} from "./assignments.js";
 import {findDeclarations} from "./declarations.js";
 import type {ImportReference} from "./imports.js";
@@ -24,6 +24,7 @@ export const acornOptions: Options = {
 export interface JavaScriptNode {
   id: string,
   body: Program;
+  isTopEvent: boolean;
   declarations: Identifier[]; // null for expressions that can’t declare top-level variables, a.k.a outputs
   references: Identifier[]; // the unbound references, a.k.a. inputs
   forceVars: Identifier[]; // reactive variable names that should still trigger evaluation when it is undefined.
@@ -56,6 +57,21 @@ function isCompilerArtifact(b:Program):boolean {
   if (b.body[0].type !== "ExpressionStatement") {return false;}
   if (b.body[0].expression.type !== "Identifier")  {return false;}
   return /^_[0-9]/.test(b.body[0].expression.name);
+}
+
+function isTopLevelEvent(b:Program):boolean {
+  if (b.type !== "Program") {return false;}
+  const body = b.body[0];
+  if (body.type !== "VariableDeclaration") {return false;}
+  if (body.declarations[0].type !== "VariableDeclarator") {return false;}
+  if (body.declarations[0].id.type !== "Identifier") {return false;}
+  if (body.declarations[0].init?.type !== "CallExpression") {return false;}
+
+  const call = body.declarations[0].init as CallExpression;
+  if (call.callee.type !== "MemberExpression") {return false;}
+  if (call.callee.object.type !== "Identifier") {return false;}
+  if (call.callee.object.name !== "Events") {return false;}
+  return true;
 }
 
 /**
@@ -91,6 +107,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
 
     if (rewriteSpecs.length === 0) {
       const myId = declarations[0]?.name || `${id}`;
+      const isTopEvent:boolean = isTopLevelEvent(b);
 
       allReferences.push({
         id: myId,
@@ -101,7 +118,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
         sendTargets,
         imports: [],
         extraType,
-        // expression: false,
+        isTopEvent,
         input: decl
       });
     } else {

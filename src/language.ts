@@ -19,7 +19,7 @@ import {
 } from "./combinators";
 import { translateTS } from "./typescript";
 
-type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars">
+type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars" | "isTopEvent">
 
 type UserEventType = string;
 
@@ -302,6 +302,7 @@ function difference(oldSet:Set<VarName>, newSet:Set<VarName>) {
 export class ProgramState implements ProgramStateType {
     scripts: Array<string>;
     order: Array<NodeId>;
+    types: Map<NodeId, "Behavior"|"Event">;
     nodes: Map<NodeId, ScriptCell>;
     streams: Map<VarName, Stream>;
     scratch: Map<VarName, ValueRecord>;
@@ -324,6 +325,7 @@ export class ProgramState implements ProgramStateType {
     constructor(startTime:number, app?:any, noTicking?:boolean) {
         this.scripts = [];
         this.order = [];
+        this.types = new Map();
         this.nodes = new Map();
         this.streams = new Map();
         this.scratch = new Map();
@@ -469,6 +471,7 @@ export class ProgramState implements ProgramStateType {
         this.order = sorted;
         this.nodes = newNodes;
         this.scripts = scripts;
+        this.types = new Map();
     
         for (const nodeId of this.order) {
             const newNode = newNodes.get(nodeId)!;
@@ -481,6 +484,22 @@ export class ProgramState implements ProgramStateType {
                 this.inputArray.delete(nodeId);
             }
         }
+
+        this.order.forEach((nodeId) => {
+            const node = this.nodes.get(nodeId);
+            if (!node) {return;}
+            if (node.isTopEvent) {
+                this.types.set(nodeId, "Event");
+                return;
+            }
+
+            for (const input of node.inputs) {
+                if (this.types.get(input) === "Event") {
+                    this.types.set(nodeId, "Event");
+                    return;
+                }
+            }
+        });
 
         for (const removed of removedVariableNames) {
             const stream = this.streams.get(removed);

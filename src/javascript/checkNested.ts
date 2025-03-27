@@ -17,12 +17,8 @@ type RewriteSpec = ({
     funcs: Array<{start:number, end:number}>;
 });
 
-/** Throws a SyntaxError for any illegal assignments. */
-export function checkNested(node: Node, baseId: number){
-    return rewriteNestedCalls(node, baseId);
-}
 
-function rewriteNestedCalls(
+export function checkNested(
     body: Node,
     baseId: number
 ): Array<RewriteSpec> {
@@ -30,7 +26,7 @@ function rewriteNestedCalls(
     ancestor(body, {
         CallExpression(node, ancestors:Array<Node>) {
             const inFunction = hasFunctionDeclaration(node, ancestors);
-            const isEvent = isNonTopEvent(node, ancestors);
+            const isEvent = isNonTopCombinator(node, ancestors);
             const isSelectCall = isSelect(node, ancestors);
             if (isSelectCall) {
                 const rewrite = rewriteSelect(node, ancestors);
@@ -105,7 +101,7 @@ function rewriteSelect(node:CallExpression, _ancestors:Array<Node>):RewriteSpec 
     return {type: "select", classType, init, triggers, funcs};
 }
 
-function isNonTopEvent(node:Node, ancestors:Array<Node>) {
+function isNonTopCombinator(node:Node, ancestors:Array<Node>) {
     if (node.type !== "CallExpression") {return false;}
     const call = node = node as CallExpression;
     const callee = call.callee;

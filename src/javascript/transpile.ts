@@ -4,8 +4,7 @@ import {simple} from "acorn-walk";
 // import {isPathImport, relativePath, resolvePath, resolveRelativePath} from "../path.js";
 import {Sourcemap} from "./sourcemap.js";
 import {JavaScriptNode, parseJavaScript} from "./parse.js";
-import {defaultGlobals} from "./globals";
-import {renkonGlobals} from "./renkonGlobals";
+import {globals} from "./globals";
 
 export interface TranspileOptions {
   id: string;
@@ -16,12 +15,11 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   const only = outputs.length === 0 ? "" : outputs[0];
   const inputs = Array.from(new Set<string>(node.references.map((r) => r.name)))
       .filter((n) => {
-        return !defaultGlobals.has(n) &&
-          !renkonGlobals.has(n) &&
+        return globals[n] !== false &&
           !(node.sendTargets.findIndex((s) => s.name === n) >= 0)
       });
   const forceVars = Array.from(new Set<string>(node.forceVars.map((r) => r.name)))
-    .filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
+    .filter((n) => globals[n] !== false);
   // if (hasImportDeclaration(node.body)) async = true;
   const output = new Sourcemap(node.input).trim();
   // rewriteImportDeclarations(output, node.body, resolveImport);
@@ -33,6 +31,7 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   output.insertLeft(0, `, inputs: ${JSON.stringify(inputs)}`);
   output.insertLeft(0, `, forceVars: ${JSON.stringify(forceVars)}`);
   output.insertLeft(0, `, blockId: "${node.blockId}"`);
+  output.insertLeft(0, `, isTopEvent: ${node.isTopEvent}`);
   output.insertLeft(0, `{id: "${node.id}"`); // at the moment we assume there is only one
   output.insertRight(node.input.length, `\nreturn ${only};`);
   output.insertRight(node.input.length, "\n}};\n");
