@@ -705,12 +705,12 @@ This method takes a set of node definitions from a function definition, and effe
 The function has to have the structure that looks like:
 
 ```JavaScript
-function component1(a, b) {
+function component1({a, b}) {
     const c = a + 42;
     const d = b + Events.timer(100);
     const {h} = import("../preact.standalone.module.js");
     const html = h("div", {color: "#d22"}, c, d);
-    return [html];
+    return {html};
 }
 ```
 
@@ -727,12 +727,12 @@ component(func:Function);
 The component method creates a separate `ProgramState` instance, sets up the new ProgramState with the definitions in `func`. The `func` function is expected to have the form (the same as `merge`):
 
 ```JavaScript
-export function componentFunc(a, b) {
+export function componentFunc({a, b}) {
     const c = a + 42;
     const d = b + Events.timer(100);
     const {h} = import("../preact.standalone.module.js");
     const html = h("div", {color: "#d22"}, c, d);
-    return [html];
+    return {html};
 }
 ```
 
