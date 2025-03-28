@@ -766,7 +766,7 @@ export class ProgramState implements ProgramStateType {
     component(func:Function) {
         return (input:any, key:string) => {
             let programState:ProgramState;
-            let returnValues:Array<string>|null = null;
+            let returnValues:Array<string>|{[key]:string}|null = null;
             let newProgramState = false;
             let subProgramState = this.programStates.get(key);
             if (!subProgramState) {
@@ -782,12 +782,12 @@ export class ProgramState implements ProgramStateType {
             const maybeOldFunc = subProgramState?.func;
 
             if (newProgramState || func !== maybeOldFunc) {
-                const {params, returnArray, output} = getFunctionBody(func.toString(), false);
-                returnValues = returnArray;
+                const {params, returnValues: r, output} = getFunctionBody(func.toString(), false);
+                returnValues = r;
                 // console.log(params, returnArray, output, this);
                 const receivers = params.map((r) => `const ${r} = Events.receiver();`).join("\n");
                 programState.setupProgram([receivers, output], func.name);
-                this.programStates.set(key, {programState, func, returnArray});
+                this.programStates.set(key, {programState, func, returnArray: r});
             }
 
             const trigger = (input:any) => {
@@ -801,12 +801,22 @@ export class ProgramState implements ProgramStateType {
                 programState.evaluate(this.time);
                 const result:any = {};
                 const resultTest = [];
-                if (returnValues) {
+                if (returnValues && Array.isArray(returnValues)) {
                     for (const n of returnValues) {
                         const v = programState.resolved.get(n);
                         resultTest.push(v ? v.value : undefined)
                         if (v && v.value !== undefined) {
                             result[n] = v.value;
+                        }
+                    }
+                    return result;
+                }
+                if (returnValues) {
+                    for (const k of Object.keys(returnValues)) {
+                        const v = programState.resolved.get(returnValues[k]);
+                        resultTest.push(v ? v.value : undefined)
+                        if (v && v.value !== undefined) {
+                            result[k] = v.value;
                         }
                     }
                     return result;
@@ -819,7 +829,7 @@ export class ProgramState implements ProgramStateType {
 
     renkonify(func:Function, optSystem?:any) {
         const programState =  new ProgramState(0, optSystem);
-        const {params, returnArray, output} = getFunctionBody(func.toString(), false);
+        const {params, returnValues, output} = getFunctionBody(func.toString(), false);
         // console.log(params, returnArray, output, this);
         const self = this;
 
@@ -844,8 +854,8 @@ export class ProgramState implements ProgramStateType {
                 programState.evaluate(self.time);
                 const result:any = {};
                 const resultTest = [];
-                if (returnArray) {
-                    for (const n of returnArray) {
+                if (returnValues && Array.isArray(returnValues)) {
+                    for (const n of returnValues) {
                         const v = programState.resolved.get(n);
                         resultTest.push(v ? v.value : undefined)
                         if (v && v.value !== undefined) {
@@ -853,6 +863,16 @@ export class ProgramState implements ProgramStateType {
                         }
                     }
                 }
+                if (returnValues) {
+                    for (const k of Object.keys(returnValues)) {
+                        const v = programState.resolved.get(returnValues[k]);
+                        resultTest.push(v ? v.value : undefined)
+                        if (v && v.value !== undefined) {
+                            result[k] = v.value;
+                        }
+                    }
+                }
+
                 yield !self.equals(lastYielded, resultTest) ? result : undefined;
                 lastYielded = resultTest;
             }

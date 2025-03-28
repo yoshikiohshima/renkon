@@ -41,35 +41,80 @@ export function transpileJavaScript(node: JavaScriptNode): string {
 export function getFunctionBody(input: string, forMerge: boolean) {
   const compiled = parseJavaScript(input, 0, true);
   const node = compiled[0].body.body[0] as FunctionDeclaration;
-  const params = node.params.map((p) => (p as Identifier).name);
+  const params = getParams(node);
   const body = node.body.body;
   const last = body[body.length - 1];
-  const returnArray = forMerge ? [] : getArray(last);
+  const returnValues = forMerge ? [] : getReturn(last);
   const output = new Sourcemap(input).trim();
 
   output.delete(0, body[0].start);
   output.delete(last.start, input.length);
 
-  return {params, returnArray, output: String(output)}
+  return {params, returnValues, output: String(output)}
 }
 
-function getArray(returnNode: Statement) {
+function getParams(node: FunctionDeclaration):Array<string> {
+  if (node.params.length === 0) {return [];}
+  if (node.params[0].type === "Identifier") {
+    return node.params.map((p) => (p as Identifier).name);
+  }
+  if (node.params[0].type === "ObjectPattern") {
+    const result:Array<string> = [];
+    for (const prop of node.params[0].properties) {
+      if (!prop) {
+        console.error("cannot convert");
+        return [];
+      }
+      if (prop.type !== "Property") {
+        console.error("cannot convert");
+        return [];
+      }
+      if (prop.key.type !== "Identifier" || prop.value.type !== "Identifier") {
+        console.error("cannot convert");
+        return [];
+      }
+      result.push(prop.key.name);
+    }
+    return result;
+  }
+  return [];
+}
+
+function getReturn(returnNode: Statement) {
   if (returnNode.type !== "ReturnStatement") {
     console.error("cannot convert");
     return null;
   }
-  const array = returnNode.argument;
-  if (!array || array.type !== "ArrayExpression") {
-    console.error("cannot convert");
-    return null;
+  const returnValue = returnNode.argument;
+  if (returnValue && returnValue.type === "ArrayExpression") {
+    for (const elem of returnValue.elements) {
+      if (!elem || elem.type !== "Identifier") {
+        console.error("cannot convert");
+        return null;
+      }
+    }
+    return returnValue.elements.map((e) => (e as Identifier).name);
   }
-  for (const elem of array.elements) {
-    if (!elem || elem.type !== "Identifier") {
-      console.error("cannot convert");
-      return null;
+  if (returnValue && returnValue.type === "ObjectExpression") {
+    const result:any = {};
+    for (const prop of returnValue.properties) {
+      if (!prop) {
+        console.error("cannot convert");
+        return null;
+      }
+      if (prop.type !== "Property") {
+        console.error("cannot convert");
+        return null;
+      }
+      if (prop.key.type !== "Identifier" || prop.value.type !== "Identifier") {
+        console.error("cannot convert");
+        return null;
+      }
+      result[prop.key.name] = prop.value.name;
+      return result;
     }
   }
-  return array.elements.map((e) => (e as Identifier).name);
+  return null;
 }
 
 function quote(node:Node, output:Sourcemap) {
