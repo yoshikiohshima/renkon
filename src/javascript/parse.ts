@@ -35,7 +35,7 @@ export interface JavaScriptNode {
   input: string;
 }
 
-function findDecls(input:string) {
+export function findDecls(input:string) {
   const body = parseProgram(input);
   const list = (body as Program).body;
   return list.map((decl) => input.slice(decl.start, decl.end));
