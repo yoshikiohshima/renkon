@@ -1,4 +1,4 @@
-import {JavaScriptNode, parseJavaScript} from "./javascript/parse"
+import {JavaScriptNode, parseJavaScript, findDecls} from "./javascript/parse"
 import {getFunctionBody, transpileJavaScript} from "./javascript/transpile"
 import packageJson from "../package.json";
 
@@ -527,6 +527,10 @@ export class ProgramState implements ProgramStateType {
         // running the request is treated like an event but processed
         // right before the next evaluation cycle.
         this.futureScripts = {scripts, path};
+    }
+
+    findDecls(code:string) {
+        return findDecls(code);
     }
 
     evaluate(now:number) {
