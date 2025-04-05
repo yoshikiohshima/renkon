@@ -35,10 +35,13 @@ export interface JavaScriptNode {
   input: string;
 }
 
-export function findDecls(input:string) {
+export function findDecls(input:string):Array<{code:string, start:number, end:number}> {
   const body = parseProgram(input);
   const list = (body as Program).body;
-  return list.map((decl) => input.slice(decl.start, decl.end));
+  return list.map((decl) => ({
+    code: input.slice(decl.start, decl.end),
+    start: decl.start,
+    end: decl.end}));
 }
 
 function isCompilerArtifact(b:Program):boolean {
@@ -82,7 +85,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
   let decls;
   try {
     input = detype(input);
-    decls = findDecls(input);
+    decls = findDecls(input).map((d => d.code));
   } catch (error) {
      const e = error as unknown as SyntaxError & {pos:number};
      const message = e.message + ": error around -> " + `\n"${input.slice(e.pos - 30, e.pos + 30)}`;
