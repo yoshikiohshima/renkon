@@ -31,7 +31,7 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   output.insertLeft(0, `, inputs: ${JSON.stringify(inputs)}`);
   output.insertLeft(0, `, forceVars: ${JSON.stringify(forceVars)}`);
   output.insertLeft(0, `, blockId: "${node.blockId}"`);
-  output.insertLeft(0, `, isTopEvent: ${node.isTopEvent}`);
+  output.insertLeft(0, `, topType: "${node.topType}"`);
   output.insertLeft(0, `{id: "${node.id}"`); // at the moment we assume there is only one
   output.insertRight(node.input.length, `\nreturn ${only};`);
   output.insertRight(node.input.length, "\n}};\n");

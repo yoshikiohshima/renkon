@@ -7,6 +7,7 @@ import type {ImportReference} from "./imports.js";
 import {findReferences} from "./references.js";
 import { checkNested } from "./checkNested.js";
 import { detype } from "./detype.js";
+import { StreamTypeLabel } from "../combinators.js";
 // import {syntaxError} from "./syntaxError.js";
 
 export interface ParseOptions {
@@ -24,7 +25,7 @@ export const acornOptions: Options = {
 export interface JavaScriptNode {
   id: string,
   body: Program;
-  isTopEvent: boolean;
+  topType: StreamTypeLabel;
   declarations: Identifier[]; // null for expressions that can’t declare top-level variables, a.k.a outputs
   references: Identifier[]; // the unbound references, a.k.a. inputs
   forceVars: Identifier[]; // reactive variable names that should still trigger evaluation when it is undefined.
@@ -62,19 +63,20 @@ function isCompilerArtifact(b:Program):boolean {
   return /^_[0-9]/.test(b.body[0].expression.name);
 }
 
-function isTopLevelEvent(b:Program):boolean {
-  if (b.type !== "Program") {return false;}
+function topLevelType(b:Program):StreamTypeLabel {
+  if (b.type !== "Program") {return "";}
   const body = b.body[0];
-  if (body.type !== "VariableDeclaration") {return false;}
-  if (body.declarations[0].type !== "VariableDeclarator") {return false;}
-  if (body.declarations[0].id.type !== "Identifier") {return false;}
-  if (body.declarations[0].init?.type !== "CallExpression") {return false;}
+  if (body.type !== "VariableDeclaration") {return "";}
+  if (body.declarations[0].type !== "VariableDeclarator") {return "";}
+  if (body.declarations[0].id.type !== "Identifier") {return "";}
+  if (body.declarations[0].init?.type !== "CallExpression") {return "";}
 
   const call = body.declarations[0].init as CallExpression;
-  if (call.callee.type !== "MemberExpression") {return false;}
-  if (call.callee.object.type !== "Identifier") {return false;}
-  if (call.callee.object.name !== "Events") {return false;}
-  return true;
+  if (call.callee.type !== "MemberExpression") {return "";}
+  if (call.callee.object.type !== "Identifier") {return "";}
+  if (call.callee.object.name === "Events") {return "Event";}
+  if (call.callee.object.name === "Behaviors") {return "Behavior";}
+  return "";
 }
 
 /**
@@ -110,7 +112,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
 
     if (rewriteSpecs.length === 0) {
       const myId = declarations[0]?.name || `${id}`;
-      const isTopEvent:boolean = isTopLevelEvent(b);
+      const topType:StreamTypeLabel = topLevelType(b);
 
       allReferences.push({
         id: myId,
@@ -121,7 +123,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
         sendTargets,
         imports: [],
         extraType,
-        isTopEvent,
+        topType,
         input: decl
       });
     } else {

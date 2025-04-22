@@ -1,12 +1,12 @@
-
 export type NodeId = string;
 export type VarName = string;
+export type StreamTypeLabel = "Event" | "Behavior" | "";
 
 export type ScriptCell = {
     code: string,
     body: (...args: any[]) => Array<any>,
     id: NodeId,
-    isTopEvent: boolean,
+    topType: StreamTypeLabel,
     inputs: Array<VarName>,
     forceVars: Array<VarName>,
     outputs: VarName,
@@ -22,6 +22,7 @@ export const typeKey = Symbol("typeKey");
 export const isBehaviorKey = Symbol("isBehavior");
 
 export const eventType = "EventType";
+export const userEventType = "UserEventType";
 export const delayType = "DelayType";
 export const timerType = "TimerType";
 export const collectType = "CollectType";
@@ -37,8 +38,9 @@ export const gatherType = "GatherType";
 export const generatorNextType = "GeneratorNextType";
 export const resolvePartType = "ResolvePart";
 
-export type EventType = 
+export type StreamType = 
     typeof eventType |
+    typeof userEventType |
     typeof delayType |
     typeof timerType |
     typeof collectType |
@@ -63,6 +65,7 @@ export type SubProgramState = {
 export interface ProgramStateType {
     scripts: Array<string>;
     order: Array<NodeId>;
+    types: Map<NodeId, "Behavior"|"Event">;
     nodes: Map<NodeId, ScriptCell>;
     streams: Map<VarName, Stream>;
     scratch: Map<VarName, ValueRecord>;
@@ -106,9 +109,9 @@ export interface QueueRecord extends ValueRecord {
 export type GeneratorWithFlag<T> = AsyncGenerator<T> & {done: boolean};
 
 export class Stream {
-    [typeKey]: EventType;
+    [typeKey]: StreamType;
     [isBehaviorKey]: boolean;
-    constructor(type:EventType, isBehavior:boolean) {
+    constructor(type:StreamType, isBehavior:boolean) {
         this[typeKey] = type;
         this[isBehaviorKey] = isBehavior;
     }
@@ -131,19 +134,35 @@ export class Stream {
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        // this after all was needed...
-        // When there is an event that either have the value of undefined or the same value,
-        // the inputArray for a node that depends on that event has to be cleared.
         const inputArray = state.inputArray.get(varName);
         const inputs = state.nodes.get(varName)!.inputs;
-        if (!inputArray || !inputs) {return;}
-        for (let i = 0; i < inputs.length; i++) {
-            const resolved = state.resolved.get(inputs[i]);
-            if (resolved === undefined) {
-                inputArray[i] = undefined;
+        if (inputArray && inputs) {
+            for (let i = 0; i < inputs.length; i++) {
+                const type = state.types.get(inputs[i]);
+                if (type === "Event") {
+                    inputArray[i] = undefined;
+                }
             }
         }
+        if (!this[isBehaviorKey]) {
+            if (state.resolved.get(varName)?.value !== undefined) {
+                state.resolved.delete(varName);
+                return varName;
+            }
+        } 
         return;
+    }
+}
+
+export class BehaviorStream extends Stream {
+    constructor() {
+        super(behaviorType, true);
+    }
+}
+
+export class EventStream extends Stream {
+    constructor() {
+        super(eventType, false);
     }
 }
 
@@ -185,16 +204,6 @@ export class DelayedEvent extends Stream {
                 scratch.queue.push({time: state.time + this.delay, value: myInput});
         }
     }
-
-    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        super.conclude(state, varName);
-        if (this[isBehaviorKey]) {return;}
-        if (state.resolved.get(varName)?.value !== undefined) {
-            state.resolved.delete(varName);
-            return varName;
-        }
-        return;
-    }
 }
 
 export class TimerEvent extends Stream {
@@ -220,16 +229,6 @@ export class TimerEvent extends Stream {
         const logicalTrigger = interval * Math.floor(state.time / interval);
         state.setResolved(node.id, {value: logicalTrigger, time: state.time});
         state.scratch.set(node.id, logicalTrigger);
-    }
-
-    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        super.conclude(state, varName);
-        if (this[isBehaviorKey]) {return;}
-        if (state.resolved.get(varName)?.value !== undefined) {
-            state.resolved.delete(varName);
-            return varName;
-        }
-        return;
     }
 }
 
@@ -301,24 +300,13 @@ export class OrStream extends Stream {
             }
         }
     }
-
-    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        super.conclude(state, varName);
-        if (this[isBehaviorKey]) {return;}
-        if (state.resolved.get(varName)?.value !== undefined) {
-            // console.log("deleting", varName);
-            state.resolved.delete(varName);
-            return varName;
-        }
-        return;
-    }
 }
 
 export class UserEvent extends Stream {
     record: ValueRecord;
     queued: boolean;
     constructor(record:QueueRecord, queued?: boolean) {
-        super(eventType, false);
+        super(userEventType, false);
         this.record = record;
         this.queued = !!queued;
     }
@@ -351,15 +339,6 @@ export class UserEvent extends Stream {
                 state.setResolved(node.id, {value: newValue, time: state.time});
             }
         }
-    }
-
-    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        super.conclude(state, varName);
-        if (state.resolved.get(varName)?.value !== undefined) {
-            state.resolved.delete(varName);
-            return varName;
-        }
-        return;
     }
 }
 
@@ -422,16 +401,6 @@ export class ChangeEvent extends Stream {
         state.setResolved(node.id, {value: this.value, time: state.time});
         state.scratch.set(node.id, inputArray[0]);
     }
-
-    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        super.conclude(state, varName);
-        if (state.resolved.get(varName)?.value !== undefined) {
-            // console.log("deleting", varName);
-            state.resolved.delete(varName);
-            return varName;
-        }
-        return;
-    }
 }
 
 export class OnceEvent extends Stream {
@@ -455,20 +424,8 @@ export class OnceEvent extends Stream {
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        super.conclude(state, varName);
         state.scratch.delete(varName);
-        if (state.resolved.get(varName)?.value !== undefined) {
-            // console.log("deleting", varName);
-            state.resolved.delete(varName);
-            return varName;
-        }
-        return;
-    }
-}
-
-export class Behavior extends Stream {
-    constructor() {
-        super(behaviorType, true);
+        return super.conclude(state, varName);
     }
 }
 
@@ -523,16 +480,6 @@ export class CollectStream<I, T> extends Stream {
             }
         }
     }
-
-    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        super.conclude(state, varName);
-        if (this[isBehaviorKey]) {return;}
-        if (state.resolved.get(varName)?.value !== undefined) {
-            state.resolved.delete(varName);
-            return varName;
-        }
-        return;
-    }
 }
 
 export class SelectStream<I> extends Stream {
@@ -586,16 +533,6 @@ export class SelectStream<I> extends Stream {
             }
         }
     }
-
-    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        super.conclude(state, varName);
-        if (this[isBehaviorKey]) {return;}
-        if (state.resolved.get(varName)?.value !== undefined) {
-            state.resolved.delete(varName);
-            return varName;
-        }
-        return;
-    }
 }
 
 export class GatherStream extends Stream {
@@ -643,16 +580,6 @@ export class GatherStream extends Stream {
             }
             state.setResolved(node.id, {value: result, time: state.time});
         }
-    }
-
-    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        super.conclude(state, varName);
-        if (this[isBehaviorKey]) {return;}
-        if (state.resolved.get(varName)?.value !== undefined) {
-            state.resolved.delete(varName);
-            return varName;
-        }
-        return;
     }
 }
 
@@ -712,16 +639,6 @@ export class ResolvePart extends Stream {
             });
         }
         return this;
-    }
-
-    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        super.conclude(state, varName);
-        if (this[isBehaviorKey]) {return;}
-        if (state.resolved.get(varName)?.value !== undefined) {
-            state.resolved.delete(varName);
-            return varName;
-        }
-        return;
     }
 }
 

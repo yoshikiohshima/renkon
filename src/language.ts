@@ -5,11 +5,11 @@ import packageJson from "../package.json";
 export const version = packageJson.version;
 
 import {
-    ScriptCell, VarName, NodeId, Stream,
-    DelayedEvent, CollectStream, SelectStream, GatherStream, PromiseEvent, EventType,
-    GeneratorNextEvent, QueueRecord, Behavior, TimerEvent, ChangeEvent, OnceEvent,
+    ScriptCell, VarName, NodeId, Stream, BehaviorStream, EventStream,
+    DelayedEvent, CollectStream, SelectStream, GatherStream, PromiseEvent,
+    GeneratorNextEvent, QueueRecord, TimerEvent, ChangeEvent, OnceEvent,
     ReceiverEvent, UserEvent, SendEvent, OrStream, ResolvePart,
-    eventType, typeKey,
+    typeKey,
     isBehaviorKey,
     GeneratorWithFlag,
     ProgramStateType,
@@ -19,9 +19,7 @@ import {
 } from "./combinators";
 import { translateTS } from "./typescript";
 
-type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars" | "isTopEvent">
-
-type UserEventType = string;
+type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars" | "topType">
 
 type ObserveCallback = (notifier:(v:any) => void) => () => void;
 
@@ -31,9 +29,8 @@ type EventBodyType = {
     callback?: ObserveCallback;
     eventHandler?: (evt:any) => any | null;
     dom?: HTMLElement | string;
-    type: EventType;
     options?: {capture?:boolean, passive?:boolean, once?:boolean},
-    eventName?: UserEventType,
+    eventName?: string,
     state: ProgramState,
 };
 
@@ -133,7 +130,7 @@ class Events {
         const queued = !!options?.queued;
 
         return eventBody({
-            type: eventType, forObserve: false, dom,
+            forObserve: false, dom,
             eventName: eventName, eventHandler: handler,
             state: this.programState, queued, options: myOptions});
     }
@@ -179,7 +176,7 @@ class Events {
     }
     observe(callback:ObserveCallback, options?:any) {
         return eventBody({
-            type: eventType, forObserve: true, callback,
+            forObserve: true, callback,
             state:this.programState, queued: options?.queued
         });
     }
@@ -488,11 +485,12 @@ export class ProgramState implements ProgramStateType {
         this.order.forEach((nodeId) => {
             const node = this.nodes.get(nodeId);
             if (!node) {return;}
-            if (node.isTopEvent) {
-                this.types.set(nodeId, "Event");
+            if (node.topType !== "") {
+                this.types.set(nodeId, node.topType);
                 return;
             }
 
+            this.types.set(nodeId, "Behavior");
             for (const input of node.inputs) {
                 if (this.types.get(input) === "Event") {
                     this.types.set(nodeId, "Event");
@@ -580,7 +578,7 @@ export class ProgramState implements ProgramStateType {
                     this.streams.set(id, newStream);
                     outputs = newStream;
                 } else {
-                    let newStream:Behavior = new Behavior();//{type: behaviorType}
+                    let newStream:Stream = this.types.get(id) === "Event" ? new EventStream() : new BehaviorStream();
                     this.streams.set(id, newStream);
                     if (maybeValue === undefined) {continue;}
                     const resolved = this.resolved.get(id);
@@ -740,7 +738,7 @@ export class ProgramState implements ProgramStateType {
     setResolvedForSubgraph(varName:VarName, value:any) {
         this.setResolved(varName, value);
         this.inputArray.set(varName, []);
-        this.streams.set(varName, new Behavior());
+        this.streams.set(varName, new BehaviorStream());
     }
 
     merge(...funcs:Function[]) {
