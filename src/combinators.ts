@@ -380,26 +380,17 @@ export class ReceiverEvent extends Stream {
 }
 
 export class ChangeEvent extends Stream {
-    value: any;
+    value:any;
     constructor(value:any) {
         super(changeType, false);
         this.value = value;
     }
 
-    created(state:ProgramStateType, id:VarName):Stream {
-        state.scratch.set(id, this.value);
-        return this;
-    }
-
-    ready(node: ScriptCell, state:ProgramStateType):boolean {
-        const resolved = state.resolved.get(state.baseVarName(node.inputs[0]))?.value;
-        if (resolved !== undefined && resolved === state.scratch.get(node.id)) {return false;}
-        return state.defaultReady(node);
-    }
-
-    evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+    evaluate(state:ProgramStateType, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+        if (this.value === undefined) {return;}
+        if (this.value === state.scratch.get(node.id)) {return;}
         state.setResolved(node.id, {value: this.value, time: state.time});
-        state.scratch.set(node.id, inputArray[0]);
+        state.scratch.set(node.id, this.value);
     }
 }
 
