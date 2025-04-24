@@ -267,7 +267,7 @@ export class OrStream extends Stream {
         this.collection = collection;
     }
 
-    evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+    evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, lastInputArray:Array<any>|undefined):void {
         if (this.collection) {
             const indices = [];
             const values:Array<any> = [];
@@ -290,7 +290,7 @@ export class OrStream extends Stream {
         }
         for (let i = 0; i < node.inputs.length; i++) {
             const myInput = inputArray[i];
-            if (myInput !== undefined) {
+            if (myInput !== undefined && (lastInputArray === undefined || myInput !== lastInputArray[i])) {
                 if (this.useIndex) {
                     state.setResolved(node.id, {value: {index: i, value: myInput}, time: state.time}); 
                 } else {

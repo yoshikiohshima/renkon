@@ -531,7 +531,7 @@ export class ProgramState implements ProgramStateType {
         return findDecls(code);
     }
 
-    evaluate(now:number) {
+    evaluate(now:number, callConclude = true) {
         this.time = now - this.startTime;
         this.updated = false;
         let trace:Array<{id:VarName, inputArray: Array<any>, inputs: Array<VarName>,value: any}>|undefined;
@@ -606,10 +606,8 @@ export class ProgramState implements ProgramStateType {
             evStream.evaluate(this, node, inputArray, lastInputArray);
         }
 
-        for (let id of this.order) {
-            const stream = this.streams.get(id);
-            if (!stream) {continue;}
-            stream.conclude(this, id);
+        if (callConclude) {
+            this.conclude();
         }
 
         if (this.futureScripts) {
@@ -619,6 +617,14 @@ export class ProgramState implements ProgramStateType {
         }
 
         return this.updated;
+    }
+
+    conclude() {
+        for (let id of this.order) {
+            const stream = this.streams.get(id);
+            if (!stream) {continue;}
+            stream.conclude(this, id);
+        }
     }
 
     evalCode(arg:{id:VarName, code:string}, path:string):ScriptCell {
@@ -800,30 +806,31 @@ export class ProgramState implements ProgramStateType {
                         {value: input[key], time: this.time}
                     )
                 }
-                programState.evaluate(this.time);
+                programState.evaluate(this.time, false);
                 const result:any = {};
                 const resultTest = [];
-                if (returnValues && Array.isArray(returnValues)) {
-                    for (const n of returnValues) {
-                        const v = programState.resolved.get(n);
-                        resultTest.push(v ? v.value : undefined)
-                        if (v && v.value !== undefined) {
-                            result[n] = v.value;
-                        }
-                    }
-                    return result;
-                }
                 if (returnValues) {
-                    for (const k of Object.keys(returnValues)) {
-                        const v = programState.resolved.get(returnValues[k]);
-                        resultTest.push(v ? v.value : undefined)
-                        if (v && v.value !== undefined) {
-                            result[k] = v.value;
+                    if (Array.isArray(returnValues)) {
+                        for (const n of returnValues) {
+                            const v = programState.resolved.get(n);
+                            resultTest.push(v ? v.value : undefined)
+                            if (v && v.value !== undefined) {
+                                result[n] = v.value;
+                            }
+                        }
+                    } else {
+                        for (const k of Object.keys(returnValues)) {
+                            const v = programState.resolved.get(returnValues[k]);
+                            resultTest.push(v ? v.value : undefined)
+                            if (v && v.value !== undefined) {
+                                result[k] = v.value;
+                            }
+                        
                         }
                     }
-                    return result;
                 }
-                return {};
+                programState.conclude();
+                return result;
             };
             return trigger(input);
         };
