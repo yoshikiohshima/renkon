@@ -1,5 +1,6 @@
 import type {CallExpression, MemberExpression, VariableDeclarator, ObjectPattern, ArrayPattern, Node, Identifier, AssignmentProperty} from "acorn";
 import {ancestor} from "acorn-walk";
+import {isCombinatorOf} from "./references";
 
 type RewriteSpec = ({
     type: "range";
@@ -26,13 +27,18 @@ export function checkNested(
     ancestor(body, {
         CallExpression(node, ancestors:Array<Node>) {
             const inFunction = hasFunctionDeclaration(node, ancestors);
-            const isEvent = isNonTopCombinator(node, ancestors);
+            const isEmbeddedCombinator = isNonTopCombinator(node, ancestors);
             const isSelectCall = isSelect(node, ancestors);
+            const isOrCall = isOr(node, ancestors);
             if (isSelectCall) {
                 const rewrite = rewriteSelect(node, ancestors);
                 rewriteSpecs.unshift(rewrite);
             }
-            if (isEvent && !inFunction) {
+            if (isOrCall) {
+                const rewrites = rewriteOr(node, baseId, rewriteSpecs);
+                rewriteSpecs.push(...rewrites);
+            }
+            if (isEmbeddedCombinator && !inFunction) {
                 rewriteSpecs.push({start: node.start, end: node.end, name: `_${baseId}_${rewriteSpecs.length}`, type: "range"});
             }
         },
@@ -101,28 +107,35 @@ function rewriteSelect(node:CallExpression, _ancestors:Array<Node>):RewriteSpec 
     return {type: "select", classType, init, triggers, funcs};
 }
 
+function rewriteOr(node:CallExpression, baseId:number, rewriteSpecs:Array<RewriteSpec>):Array<RewriteSpec> {
+    const triggers:Array<RewriteSpec> = [];
+    for (let i = 0; i < node.arguments.length; i++) {
+        const child = node.arguments[i];
+        if (child.type === "Identifier") {continue;}
+        const maybeName = `_${baseId}_${triggers.length + rewriteSpecs.length}`;
+        triggers.push({
+            type: "range",
+            name: maybeName,
+            start: child.start,
+            end: child.end});
+    }
+    return triggers;
+}
+
 function isNonTopCombinator(node:Node, ancestors:Array<Node>) {
     if (node.type !== "CallExpression") {return false;}
-    const call = node = node as CallExpression;
-    const callee = call.callee;
-    return callee.type === "MemberExpression" 
-        && callee.object.type === "Identifier"
-        && (callee.object.name === "Events" || callee.object.name === "Behaviors")
-        && callee.property.type === "Identifier"
-        && ancestors.length > 2
-        && ancestors[ancestors.length - 2].type !== "VariableDeclarator";
+    return isCombinatorOf(node as CallExpression, "Any", "any") && ancestors.length > 2
+        && ancestors[ancestors.length - 2].type !== "VariableDeclarator"
 }
 
 function isSelect(node:Node, _ancestors:Array<Node>) {
     if (node.type !== "CallExpression") {return false;}
+    return isCombinatorOf(node as CallExpression, "Any", ["select"]);
+}
 
-    const call = node = node as CallExpression;
-    const callee = call.callee;
-    return callee.type === "MemberExpression" 
-        && callee.object.type === "Identifier"
-        && (callee.object.name === "Events" || callee.object.name === "Behaviors")
-        && callee.property.type === "Identifier"
-        && callee.property.name === "select"
+function isOr(node:Node, _ancestors:Array<Node>) {
+    if (node.type !== "CallExpression") {return false;}
+    return isCombinatorOf(node as CallExpression, "Any", ["or", "_or_index", "some"]);
 }
 
 function hasFunctionDeclaration(_node:Node, ancestors:Array<Node>) {
@@ -140,4 +153,3 @@ function isTopArrayDeclaration(node:VariableDeclarator, ancestors:Array<Node>) {
         node.id.type === "ArrayPattern" &&
         ancestors.length === 3;
 }
-

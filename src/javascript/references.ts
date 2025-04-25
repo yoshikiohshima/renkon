@@ -46,11 +46,12 @@ function isBlockScope(node: Node): node is FunctionNode | Program | BlockStateme
   );
 }
 
-export function isCombinatorOf(node:CallExpression, cls: "Events"|"Behaviors", sels: string[]):boolean {
+export function isCombinatorOf(node:CallExpression, cls: "Events"|"Behaviors"|"Any", sels: string[]|"any"):boolean {
   const callee = node.callee;
+  const names = cls === "Any" ? ["Behaviors", "Events"] : [cls];
   if (callee.type === "MemberExpression" && callee.object.type === "Identifier") {
-    if (callee.object.name === cls) {
-      if (callee.property.type === "Identifier" && sels.includes(callee.property.name)) {
+    if (names.includes(callee.object.name)) {
+      if (callee.property.type === "Identifier" && (sels === "any" || sels.includes(callee.property.name))) {
         return true;
       }
     }
