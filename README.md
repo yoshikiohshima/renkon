@@ -2,25 +2,32 @@
 
 ## Introduction
 
-Renkon is an FRP (Functional Reactive Programming) evaluator for building interactive web
-and Node.js applications. A program consists of a set of reactive nodes. Each
-node reacts to input changes and produces an output. Other nodes that
-depend on the output, in turn, produce their outputs, and updates on
-nodes propagate through the "dependency network."
+Renkon is an FRP (Functional Reactive Programming) evaluator for
+building web and Node.js applications. A program in Renkon consists of a set of
+reactive nodes. Each node reacts to input changes and produces an
+output. In turn, other nodes that depend on the output value
+react to it. In other words, the program nodes form an acyclic
+dependency graph, and changes propagate through it. FRP has an explicit
+notion of logical time. This means that a node is evaluated at most
+once at a logical time, even if there are multiple inputs for the
+node, and computation takes zero logical time.
 
 Renkon stands out from other reactive web UI frameworks in three ways:
 
 - Native Promises and Generators in JavaScript are integrated cleanly.
-- Following the original FRP, discrete events and continuous values are separated.
+- Following the original FRP, values are distinguished whether it is on the continuous time domain or discrete time domain..
 - The definition of reactive nodes can be edited dynamically, even from within the environment itself.
 
-This results in a very simple yet powerful framework compared to some existing ones:
+This results in a very simple yet powerful framework:
 
-- No need for "duct tapes" like `useEffect`. Asynchronous actions and state updates are nicely integrated.
-- No need to manually create reactive state values and manage them by resetting them.
+- Asynchronous actions and state updates are nicely integrated.
+- No need to manually create reactive state objects.
 - Existing libraries, such as interfaces to an LLM, can be directly used.
 - Quickly explore by modifying code in the live environment.
-- The program is isomorphic to a box and wire diagram, opening up the possibility of different editing modes.
+
+The execution model is a good match for a program represented in a
+node and wire dataflow diagram. Check out a graphical
+programming environment called [Renkon-pad](https://yoshikiohshima.github.io/renkon-pad/).
 
 Here is a simple example code:
 
@@ -33,45 +40,51 @@ console.log(mod.ten() + hundred + timer);
 
 The first line with `import` returns a promise that resolves to a
 JavaScript module. Let us assume that it exports a function called
-`ten()` that returns number ten (10). The node `hundred` is a Promise that resolves
-to 100 after 500ms. `timer` is an event that produces a new value
-every 1000ms. The last line with the `console.log()` call depends on
-three nodes (`mod`, `hundred`, and `timer`), and when each of these
-has a value, the `console.log` function is executed, and you see an
-output in the console. After `mod` and `hundred` have resolved, each
-time `timer` updates, the `console.log()` line is
-reevaluated. Consequently, you'd see a new `console.log` output added
-to a sequence like `1110`, `2110`, `3110`...
+`ten()` that returns a number ten (10). The node `hundred` is a
+Promise that resolves to 100 after 500ms. `timer` is an event that
+produces a new value every 1000ms. The last line with the
+`console.log()` depends on three nodes (`mod`, `hundred`, and
+`timer`), and when all of these nodes have values, the `console.log`
+function is executed, and you see an output in the console. After
+`mod` and `hundred` have resolved, the `console.log()` line is
+reevaluated at each time `timer` updates, . Consequently, you'd see a
+new `console.log` output added to a sequence like `1110`, `2110`,
+`3110`...
 
-Note that Renkon is a different language from JavaScript, though the
-surface syntax of it draws upon JavaScript. In other words, a
-JavaScript parser can parse any Renkon program but they work
-differently.
+Renkon's surface syntax is a subset of JavaScript and TypeScript; most
+JavaScript syntax is also valid Renkon syntax. The Renkon transpiler
+takes the expression and creates a JavaScript expression that
+evaluates to an internal Renkon node data structure. A program editor
+that supports syntax and type checking can be used to detect simple
+errors earlier.
 
-Renkon accepts code written in TypeScript syntax. The transpiler
-simply removes type annotations. A program editor that supports syntax
-and type checking can be used to detect simple errors earlier.
+The Renkon transpiler analyzes the definition of a node and notes all
+external variable references as dependencies. The transpiler works on
+each node in isolation; a node is completely unaware of what an
+external reference points to at transpilation time. In other words,
+the nodes are loosely coupled.
+
+The evaluator topologically sorts the list of nodes based on the
+dependency graph. To compute the new state of all nodes, the evaluator
+walks through the nodes in the list and evaluates them as necessary.
 
 ## FRP in Nutshell
 
-Functional Reactive Programming is a clean way to describe an
-application as an acyclic graph of data dependency. Lately, all
-popular UI frameworks have reactivity based on the same basic idea.
-
-However, the original FRP had two concepts that recent reactive
-frameworks failed to incorporate. One is the clear definition of
-logical time and functions on the time domain. The other is the clear
-separation between "events" that only exist at certain instants on the
-time domain and "behaviors" that exist continuously on the time
-domain. As you use Renkon and read this document, you will see the
-benefits of these concepts.
+Functional Reactive Programming is a clean way to describe a program
+based on the dataflow model. There are two notable characteristics of FRP.
+One is the model of program values based on the
+function on logical time domain. The other is the separation between
+"events" that only exist at certain moments on the time domain and
+"behaviors" that exist continuously on the time domain. As you use
+Renkon and read this document, you will see the benefits of these
+concepts.
 
 When you construct an application in FRP, you think of the application
 state as a set of "nodes," and each node's value is a function of time
 <i>t</i>. A node is a function that uses values from other nodes and
 computes its value. In other words, a node depends on other nodes, and
-the dependency relationship forms a graph. When a "leaf" node changes
-its value due to an event occurring at time _t_, the changes are
+the dependency relationship forms a graph. When an node changes
+its value due to an external event occurring at time _t_, the changes are
 propagated through the dependency graph. The result is that the
 application state is computed consistently for logical time _t_. When
 a set of nodes compute the values the computation is done at the same
@@ -90,7 +103,13 @@ is empty. In other words, a node won't be evaluated when one of the
 dependencies is `undefined`.
 
 ## Renkon-Core, Renkon-Web and Renkon-Node
-The evaluator of Renkon is written in JavaScript (TypeScript), and it independent from Web-based or Node-based execution enviornment. [Renkon-Web](https://github.com/yoshikiohshima/renkon-web) is the web-based environment with in-world code editor. [Renkon-Node](https://github.com/yoshikiohshima/renkon-node) is the Node.js based environment that can load a program from a file.
+
+The evaluator of Renkon is written in JavaScript (TypeScript), and it
+independent from Web-based or Node-based execution
+enviornment. [Renkon-Web](https://github.com/yoshikiohshima/renkon-web)
+is the web-based environment with in-world code
+editor. [Renkon-Node](https://github.com/yoshikiohshima/renkon-node)
+is the Node.js based environment that can load a program from a file.
 
 Refer to the README of each of those for their specifics, including how to set up your program.
 
@@ -520,9 +539,11 @@ A value in the argument list can be an Event or a Behavior, including JavaScript
 ### Events.some
 
 ```TypeScript
-Events.some(...values:Events):Array<any>
+Events.some(...values:Events|Behavior):Array<any>
 ```
 This event is similar to `Events.or` and fires when one of the dependencies fires. It returns an array with the input values for this combinator, regardless whether they are `undefined` or not.
+
+A value in the argument list can be an Event or a Behavior, including JavaScript expressions that are reactive. When a behavior is specified, you can consider that the expression is automatically wrapped in `Events.change`.
 
 ### Events.collect
 
