@@ -437,6 +437,36 @@ You can simply edit the code in the editor, in this video add some
 style to the "words". Notice that the `collection` array is kept when
 you update code so that you can experiment things quickly.
 
+### Propagating the type of Event and Behavior
+
+The type of a reactive expression, either an Event or a Behavior, is
+determined by its dependencies. The rule is that if any of the
+dependency is an event, the expression is an event. For example
+consider the following program with four nodes:
+
+```TypeScript
+const timer1 = Events.timer(1000);
+const timer2 = Behaviors.timer(2000);
+const exp = timer1 + timer2;
+cosole.log(exp);
+```
+
+The node bound to `exp` is an Event because one of its dependencies,
+timer1, is an event. Note that the `console.log(exp)` lines gets
+executed for each 1000 milliseconds, because the value of `timer2` is
+available on the continuous timer domain.
+
+If you change the first line to a Behavior:
+
+```TypeScript
+const timer1 = Behaviors.timer(1000);
+const timer2 = Behaviors.timer(2000);
+const exp = timer1 + timer2;
+cosole.log(exp);
+```
+
+then all four nodes are behaviors.
+
 ## Combinators
 
 There are numbers of combinators that can be used to combine other FRP nodes.
@@ -481,9 +511,11 @@ This fires only once when the value (a Behavior including constant, or an Event)
 ### Events.or
 
 ```TypeScript
-Events.or(...values:Events)
+Events.or(...values:Events|Behaviors)
 ```
 This event fires when one of the dependencies fires. If two or more dependencies fire at the same logical time, the implementatio chooses the left-most one. The value of the event is the value of the dependency that fired.
+
+A value in the argument list can be an Event or a Behavior, including JavaScript expressions that are reactive. When a behavior is specified, you can consider that the expression is automatically wrapped in `Events.change`.
 
 ### Events.some
 
