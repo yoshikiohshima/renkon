@@ -754,7 +754,7 @@ export class ProgramState implements ProgramStateType {
             const {output} = getFunctionBody(func.toString(), true);
             outputs.push(output);
         });
-        this.setupProgram([...scripts, ...outputs] as string[]);    
+        this.updateProgram([...scripts, ...outputs]);    
     }
 
     loadTS(path:string) {

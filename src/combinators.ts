@@ -401,22 +401,13 @@ export class OnceEvent extends Stream {
         this.value = value;
     }
 
-    created(state:ProgramStateType, id:VarName):Stream {
-        state.scratch.set(id, this.value);
-        return this;
-    }
-
     ready(node: ScriptCell, state:ProgramStateType):boolean {
-        return state.scratch.get(node.id) !== undefined;
+        return state.scratch.get(node.id) === undefined;
     }
 
     evaluate(state:ProgramStateType, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         state.setResolved(node.id, {value: this.value, time: state.time});
-    }
-
-    conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        state.scratch.delete(varName);
-        return super.conclude(state, varName);
+        state.scratch.set(node.id, this.value);
     }
 }
 
