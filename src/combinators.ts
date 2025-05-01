@@ -648,7 +648,6 @@ export class GeneratorNextEvent<T> extends Stream {
     }
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
-        super.conclude(state, varName);
         const value = state.resolved.get(varName)?.value;
         if (value !== undefined) {
             if (!value.done) {
@@ -665,9 +664,10 @@ export class GeneratorNextEvent<T> extends Stream {
             } else {
                 this.generator.done = true;
             }
-            state.resolved.delete(varName);      
+            super.conclude(state, varName);
             return varName;         
         }
+        super.conclude(state, varName);
         return;
     }
 }
