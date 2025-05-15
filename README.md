@@ -686,10 +686,10 @@ The following is a list of methods of `ProgramState`
 ### `constructor`
 
 ```TypeScrpt
-constructor(startTime:number, app?:any, noTicking?:boolean);
+constructor(startTime:number, app?:any);
 ```
 
-The arguments are `startTime` for the initial value for the logical time, `app` that is an any object to be stored in the `app` property, and `noTicking` flag to specify if it does not start a animationFrame evaluation cycle.
+The arguments are `startTime` for the initial value for the logical time, `app` that is an any object to be stored in the `app` property.
 
 ### `setupProgram`
 

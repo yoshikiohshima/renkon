@@ -320,7 +320,7 @@ export class ProgramState implements ProgramStateType {
     lastReturned?: Array<any>
     futureScripts?: {scripts: Array<string>, path: string};
     breakpoints: Set<VarName>;
-    constructor(startTime:number, app?:any, noTicking?:boolean) {
+    constructor(startTime:number, app?:any) {
         this.scripts = [];
         this.order = [];
         this.types = new Map();
@@ -336,7 +336,7 @@ export class ProgramState implements ProgramStateType {
         this.updated = false;
         this.app = app;
         this.log = (...values) => {console.log(...values);}
-        this.noTicking = noTicking !== undefined ? noTicking : false;
+        this.noTicking = false;
         this.noTickingEvaluationRequested = 0;
         this.programStates = new Map();
         this.breakpoints = new Set();
