@@ -72,7 +72,7 @@ function eventBody(args:EventBodyType) {
                 if (value !== undefined) {
                     record.queue.push({value, time: 0});
                     if (state.noTicking) {
-                        state.noTickingEvaluator();
+                        state.noTickingEvaluationRequest();
                     }
                 }
             }
@@ -314,6 +314,7 @@ export class ProgramState implements ProgramStateType {
     updated: boolean;
     app?: any;
     noTicking: boolean;
+    noTickingEvaluationRequested: number;
     log:(...values:any) => void;
     programStates: Map<string, SubProgramState>;
     lastReturned?: Array<any>
@@ -336,37 +337,59 @@ export class ProgramState implements ProgramStateType {
         this.app = app;
         this.log = (...values) => {console.log(...values);}
         this.noTicking = noTicking !== undefined ? noTicking : false;
+        this.noTickingEvaluationRequested = 0;
         this.programStates = new Map();
         this.breakpoints = new Set();
     }
 
     evaluator() {
-        if (this.noTicking) {return this.noTickingEvaluator();}
         this.evaluatorRunning = window.requestAnimationFrame(() => this.evaluator());
+        let success;
         try {
             this.evaluate(Date.now());
+            success = true;
         } catch (e) {
             console.error(e);
             this.log("stopping animation");
             window.cancelAnimationFrame(this.evaluatorRunning);
             this.evaluatorRunning = 0;
+            success = false;
+        }
+        return success;
+    }
+
+    noTickingEvaluator(repeat?:boolean) {
+        this.noTicking = true;
+        let wasRunning = this.evaluatorRunning;
+        this.evaluatorRunning = 1;
+        let success = this.noTickingEvaluate(Date.now());
+        if (success && (!wasRunning || repeat)) {
+            setTimeout(() => {
+                // console.log("timeout")
+                this.noTickingEvaluator(true)
+            }, 1000)
+        } else {
+            this.evaluatorRunning = 0;
         }
     }
 
-    noTickingEvaluator() {
+    noTickingEvaluationRequest() {
+        if (this.noTickingEvaluationRequested) {return;}
+        if (!this.evaluatorRunning) {return;}
+        this.noTickingEvaluationRequested = setTimeout(() => this.noTickingEvaluate(Date.now()), 0);
+    }
+
+    noTickingEvaluate(time:number):boolean {
         this.noTicking = true;
-        if (this.evaluatorRunning !== 0) {return;}  
-        this.evaluatorRunning = setTimeout(() => {
-            try {
-                this.evaluate(Date.now());
-            } finally {
-                this.evaluatorRunning = 0;
-            }
-        }, 0);
-        // it means that when a value is received or a promise resolved,
-        // it will schedule to call evaluate.
-        // The timer and delay should also work, but need to think about
-        // how that would work without introducing too much complexity.
+        let success;
+        try {
+            this.evaluate(time);
+            success = true;
+        } catch(e) {
+            console.error(e);
+            success = false;
+        }
+        return success;
     }
 
     setupProgram(scriptsArg:(string[]|Array<{blockId: string, code: string}>), path:string = "") {
@@ -729,7 +752,7 @@ export class ProgramState implements ProgramStateType {
             this.changeList.set(receiver, value);
         }
         if (this.noTicking) {
-            this.noTickingEvaluator();
+            this.noTickingEvaluationRequest();
         }
     }
 
@@ -737,7 +760,7 @@ export class ProgramState implements ProgramStateType {
         this.resolved.set(varName, value);
         this.updated = true;
         if (this.noTicking) {
-            this.noTickingEvaluator();
+            this.noTickingEvaluationRequest();
         }
     }
 
