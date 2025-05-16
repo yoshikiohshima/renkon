@@ -358,22 +358,28 @@ export class ProgramState implements ProgramStateType {
         return success;
     }
 
-    noTickingEvaluator(repeat?:boolean) {
-        this.noTicking = true;
-        let wasRunning = this.evaluatorRunning;
-        this.evaluatorRunning = 1;
-        let success = this.noTickingEvaluate(Date.now());
-        if (success && (!wasRunning || repeat)) {
-            setTimeout(() => {
-                // console.log("timeout")
-                this.noTickingEvaluator(true)
-            }, 1000)
-        } else {
-            this.evaluatorRunning = 0;
+    nodeEvaluator() {
+        if (this.evaluatorRunning) {
+            clearInterval(this.evaluatorRunning);
         }
+        this.evaluatorRunning = setInterval(() => this.nodeEvaluator(), 20);
+        let success;
+        try {
+            this.evaluate(Date.now());
+            success = true;
+        } catch (e) {
+            console.error(e);
+            this.log("stop setInterval loop");
+            clearInterval(this.evaluatorRunning);
+            this.evaluatorRunning = 0;
+            success = false;
+        }
+        return success;
     }
 
     noTickingEvaluationRequest() {
+        console.log("requested", this.time, this.noTickingEvaluationRequested);
+        return;
         if (this.noTickingEvaluationRequested) {return;}
         if (!this.evaluatorRunning) {return;}
         this.noTickingEvaluationRequested = setTimeout(() => this.noTickingEvaluate(Date.now()), 0);
@@ -383,6 +389,7 @@ export class ProgramState implements ProgramStateType {
         this.noTicking = true;
         let success;
         try {
+            this.noTickingEvaluationRequested = 0;
             this.evaluate(time);
             success = true;
         } catch(e) {
