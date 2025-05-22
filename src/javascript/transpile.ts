@@ -1,5 +1,5 @@
 
-import type {FunctionDeclaration, Identifier, Node, Statement} from "acorn";
+import type {FunctionDeclaration, Identifier, Node, Statement, Program} from "acorn";
 import {simple} from "acorn-walk";
 // import {isPathImport, relativePath, resolvePath, resolveRelativePath} from "../path.js";
 import {Sourcemap} from "./sourcemap.js";
@@ -24,6 +24,7 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   const output = new Sourcemap(node.input).trim();
   // rewriteImportDeclarations(output, node.body, resolveImport);
   // rewriteImportExpressions(output, node.body, resolveImport);
+  rewriteExport(output, node.body);
   rewriteRenkonCalls(output, node.body);
   // rewriteFileExpressions(output, node.files, path);
   output.insertLeft(0, `, body: (${inputs}) => {\n`);
@@ -120,6 +121,18 @@ function getReturn(returnNode: Statement) {
 function quote(node:Node, output:Sourcemap) {
   output.insertLeft(node.start, '"');
   output.insertRight(node.end, '"');
+}
+
+function rewriteExport(
+  output: Sourcemap,
+  body: Program,
+): void {
+  const first = body.body[0];
+  if (first.type !== "ExportNamedDeclaration") {return;}
+  const start = first.start;
+  const end = start + "export ".length;
+
+  output.replaceLeft(start, end, "");
 }
 
 function rewriteRenkonCalls(

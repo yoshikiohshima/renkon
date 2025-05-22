@@ -44,6 +44,12 @@ export function findDeclarations(node: Program, input: string): Identifier[] {
       case "ImportDeclaration":
         child.specifiers.forEach((node) => declareLocal(node.local));
         break;
+        case "ExportNamedDeclaration":
+          if (child.declaration?.type === "VariableDeclaration") {
+            child.declaration.declarations.forEach((node) => declarePattern(node.id));
+          } else if (child.declaration?.type === "FunctionDeclaration") {
+            declareLocal(child.declaration.id);
+          }
     }
   }
 
