@@ -111,7 +111,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
     if (isCompilerArtifact(b)) {continue;}
 
     if (rewriteSpecs.length === 0) {
-      const myId = declarations[0]?.name || `${id}`;
+      const myId = declarations[0]?.name ? declarations[0]?.name : (flattened ? `${initialId}` : `${id}`);
       const topType:StreamTypeLabel = topLevelType(b);
 
       allReferences.push({
@@ -161,7 +161,7 @@ export function parseJavaScript(input:string, initialId:number, flattened: boole
             break;
         }
       }
-      const parsed = parseJavaScript(`${newPart}${overridden ? "" : "\n" + newInput}`, again ? id - 1: initialId, !again);
+      const parsed = parseJavaScript(`${newPart}${overridden ? "" : "\n" + newInput}`, again ? id - 1 : id, !again);
       allReferences.push(...parsed);
     }
   }
