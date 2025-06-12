@@ -112,8 +112,8 @@ function getReturn(returnNode: Statement) {
         return null;
       }
       result[prop.key.name] = prop.value.name;
-      return result;
     }
+    return result;
   }
   return null;
 }
