@@ -10,7 +10,8 @@ export type ScriptCell = {
     inputs: Array<VarName>,
     forceVars: Array<VarName>,
     outputs: VarName,
-    extraType?:any
+    extraType?:any,
+    input?: string
 }
 
 export type ResolveRecord = {

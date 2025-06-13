@@ -8,7 +8,7 @@ import {Sourcemap} from "./sourcemap.ts";
 
 export function detype(input:string) {
     const ts = tsPlugin();
-    const node = acorn.Parser.extend(ts).parse(input, {
+    const node = acorn.Parser.extend(ts as any).parse(input, {
         sourceType: 'module',
         ecmaVersion: 'latest',
         locations: true
@@ -27,13 +27,13 @@ function removeTypeNode(output:Sourcemap, node:acorn.Node) {
         return;
     }
     for (let k in node) {
-        let v = node[k];
+        let v = node[k as keyof typeof node];
         if (Array.isArray(v)) {
             v.forEach(a => removeTypeNode(output, a));
             continue;
         }
         if (typeof v === "object" && v !== null && v instanceof acorn.Node) {
-            removeTypeNode(output, v);
+            removeTypeNode(output, v as unknown as acorn.Node);
             continue;
         }
     }

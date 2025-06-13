@@ -2,7 +2,7 @@ import {Parser, tokTypes} from "acorn";
 import jsx from "acorn-jsx";
 import type {CallExpression, Expression, Identifier, Options, Program} from "acorn";
 import {checkAssignments} from "./assignments.js";
-import {findDeclarations} from "./declarations.js";
+import {findDeclarations, findTopLevelDeclarations} from "./declarations.js";
 import type {ImportReference} from "./imports.js";
 import {findReferences} from "./references.js";
 import { checkNested } from "./checkNested.js";
@@ -36,13 +36,19 @@ export interface JavaScriptNode {
   input: string;
 }
 
-export function findDecls(input:string):Array<{code:string, start:number, end:number}> {
+
+export function findDecls(input:string):Array<{code:string, start:number, end:number, decls:string[]}> {
   const body = parseProgram(input);
   const list = (body as Program).body;
-  return list.map((decl) => ({
-    code: input.slice(decl.start, decl.end),
-    start: decl.start,
-    end: decl.end}));
+  return list.map((decl) => {
+    const decls = decl.type === "VariableDeclaration" ? findTopLevelDeclarations(decl) : [];
+    return {
+      code: input.slice(decl.start, decl.end),
+      start: decl.start,
+      end: decl.end,
+      decls
+    }
+  });
 }
 
 function isCompilerArtifact(b:Program):boolean {

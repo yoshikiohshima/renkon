@@ -1,6 +1,7 @@
 import type {Identifier, Pattern, Program} from "acorn";
 import {globals} from "./globals.js";
 import {syntaxError} from "./syntaxError.js";
+import { VariableDeclaration } from "acorn";
 
 export function findDeclarations(node: Program, input: string): Identifier[] {
   const declarations: Identifier[] = [];
@@ -53,5 +54,38 @@ export function findDeclarations(node: Program, input: string): Identifier[] {
     }
   }
 
+  return declarations;
+}
+
+export function findTopLevelDeclarations(node: VariableDeclaration): string[] {
+  const declarations: string[] = [];
+
+  function declareLocal(node: Identifier) {
+    declarations.push(node.name);
+  }
+
+  function declarePattern(node: Pattern) {
+    switch (node.type) {
+      case "Identifier":
+        declareLocal(node);
+        break;
+      case "ObjectPattern":
+        node.properties.forEach((node) => declarePattern(node.type === "Property" ? node.value : node));
+        break;
+      case "ArrayPattern":
+        node.elements.forEach((node) => node && declarePattern(node));
+        break;
+      case "RestElement":
+        declarePattern(node.argument);
+        break;
+      case "AssignmentPattern":
+        declarePattern(node.left);
+        break;
+    }
+  }
+
+  for (const child of node.declarations) {
+    declarePattern(child.id);
+  }
   return declarations;
 }

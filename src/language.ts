@@ -19,7 +19,7 @@ import {
 } from "./combinators";
 import { translateTS } from "./typescript";
 
-type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars" | "topType">
+type ScriptCellForSort = Omit<ScriptCell, "body" | "code" | "forceVars" | "topType" | "input">
 
 type ObserveCallback = (notifier:(v:any) => void) => () => void;
 
@@ -559,6 +559,11 @@ export class ProgramState implements ProgramStateType {
 
     findDecls(code:string) {
         return findDecls(code);
+    }
+
+    findDecl(name:string) {
+        const decls = this.findDecls(this.scripts.join("\n"));
+        return decls.find((d) => d.decls.includes(name));
     }
 
     evaluate(now:number, callConclude = true) {
