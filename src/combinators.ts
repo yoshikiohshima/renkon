@@ -59,7 +59,7 @@ export type StreamType =
 
 export type SubProgramState = {
     programState: ProgramStateType,
-    func:Function,
+    funcString:string,
     returnArray:Array<string>|null
 };
 

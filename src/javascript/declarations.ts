@@ -1,7 +1,6 @@
-import type {Identifier, Pattern, Program} from "acorn";
+import type {Identifier, ModuleDeclaration, Pattern, Program, Statement} from "acorn";
 import {globals} from "./globals.js";
 import {syntaxError} from "./syntaxError.js";
-import { VariableDeclaration } from "acorn";
 
 export function findDeclarations(node: Program, input: string): Identifier[] {
   const declarations: Identifier[] = [];
@@ -51,13 +50,13 @@ export function findDeclarations(node: Program, input: string): Identifier[] {
           } else if (child.declaration?.type === "FunctionDeclaration") {
             declareLocal(child.declaration.id);
           }
-    }
+      }
   }
 
   return declarations;
 }
 
-export function findTopLevelDeclarations(node: VariableDeclaration): string[] {
+export function findTopLevelDeclarations(node: Statement | ModuleDeclaration): string[] {
   const declarations: string[] = [];
 
   function declareLocal(node: Identifier) {
@@ -84,8 +83,21 @@ export function findTopLevelDeclarations(node: VariableDeclaration): string[] {
     }
   }
 
-  for (const child of node.declarations) {
-    declarePattern(child.id);
-  }
+  switch (node.type) {
+    case "VariableDeclaration":
+      node.declarations.forEach((child) => declarePattern(child.id));
+      break;
+    case "ClassDeclaration":
+    case "FunctionDeclaration":
+      declareLocal(node.id);
+      break;
+    case "ExportNamedDeclaration":
+      if (node.declaration?.type === "VariableDeclaration") {
+        node.declaration.declarations.forEach((child) => declarePattern(child.id));
+      } else if (node.declaration?.type === "FunctionDeclaration") {
+        declareLocal(node.declaration.id);
+      }
+    }
+
   return declarations;
 }

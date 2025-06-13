@@ -41,7 +41,7 @@ export function findDecls(input:string):Array<{code:string, start:number, end:nu
   const body = parseProgram(input);
   const list = (body as Program).body;
   return list.map((decl) => {
-    const decls = decl.type === "VariableDeclaration" ? findTopLevelDeclarations(decl) : [];
+    const decls = findTopLevelDeclarations(decl);
     return {
       code: input.slice(decl.start, decl.end),
       start: decl.start,

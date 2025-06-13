@@ -561,9 +561,10 @@ export class ProgramState implements ProgramStateType {
         return findDecls(code);
     }
 
-    findDecl(name:string) {
+    findDecl(name:string):string|undefined{
         const decls = this.findDecls(this.scripts.join("\n"));
-        return decls.find((d) => d.decls.includes(name));
+        const decl = decls.find((d) => d.decls.includes(name));
+        if (decl) {return decl.code;}
     }
 
     evaluate(now:number, callConclude = true) {
@@ -806,7 +807,9 @@ export class ProgramState implements ProgramStateType {
         })
     }
 
-    component(func:Function) {
+    component(argFunc:Function|string) {
+        const func:Function = typeof argFunc === "string" ? Function(`return ` + argFunc)() : argFunc;
+        const funcString = typeof argFunc === "string" ? argFunc : argFunc.toString();
         return (input:any, key:string) => {
             let programState:ProgramState;
             let returnValues:Array<string>|{[key]:string}|null = null;
@@ -822,15 +825,15 @@ export class ProgramState implements ProgramStateType {
                 returnValues = subProgramState.returnArray;
             }
 
-            const maybeOldFunc = subProgramState?.func;
+            const maybeOldFunc = subProgramState?.funcString;
 
-            if (newProgramState || func !== maybeOldFunc) {
-                const {params, returnValues: r, output} = getFunctionBody(func.toString(), false);
+            if (newProgramState || funcString !== maybeOldFunc) {
+                const {params, returnValues: r, output} = getFunctionBody(funcString, false);
                 returnValues = r;
                 // console.log(params, returnArray, output, this);
                 const receivers = params.map((r) => `const ${r} = Events.receiver();`).join("\n");
                 programState.setupProgram([receivers, output], func.name);
-                this.programStates.set(key, {programState, func, returnArray: r});
+                this.programStates.set(key, {programState, funcString, returnArray: r});
             }
 
             const trigger = (input:any) => {

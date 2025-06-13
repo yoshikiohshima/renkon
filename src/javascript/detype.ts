@@ -21,23 +21,21 @@ export function detype(input:string) {
     return String(output);
 }
 
-function removeTypeNode(output:Sourcemap, node:acorn.Node) {
-    if (node.type.startsWith("TS")) {
-        output.delete(node.start, node.end);
+function removeTypeNode(output:Sourcemap, node:any) {
+    if (Array.isArray(node)) {
+        node.forEach(a => removeTypeNode(output, a));
         return;
     }
-    for (let k in node) {
-        let v = node[k as keyof typeof node];
-        if (Array.isArray(v)) {
-            v.forEach(a => removeTypeNode(output, a));
-            continue;
+    if (typeof node === "object" && node !== null && typeof node.type === "string") {
+        if (node.type.startsWith("TS")) {
+            output.delete(node.start, node.end);
+            return;
         }
-        if (typeof v === "object" && v !== null && v instanceof acorn.Node) {
-            removeTypeNode(output, v as unknown as acorn.Node);
-            continue;
+        for (let k in node) {
+            let v = node[k as keyof typeof node];
+            removeTypeNode(output, v);
         }
     }
-
 }
 
     
