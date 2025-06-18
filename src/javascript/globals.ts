@@ -8,6 +8,7 @@ export const defaultGlobals = new Set([
   "Boolean",
   "BigInt",
   "btoa",
+  "cancelAnimationFrame",
   "clearInterval",
   "clearTimeout",
   "console",
@@ -24,6 +25,7 @@ export const defaultGlobals = new Set([
   "Error",
   "escape",
   "eval",
+  "EventSource",
   "fetch",
   "File",
   "FileList",
@@ -44,6 +46,7 @@ export const defaultGlobals = new Set([
   "JSON",
   "Map",
   "Math",
+  "MessageChannel",
   "NaN",
   "Number",
   "navigator",
@@ -58,12 +61,12 @@ export const defaultGlobals = new Set([
   "ReferenceError",
   "Reflect",
   "RegExp",
-  "cancelAnimationFrame",
   "requestAnimationFrame",
   "Set",
   "setInterval",
   "setTimeout",
   "String",
+  "structuredClone",
   "Symbol",
   "SyntaxError",
   "TextDecoder",
@@ -82,6 +85,7 @@ export const defaultGlobals = new Set([
   "WeakSet",
   "WebSocket",
   "Worker",
+
   "window"
 ]);
 

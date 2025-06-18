@@ -77,12 +77,15 @@ export interface ProgramStateType {
     startTime: number;
     evaluatorRunning: number;
     updated: boolean;
+    pendingEvaluation: {handle: any, type: "animationFrame"|"setTimeout"|"setInterval"}|null;
+    requestAlarm: (alarm:number) => void;
     exports?: Array<string>;
     imports?: Array<string>;
     app?: any;
-    noTicking: boolean;
     log:(...values:any) => void;
-    programStates: Map<string, SubProgramState>;
+    thisNode?:ScriptCell;
+    programStates: Map<string, SubProgramState>; // "key" to subprogram
+    hasComponent: Map<VarName, Array<string>>; // the owning varName to keys
     ready(node: ScriptCell):boolean;
     equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>):boolean;
     defaultReady(node: ScriptCell):boolean;
@@ -209,9 +212,11 @@ export class DelayedEvent extends Stream {
 
 export class TimerEvent extends Stream {
     interval: number;
+    scheduled: number;
     constructor(interval:number, isBehavior:boolean) {
         super(timerType, isBehavior);
         this.interval = interval;
+        this.scheduled = -1;
     }
 
     created(_state:ProgramStateType, _id:VarName):Stream {
@@ -228,6 +233,8 @@ export class TimerEvent extends Stream {
     evaluate(state:ProgramStateType, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         const interval = this.interval;
         const logicalTrigger = interval * Math.floor(state.time / interval);
+        console.log("timer set", logicalTrigger);
+        state.requestAlarm(this.interval)
         state.setResolved(node.id, {value: logicalTrigger, time: state.time});
         state.scratch.set(node.id, logicalTrigger);
     }
@@ -250,6 +257,7 @@ export class PromiseEvent<T> extends Stream {
             const wasResolved = state.resolved.get(id)?.value;
             if (!wasResolved) {
                 state.scratch.set(id, {promise});
+                state.requestAlarm(1);
                 state.setResolved(id, {value, time: state.time});
             }
         });

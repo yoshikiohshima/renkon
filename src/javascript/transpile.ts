@@ -43,6 +43,7 @@ export function getFunctionBody(input: string, forMerge: boolean) {
   const compiled = parseJavaScript(input, 0, true);
   const node = compiled[0].body.body[0] as FunctionDeclaration;
   const params = getParams(node);
+  const types = getTypes(node);
   const body = node.body.body;
   const last = body[body.length - 1];
   const returnValues = forMerge ? [] : getReturn(last);
@@ -51,7 +52,7 @@ export function getFunctionBody(input: string, forMerge: boolean) {
   output.delete(0, body[0].start);
   output.delete(last.start, input.length);
 
-  return {params, returnValues, output: String(output)}
+  return {params, types, returnValues, output: String(output)}
 }
 
 function getParams(node: FunctionDeclaration):Array<string> {
@@ -79,6 +80,27 @@ function getParams(node: FunctionDeclaration):Array<string> {
     return result;
   }
   return [];
+}
+
+function getTypes(node: FunctionDeclaration):(Map<string, string>|null) {
+  if (node.params.length < 2) {return null;}
+  // The second argument has to be in the form of default
+  // initializer with object expression:
+  // _types = {a: "Event", b:"Behavior"}
+  const param = node.params[1];
+  if (param.type !== "AssignmentPattern") {return null;}
+  if (param.left.type !== "Identifier") {return null;}
+  if (param.right.type !== "ObjectExpression") {return null;}
+  const types:Map<string, "Event"|"Behavior"> = new Map();
+  for (const prop of param.right.properties) {
+    if (!prop) {continue;}
+    if (prop.type !== "Property") {continue;}
+    if (prop.key.type !== "Identifier") {continue;}
+    if (prop.value.type !== "Literal") {continue;}
+    if (typeof prop.value.value !== "string") {continue;}
+    types.set(prop.key.name, prop.value.value.startsWith("Event") ? "Event" : "Behavior");
+  }
+  return types;
 }
 
 function getReturn(returnNode: Statement) {
