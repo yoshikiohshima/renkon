@@ -316,6 +316,7 @@ export class ProgramState implements ProgramStateType {
     updated: boolean;
     pendingEvaluation: {handle: any, type: "animationFrame"|"setTimeout"|"setInterval"}|null;
     evaluationAlarm: Array<number>;
+    ticking: boolean;
     app?: any;
     noTicking: boolean;
     log:(...values:any) => void;
@@ -339,6 +340,7 @@ export class ProgramState implements ProgramStateType {
         this.evaluatorRunning = 0;
         this.updated = false;
         this.evaluationAlarm = [];
+        this.ticking = false;
         this.pendingEvaluation = null;
         this.app = app;
         this.log = (...values) => {console.log(...values);}
@@ -350,6 +352,7 @@ export class ProgramState implements ProgramStateType {
     }
 
     evaluator() {
+        debugger;
         this.evaluatorRunning = window.requestAnimationFrame(() => this.evaluator());
         let success;
         try {
@@ -385,7 +388,7 @@ export class ProgramState implements ProgramStateType {
     }
 
     requestAlarm(timeOffset:number) {
-        console.log("request", this.time, timeOffset);
+        // console.log("request", this.time, timeOffset);
 
         const maybeAlarm = this.time + timeOffset;
         let stored = false;
@@ -410,35 +413,47 @@ export class ProgramState implements ProgramStateType {
         if (!stored) {
             this.evaluationAlarm.push(maybeAlarm);
         }
+        /*
         for (let i = 0; i < this.evaluationAlarm.length - 1; i++) {
             if (this.evaluationAlarm[i] > this.evaluationAlarm[i+1]) {debugger;}
-        }
+        }*/
     }
 
     scheduleAlarm() {
-       //  if (!this.evaluatorRunning) {return;}
+        const log = (..._args:any[]) => {/*console.log(..._args)*/};
+        // const inIframe = window.top !== window; if (inIframe) {console.log(...args)}
         const maybeAlarm = this.evaluationAlarm[0];
-        console.log("schedule", maybeAlarm, this.time, this.evaluationAlarm, this.pendingEvaluation);
+        log("schedule", maybeAlarm, this.time, this.evaluationAlarm, this.pendingEvaluation);
+        let keptAnimation = false;
 
         if (this.pendingEvaluation) {
             if (this.pendingEvaluation.type === "setTimeout") {
                 clearTimeout(this.pendingEvaluation.handle);
             } else if (this.pendingEvaluation.type === "animationFrame") {
-             console.log("clear animationframe", this.pendingEvaluation);               
-                cancelAnimationFrame(this.pendingEvaluation.handle);
+                if (maybeAlarm - this.time < 20) {
+                    keptAnimation = true;
+                } else {
+                    this.ticking = false;
+                    log("clear animationframe", this.pendingEvaluation);
+                    // cancelAnimationFrame(this.pendingEvaluation.handle);
+                }
             }
-            this.pendingEvaluation = null;
+            if (!keptAnimation) {
+                this.pendingEvaluation = null;
+            }
         }
         if (maybeAlarm === undefined) {
             return;
         }
         if (maybeAlarm - this.time < 20) {
-
-            this.pendingEvaluation = {
-                type: "animationFrame",
-                handle: requestAnimationFrame(() => this.tick())
-            };
-            console.log("start animationframe", this.pendingEvaluation);
+            if (!keptAnimation) {
+                this.ticking = true;
+                this.pendingEvaluation = {
+                    type: "animationFrame",
+                    handle: this.ticker()
+                };
+                log("start animationframe", this.pendingEvaluation);
+            }
             return;
         }
         this.pendingEvaluation = {
@@ -451,11 +466,21 @@ export class ProgramState implements ProgramStateType {
                     console.error(e);
                     this.log("stopping animation");
                 }
-            }, maybeAlarm - this.time)};
+            }, maybeAlarm - this.time - 20)};
+    }
+
+    ticker() {
+        if (this.ticking) {
+            return requestAnimationFrame(() => {
+                if (this.ticking) {
+                    this.tick();
+                    this.ticker();
+                }
+            });
+        }
     }
 
     tick() {
-        // if (!this.evaluatorRunning) {return;}
         if (this.evaluationAlarm[0] - this.time < 20) {
             try {
                 this.evaluate(Date.now());
@@ -729,7 +754,10 @@ export class ProgramState implements ProgramStateType {
             const {scripts, path} = this.futureScripts;
             delete this.futureScripts;
             this.setupProgram(scripts, path);
+            this.requestAlarm(1);
         }
+
+        this.scheduleAlarm();
 
         this.thisNode = undefined;
         return this.updated;

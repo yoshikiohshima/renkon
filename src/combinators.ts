@@ -248,6 +248,8 @@ export class PromiseEvent<T> extends Stream {
     constructor(promise:Promise<T>) {
         super(promiseType, true);
         this.promise = promise;
+                        const inIframe = window.top !== window;
+                if (inIframe) {debugger}
     }
 
     created(state:ProgramStateType, id:VarName):Stream {
@@ -259,6 +261,8 @@ export class PromiseEvent<T> extends Stream {
         promise.then((value:any) => {
             const wasResolved = state.resolved.get(id)?.value;
             if (!wasResolved) {
+                const inIframe = window.top !== window;
+                if (inIframe) {debugger}
                 state.scratch.set(id, {promise});
                 state.requestAlarm(1);
                 state.scheduleAlarm();
