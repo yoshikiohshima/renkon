@@ -64,6 +64,7 @@ function eventBody(args:EventBodyType) {
     const notifier = (value:any) => {
         record.queue.push({value, time: 0});
         state.requestAlarm(1);
+        state.scheduleAlarm();
     };
 
     if (realDom && !forObserve && eventName) {
@@ -73,6 +74,7 @@ function eventBody(args:EventBodyType) {
                 if (value !== undefined) {
                     record.queue.push({value, time: 0});
                     state.requestAlarm(1);
+                    state.scheduleAlarm();
                 }
             }
         } else {
@@ -305,6 +307,7 @@ export class ProgramState implements ProgramStateType {
     resolved: Map<VarName, ResolveRecord>;
     inputArray: Map<NodeId, Array<any>>;
     changeList: Map<VarName, any>;
+    nextDeps: Set<VarName>;
     time: number;
     startTime: number;
     evaluatorRunning: number;
@@ -343,6 +346,7 @@ export class ProgramState implements ProgramStateType {
         this.hasComponent = new Map();
         this.programStates = new Map();
         this.breakpoints = new Set();
+        this.nextDeps = new Set();
     }
 
     evaluator() {
@@ -381,51 +385,73 @@ export class ProgramState implements ProgramStateType {
     }
 
     requestAlarm(timeOffset:number) {
-        if (this.pendingEvaluation) {
-            if (this.pendingEvaluation.type === "setTimeout") {
-                clearTimeout(this.pendingEvaluation.handle);
-            } else if (this.pendingEvaluation.type === "animationFrame") {
-                cancelAnimationFrame(this.pendingEvaluation.handle);
-            }
-            this.pendingEvaluation = null;
-        }
+        console.log("request", this.time, timeOffset);
+
         const maybeAlarm = this.time + timeOffset;
         let stored = false;
-        for (let i = this.evaluationAlarm.length - 1; i >= 0; i--) {
-            const current = this.evaluationAlarm[i];
-            if (maybeAlarm === current) {return;}
-            if (maybeAlarm < current) {
-                this.evaluationAlarm.splice(i, 0, maybeAlarm);
-                stored = true;
-                break;
+        if (this.evaluationAlarm.length > 0 && maybeAlarm < this.evaluationAlarm[0]) {
+            stored = true;
+            this.evaluationAlarm.unshift(maybeAlarm);
+        } else {
+            for (let i = 0; i < this.evaluationAlarm.length - 1; i++) {
+                const prev = this.evaluationAlarm[i];
+                const next = this.evaluationAlarm[i + 1];
+                if (maybeAlarm === prev) {
+                    stored = true;
+                    break;
+                }
+                if (prev < maybeAlarm && maybeAlarm < next) {
+                    this.evaluationAlarm.splice(i + 1, 0, maybeAlarm);
+                    stored = true;
+                    break;
+                }
             }
         }
         if (!stored) {
             this.evaluationAlarm.push(maybeAlarm);
         }
-        this.scheduleAlarm();
+        for (let i = 0; i < this.evaluationAlarm.length - 1; i++) {
+            if (this.evaluationAlarm[i] > this.evaluationAlarm[i+1]) {debugger;}
+        }
     }
 
     scheduleAlarm() {
        //  if (!this.evaluatorRunning) {return;}
         const maybeAlarm = this.evaluationAlarm[0];
+        console.log("schedule", maybeAlarm, this.time, this.evaluationAlarm, this.pendingEvaluation);
+
+        if (this.pendingEvaluation) {
+            if (this.pendingEvaluation.type === "setTimeout") {
+                clearTimeout(this.pendingEvaluation.handle);
+            } else if (this.pendingEvaluation.type === "animationFrame") {
+             console.log("clear animationframe", this.pendingEvaluation);               
+                cancelAnimationFrame(this.pendingEvaluation.handle);
+            }
+            this.pendingEvaluation = null;
+        }
         if (maybeAlarm === undefined) {
             return;
         }
-        console.log("schedule", maybeAlarm, this.time, this.evaluationAlarm);
         if (maybeAlarm - this.time < 20) {
-            this.evaluatorRunning = requestAnimationFrame(() => this.tick());
+
+            this.pendingEvaluation = {
+                type: "animationFrame",
+                handle: requestAnimationFrame(() => this.tick())
+            };
+            console.log("start animationframe", this.pendingEvaluation);
             return;
         }
-        this.evaluatorRunning = setTimeout(() => {
-            try {
-                const now = Date.now();
-                this.evaluate(now);
-            } catch (e) {
-                console.error(e);
-                this.log("stopping animation");
-            }
-        }, maybeAlarm - this.time);
+        this.pendingEvaluation = {
+            type: "setTimeout",
+            handle: setTimeout(() => {
+                try {
+                    const now = Date.now();
+                    this.evaluate(now);
+                } catch (e) {
+                    console.error(e);
+                    this.log("stopping animation");
+                }
+            }, maybeAlarm - this.time)};
     }
 
     tick() {
@@ -509,12 +535,19 @@ export class ProgramState implements ProgramStateType {
                 }
             }
         }
+    
         const sorted = topologicalSort(evaluated);
     
         const newNodes = new Map<NodeId, ScriptCell>();
+
+        this.nextDeps = new Set();
     
         for (const newNode of evaluated) {
             newNodes.set(newNode.id, newNode);
+            const deps = newNode.inputs.filter(varName => varName.startsWith("$")).map((varName) => varName.slice(1));
+            for (const dep of deps) {
+                this.nextDeps.add(dep);
+            }
         }
     
         const unsortedVarnames = difference(new Set(evaluated.map(e => e.id)), new Set(sorted));
@@ -597,6 +630,8 @@ export class ProgramState implements ProgramStateType {
         // running the request is treated like an event but processed
         // right before the next evaluation cycle.
         this.futureScripts = {scripts, path};
+        this.requestAlarm(1);
+        this.scheduleAlarm();
     }
 
     findDecls(code:string) {
@@ -702,7 +737,6 @@ export class ProgramState implements ProgramStateType {
 
     prelude() {
         let i = 0;
-        this.pendingEvaluation = null;
         while (true) {
             let alarm = this.evaluationAlarm[i];
             if (alarm === undefined) {break;}
@@ -832,14 +866,15 @@ export class ProgramState implements ProgramStateType {
             this.changeList.set(receiver, value);
         }
         this.requestAlarm(1);
+        this.scheduleAlarm();
     }
 
     setResolved(varName:VarName, value:any) {
         this.resolved.set(varName, value);
         this.updated = true;
-        /*if (this.noTicking) {
-            this.noTickingEvaluationRequest();
-        }*/
+        if (this.nextDeps.has(varName)) {
+            this.requestAlarm(1);
+        }
     }
 
     setResolvedForSubgraph(varName:VarName, value:any) {
@@ -855,7 +890,7 @@ export class ProgramState implements ProgramStateType {
             const {output} = getFunctionBody(func.toString(), true);
             outputs.push(output);
         });
-        this.updateProgram([...scripts, ...outputs]);    
+        this.updateProgram([...scripts, ...outputs]);
     }
 
     loadTS(path:string) {
@@ -946,6 +981,7 @@ export class ProgramState implements ProgramStateType {
                         }
                     }
                     this.requestAlarm(1);
+                    this.scheduleAlarm();
                 }
                 programState.conclude();
                 return result;

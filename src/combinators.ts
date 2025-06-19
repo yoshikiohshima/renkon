@@ -73,12 +73,14 @@ export interface ProgramStateType {
     resolved: Map<VarName, ResolveRecord>;
     inputArray: Map<NodeId, Array<any>>;
     changeList: Map<VarName, any>;
+    nextDeps: Set<VarName>;
     time: number;
     startTime: number;
     evaluatorRunning: number;
     updated: boolean;
     pendingEvaluation: {handle: any, type: "animationFrame"|"setTimeout"|"setInterval"}|null;
     requestAlarm: (alarm:number) => void;
+    scheduleAlarm: () => void;
     exports?: Array<string>;
     imports?: Array<string>;
     app?: any;
@@ -195,6 +197,7 @@ export class DelayedEvent extends Stream {
 
     evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, lastInputArray:Array<any>|undefined):void {
         const value = state.spliceDelayedQueued(state.scratch.get(node.id) as QueueRecord, state.time);
+ 
         if (value !== undefined) {
             state.setResolved(node.id, {value, time: state.time});
         }
@@ -205,7 +208,8 @@ export class DelayedEvent extends Stream {
             || (!this[isBehaviorKey] && myInput !== undefined);
         if (doIt) {
             const scratch:QueueRecord = state.scratch.get(node.id) as QueueRecord;
-                scratch.queue.push({time: state.time + this.delay, value: myInput});
+            state.requestAlarm(this.delay);
+            scratch.queue.push({time: state.time + this.delay, value: myInput});
         }
     }
 }
@@ -233,7 +237,6 @@ export class TimerEvent extends Stream {
     evaluate(state:ProgramStateType, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         const interval = this.interval;
         const logicalTrigger = interval * Math.floor(state.time / interval);
-        console.log("timer set", logicalTrigger);
         state.requestAlarm(this.interval)
         state.setResolved(node.id, {value: logicalTrigger, time: state.time});
         state.scratch.set(node.id, logicalTrigger);
@@ -258,6 +261,7 @@ export class PromiseEvent<T> extends Stream {
             if (!wasResolved) {
                 state.scratch.set(id, {promise});
                 state.requestAlarm(1);
+                state.scheduleAlarm();
                 state.setResolved(id, {value, time: state.time});
             }
         });
@@ -609,6 +613,8 @@ export class ResolvePart extends Stream {
                 const wasResolved = state.resolved.get(id)?.value;
                 if (!wasResolved) {
                     this.resolved = true;
+                    state.requestAlarm(1);
+                    state.scheduleAlarm();
                     if (Array.isArray(this.object)) {
                         const result = [...this.object];
                         const indices = this.indices as Array<number>;
@@ -650,6 +656,8 @@ export class GeneratorNextEvent<T> extends Stream {
         promise.then((value:any) => {
             const wasResolved = state.resolved.get(id)?.value;
             if (!wasResolved) {
+                state.requestAlarm(1);
+                state.scheduleAlarm();
                 state.setResolved(id, {value, time: state.time});
             }
         });
@@ -665,6 +673,8 @@ export class GeneratorNextEvent<T> extends Stream {
                     promise.then((value:any) => {
                         const wasResolved = state.resolved.get(varName)?.value;
                         if (!wasResolved) {
+                            state.requestAlarm(1);
+                            state.scheduleAlarm();
                             state.setResolved(varName, {value, time: state.time});
                         }
                     });
