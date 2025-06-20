@@ -723,6 +723,8 @@ evaluate(now:number);
 
 This method triggers an evaluation step. The argument is the logical time. It updates the values of nodes as necessary, and then clears out values of Events with `undefined`.
 
+Since version 0.8.0, calling `evaluate()` automatically schedules next time to call itself when a timer is used in the program, or a user event or a promise resolves. If you want to have a more controlled execution, you set the `tickingEvaluation` property of a `ProgramState` to be true, and then call `evaluate()` on the `ProgramState` instance with an apprriate value, possibly from a setTimeout loop.
+
 ### `registerEvent`
 
 This method sets the value of a `Event.receiver()`. For example, let us say your program is set up like this:
