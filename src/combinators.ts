@@ -60,7 +60,7 @@ export type StreamType =
 export type SubProgramState = {
     programState: ProgramStateType,
     funcString:string,
-    returnArray:Array<string>|null
+    outputNames:{[key:string]:string}|null
 };
 
 export interface ProgramStateType {
@@ -80,7 +80,7 @@ export interface ProgramStateType {
     updated: boolean;
     pendingEvaluation: {handle: any, type: "animationFrame"|"setTimeout"|"setInterval"}|null;
     requestAlarm: (alarm:number) => void;
-    scheduleAlarm: () => void;
+    scheduleAlarm: (alarm?:number) => void;
     exports?: Array<string>;
     imports?: Array<string>;
     app?: any;
@@ -88,6 +88,7 @@ export interface ProgramStateType {
     thisNode?:ScriptCell;
     programStates: Map<string, SubProgramState>; // "key" to subprogram
     hasComponent: Map<VarName, Array<string>>; // the owning varName to keys
+    componentParent?: ProgramStateType;
     ready(node: ScriptCell):boolean;
     equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>):boolean;
     defaultReady(node: ScriptCell):boolean;
@@ -248,8 +249,6 @@ export class PromiseEvent<T> extends Stream {
     constructor(promise:Promise<T>) {
         super(promiseType, true);
         this.promise = promise;
-                        const inIframe = window.top !== window;
-                if (inIframe) {debugger}
     }
 
     created(state:ProgramStateType, id:VarName):Stream {
@@ -261,8 +260,6 @@ export class PromiseEvent<T> extends Stream {
         promise.then((value:any) => {
             const wasResolved = state.resolved.get(id)?.value;
             if (!wasResolved) {
-                const inIframe = window.top !== window;
-                if (inIframe) {debugger}
                 state.scratch.set(id, {promise});
                 state.requestAlarm(1);
                 state.scheduleAlarm();

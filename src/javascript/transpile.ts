@@ -46,7 +46,7 @@ export function getFunctionBody(input: string, forMerge: boolean) {
   const types = getTypes(node);
   const body = node.body.body;
   const last = body[body.length - 1];
-  const returnValues = forMerge ? [] : getReturn(last);
+  const returnValues = forMerge ? {} : getReturn(last);
   const output = new Sourcemap(input).trim();
 
   output.delete(0, body[0].start);
@@ -103,20 +103,15 @@ function getTypes(node: FunctionDeclaration):(Map<string, string>|null) {
   return types;
 }
 
-function getReturn(returnNode: Statement) {
+function getReturn(returnNode: Statement):{[key:string]:string}|null {
   if (returnNode.type !== "ReturnStatement") {
     console.error("cannot convert");
     return null;
   }
   const returnValue = returnNode.argument;
   if (returnValue && returnValue.type === "ArrayExpression") {
-    for (const elem of returnValue.elements) {
-      if (!elem || elem.type !== "Identifier") {
-        console.error("cannot convert");
-        return null;
-      }
-    }
-    return returnValue.elements.map((e) => (e as Identifier).name);
+    console.log("array form no longer supported");
+    return null;
   }
   if (returnValue && returnValue.type === "ObjectExpression") {
     const result:any = {};
