@@ -1,5 +1,6 @@
 export type NodeId = string;
 export type VarName = string;
+export type ComponentKey = string;
 export type StreamTypeLabel = "Event" | "Behavior" | "";
 
 export type ScriptCell = {
@@ -18,6 +19,17 @@ export type ResolveRecord = {
     value: any,
     time: number
 }
+
+export type EvaluateOptions = {
+    once?:boolean;
+    noAnimationFrame?:boolean;
+    ticker?:boolean;
+}
+
+export type PendingEvaluationType = {
+    handle: any,
+    type: "animationFrame"|"setTimeout"|"setInterval"
+};
 
 export const typeKey = Symbol("typeKey");
 export const isBehaviorKey = Symbol("isBehavior");
@@ -64,31 +76,53 @@ export type SubProgramState = {
 };
 
 export interface ProgramStateType {
+    // the program that user set with "setupProgram"
     scripts: Array<string>;
-    order: Array<NodeId>;
-    types: Map<NodeId, "Behavior"|"Event">;
-    nodes: Map<NodeId, ScriptCell>;
-    streams: Map<VarName, Stream>;
-    scratch: Map<VarName, ValueRecord>;
-    resolved: Map<VarName, ResolveRecord>;
-    inputArray: Map<NodeId, Array<any>>;
-    changeList: Map<VarName, any>;
-    nextDeps: Set<VarName>;
-    time: number;
-    startTime: number;
-    evaluatorRunning: number;
-    updated: boolean;
-    pendingEvaluation: {handle: any, type: "animationFrame"|"setTimeout"|"setInterval"}|null;
-    requestAlarm: (alarm:number) => void;
-    scheduleAlarm: (alarm?:number) => void;
-    exports?: Array<string>;
-    imports?: Array<string>;
+    // a place where a user program can access additional objects and values via Renkon.app
     app?: any;
-    log:(...values:any) => void;
+    // topological sort of node names that the evaluator walks through
+    order: Array<NodeId>;
+    // the Behavior or Event for each node
+    types: Map<NodeId, "Behavior"|"Event">;
+    // compiled nodes that holds information such as input names and body
+    nodes: Map<NodeId, ScriptCell>;
+    // a cache, so to speak, to keep the streams of known variations
+    streams: Map<VarName, Stream>;
+    // another cache memory for streams to remember additional information
+    scratch: Map<VarName, ValueRecord>;
+    // the values for nodes
+    resolved: Map<VarName, ResolveRecord>;
+    // the memory to check whether the current input values are different from last time
+    inputArray: Map<NodeId, Array<any>>;
+    // the buffer to store the values send via "Events.send"
+    changeList: Map<VarName, any>;
+    // a set of node names that are used in $-dependencies.
+    nextDeps: Set<VarName>;
+    // the current logical time.
+    time: number;
+    // the "physical start time" of this ProgramState instance
+    startTime: number;
+    // indicates that the last evaluation of the program resulted in an error
+    errored?: any;
+    // a flag whether any resolved value was updated in an evaluation step
+    updated: boolean;
+    //  a timer of some kind that will call evaluate() in the later time.
+    pendingEvaluation: PendingEvaluationType|null;
+    // user visible meta feature that has the currently evaluating node
     thisNode?:ScriptCell;
-    programStates: Map<string, SubProgramState>; // "key" to subprogram
-    hasComponent: Map<VarName, Array<string>>; // the owning varName to keys
+    // ProgramStates instantiated from the component that is created with "Renkon.component" call
+    programStates: Map<ComponentKey, SubProgramState>; // "key" to subprogram
+    // The nodes of the owns a component, so that a node can trigger recomputation when
+    // a component updates intenally
+    hasComponent: Map<VarName, Set<ComponentKey>>; // the owning varName to keys
+    // the owner of a component
     componentParent?: ProgramStateType;
+    // indicates that a component updated in an evaluation cycle
+    componentUpdated: boolean;
+
+    // user visible function to update the program
+    updateProgram(scripts:Array<string>):void;
+
     ready(node: ScriptCell):boolean;
     equals(aArray?:Array<any|undefined>, bArray?:Array<any|undefined>):boolean;
     defaultReady(node: ScriptCell):boolean;
@@ -97,8 +131,10 @@ export interface ProgramStateType {
     getEventValues(record:QueueRecord, _t:number):any;
     baseVarName(varName:VarName):VarName;
     setResolved(varName:VarName, value:any):void;
-    updateProgram(scripts:Array<string>):void;
+    requestAlarm: (alarm:number) => void;
+    scheduleAlarm: (alarm?:number) => void;
     setLog(func:(...values:any) => void):void;
+    log:(...values:any) => void;
 }
 
 export interface ValueRecord {}
@@ -199,7 +235,7 @@ export class DelayedEvent extends Stream {
     evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, lastInputArray:Array<any>|undefined):void {
         const value = state.spliceDelayedQueued(state.scratch.get(node.id) as QueueRecord, state.time);
  
-        if (value !== undefined) {
+        if (value !== undefined && state.resolved.get(node.id)?.value !== value) {
             state.setResolved(node.id, {value, time: state.time});
         }
         const inputIndex = 0; // node.inputs.indexOf(this.varName);
