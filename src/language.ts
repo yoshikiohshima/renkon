@@ -392,7 +392,7 @@ export class ProgramState implements ProgramStateType {
         this.pendingEvaluation = {
             type: "animationFrame",
             handle: requestAnimationFrame(() => {
-                console.log(this.time);
+                // console.log(this.time);
                 if (this.pendingEvaluation) {
                     this.pendingEvaluation.handle = requestAnimationFrame(() => this.start())
                 }
