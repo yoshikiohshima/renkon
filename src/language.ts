@@ -11,7 +11,7 @@ import {
     ReceiverEvent, UserEvent, SendEvent, OrStream, ResolvePart,
     typeKey, isBehaviorKey, GeneratorWithFlag, ProgramStateType,
     ValueRecord, ResolveRecord, SubProgramState, ComponentKey,
-    EvaluateOptions,
+    EvaluatorOptions,
     PendingEvaluationType,
 } from "./combinators";
 import { translateTS } from "./typescript";
@@ -300,7 +300,7 @@ export class ProgramState implements ProgramStateType {
     // a place where a user program can access additional objects and values via Renkon.app
     app?: any;
     // the options for evaluate
-    options?: EvaluateOptions;
+    options?: EvaluatorOptions;
     // topological sort of node names that the evaluator walks through
     order: Array<NodeId>;
     // the Behavior or Event for each node
@@ -749,7 +749,7 @@ export class ProgramState implements ProgramStateType {
         if (decl) {return decl.code;}
     }
 
-    evaluator(now:number, options?:EvaluateOptions) {
+    evaluator(now:number, options?:EvaluatorOptions) {
         if (options) {
             this.options = options;
         }

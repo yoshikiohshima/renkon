@@ -20,7 +20,7 @@ export type ResolveRecord = {
     time: number
 }
 
-export type EvaluateOptions = {
+export type EvaluatorOptions = {
     once?:boolean;
     noAnimationFrame?:boolean;
     ticker?:boolean;

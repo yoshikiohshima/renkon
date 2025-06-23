@@ -336,7 +336,7 @@ signals. The following is code taken from the popular llama.cpp client
 code:
 
 ```JavaScript
-const response = await fetch(config.url, {
+const response = fetch(config.url, {
     method: 'POST',
     body: JSON.stringify(completionParams),
     headers: {
@@ -471,7 +471,7 @@ cosole.log(exp);
 ```
 
 The node bound to `exp` is an Event because one of its dependencies,
-timer1, is an event. Note that the `console.log(exp)` lines gets
+timer1, is an Event. Note that the `console.log(exp)` lines gets
 executed for each 1000 milliseconds, because the value of `timer2` is
 available on the continuous timer domain.
 
@@ -671,15 +671,20 @@ This behavior applies the regexp to the names of the existing nodes, and gather 
 
 The Renkon evaluator holds a set of Renkon FRP nodes and topologically sort them according to their dependency relationship. When an evaluation step starts, the evaluator walks through the sorted list, and evaluate them as necessary.
 
-All runtime data structure is stored in an instance of the `ProgramState` class. The instance itself is visible as global `Renkon` variable. You can instantiate `ProgramState` and set up your program without calling the `view()` function. For example you can use Renkon evaluator in this way in a regular JavaScript code:
+All runtime data structure is stored in an instance of the `ProgramState` class. The instance itself is visible as global `Renkon` variable. You can instantiate `ProgramState` and set up your program:
 
 ```JavaScript
 const state = new ProgramState(0);
 state.setupProgram([`const a = Events.timer(100); const b = a + 10;`]);
-state.evaluate(100);
 ```
 
-This code snippets creates an instance of `ProgramState` with the initial time to be zero (0), and setup nodes in it by  calling `setupProgram()` method with the renkon program text. Then the `evaluate()` method with a logical time as argument evaluates necessary nodes.
+The argument for the constructor specifies the number to be used as the "start time".
+
+Then, you call the `evaluator()` method on the ProgramState with some arguments to run the evaluator.
+
+```
+state.evaluator(100, {once: true});
+```
 
 The following is a list of methods of `ProgramState`
 
@@ -715,6 +720,35 @@ This is similar to `setupProgram()` but intended to be called from the Renkon pr
 state.updateProgram(...state.scripts, "const x = a + b;")
 ```
 
+### `evaluator`
+
+```TypeScript
+type EvaluateOptions = {
+    once?:boolean;
+    noAnimationFrame?:boolean;
+    ticker?:boolean;
+}
+evaluator(now: number, options: EvaluatorOptions);
+```
+
+The evaluator method starts the evaluation on ProgramState. The options argument specifies some variations.
+
+A common case is to call `evaluator()` with only one argument:
+
+```
+const state = new ProgramState(Date.now();
+state.setupProgram([`const a = Events.timer(100); const b = a + 10;`]);
+state.evaluator(Date.now());
+```
+
+This starts the "self scheduling" evaluator cycle, which means that a new time-based action will be automatically invoked when necessary. In other words, you call the `evaluator()` method once and animation and repeated timer etc. will keep running. (The first argument is not as significant, as `Date.now()` will be called for each new evaluation step.)
+
+When the `{once: true}` option is specified as the second argument, it prevents the self scheduling from happening but the evaluation cycle is run only once.
+
+When the `{ticker: true}` option is specified. It does not start the self schedule mechanism, but a `setInterval` or `requestAnimationFrame` cycle is created to trigger the `evaluate()` method repeatedly.
+
+When the `{noAnimationFrame: true}` option is specified, the "ticker" or the self scheduler uses `setInterval()` and `setTimeout()` but not `requestAnimationFrame()`. This is useful for the Node.js environment.
+
 ### `evaluate`
 
 ```TypeScript
@@ -723,12 +757,11 @@ evaluate(now:number);
 
 This method triggers an evaluation step. The argument is the logical time. It updates the values of nodes as necessary, and then clears out values of Events with `undefined`.
 
-Since version 0.8.0, calling `evaluate()` automatically schedules next time to call itself when a timer is used in the program, or a user event or a promise resolves. If you want to have a more controlled execution, you set the `tickingEvaluation` property of a `ProgramState` to be true, and then call `evaluate()` on the `ProgramState` instance with an apprriate value, possibly from a setTimeout loop.
+Note that if the self scheduler is enabled (which happens by default), calling `evaluato()` may result in repeated invocation of `evaluate()` when other time-based node requests them.
 
 ### `registerEvent`
 
 This method sets the value of a `Event.receiver()`. For example, let us say your program is set up like this:
-
 
 ```JavaScript
 const state = new ProgramState(0);
@@ -748,6 +781,14 @@ state.evaluate(100);
 ```
 
 will show the result in the console, as the "rec" gets a value and the `console.log(rec)` will be evaluated.
+
+### `stop`
+
+The `stop()` method stops the "ticker" or "self scheduler".
+
+### `start`
+
+The `start()` method restart the "ticker" or "self scheduler" that has been stopped.
 
 ### `merge`
 
@@ -803,8 +844,6 @@ On the calling side, you use this function from your owning Renkon program:
 ```
 
 Here, `component` node is the `component`ized function componentFunc, and the `instanceOfComponent` is an instance of the component. The `html` property is available on `instanceOfComponent` because the last `return` line specifies that that is exposed from the component.
-
-### `renkonify`
 
 ### `spaceURL`
 
