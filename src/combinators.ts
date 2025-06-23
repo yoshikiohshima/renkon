@@ -106,8 +106,6 @@ export interface ProgramStateType {
     errored?: any;
     // a flag whether any resolved value was updated in an evaluation step
     updated: boolean;
-    //  a timer of some kind that will call evaluate() in the later time.
-    pendingEvaluation: PendingEvaluationType|null;
     // user visible meta feature that has the currently evaluating node
     thisNode?:ScriptCell;
     // ProgramStates instantiated from the component that is created with "Renkon.component" call
@@ -119,6 +117,11 @@ export interface ProgramStateType {
     componentParent?: ProgramStateType;
     // indicates that a component updated in an evaluation cycle
     componentUpdated: boolean;
+
+    //  a timer of some kind that will call evaluate() in the later time.
+    pendingEvaluation: PendingEvaluationType|null;
+    // the list of future alarms.
+    evaluationAlarm: Array<number>;
 
     // user visible function to update the program
     updateProgram(scripts:Array<string>):void;
@@ -274,7 +277,7 @@ export class TimerEvent extends Stream {
     evaluate(state:ProgramStateType, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         const interval = this.interval;
         const logicalTrigger = interval * Math.floor(state.time / interval);
-        state.requestAlarm(this.interval)
+        state.requestAlarm(this.interval);
         state.setResolved(node.id, {value: logicalTrigger, time: state.time});
         state.scratch.set(node.id, logicalTrigger);
     }
