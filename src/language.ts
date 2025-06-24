@@ -382,6 +382,9 @@ export class ProgramState implements ProgramStateType {
             this.scheduleAlarm();
             return;
         }
+        if (this.pendingEvaluation) {
+            return;
+        }
         if (this.options?.noAnimationFrame) {
             this.pendingEvaluation = {
                 type: "setInterval",
@@ -568,16 +571,20 @@ export class ProgramState implements ProgramStateType {
     }
 
     setupProgram(scriptsArg:(string[]|Array<{blockId: string, code: string}>), path:string = "") {
+        // the complicated argument style is kept for backward compatibility but
+        // it is no longer used after 0.8.2
         const invalidatedStreamNames:Set<VarName> = new Set();
 
         const scripts = (scriptsArg.map((s) => {
             if (typeof s === "string") {return s};
             return s.code;
         }));
+        /*
         const blockIds = scriptsArg.map((s, i) => {
             if (typeof s === "string") {return `${i}`}
             return s.blockId;
         });
+        */
         // clear all output from events anyway, as re evaluation should not run a cell that depends on an event.
         // This should not be necessary if the DOM element that an event listener is attached stays the same.
     
@@ -609,7 +616,7 @@ export class ProgramState implements ProgramStateType {
     
         let id = 0;
         for (let scriptIndex = 0; scriptIndex < scripts.length; scriptIndex++) {
-            const blockId = blockIds[scriptIndex];
+            // const blockId = blockIds[scriptIndex];
             const script = scripts[scriptIndex];
             if (!script) {continue;}
             const nodes = parseJavaScript(script, id, false);
@@ -617,7 +624,7 @@ export class ProgramState implements ProgramStateType {
                 if (jsNodes.get(n.id)) {
                     this.log(`node "${n.id}" is defined multiple times`);
                 }
-                n.blockId = blockId;
+                // n.blockId = blockId;
                 jsNodes.set(n.id, n);
                 id++;
             }
