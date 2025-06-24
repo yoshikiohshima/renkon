@@ -465,10 +465,10 @@ export class OnceEvent extends Stream {
 }
 
 export class CollectStream<I, T> extends Stream {
-    init: I|Promise<I>;
+    init: (()=>I)|(()=>Promise<I>);
     varName: VarName;
     updater: (acc:I, v: T) => I;
-    constructor(init:I|Promise<I>, varName:VarName, updater:(acc:I, v: T) => I, isBehavior: boolean) {
+    constructor(init:(()=>I)|(()=>Promise<I>), varName:VarName, updater:(acc:I, v: T) => I, isBehavior: boolean) {
         super(collectType, isBehavior);
         this.init = init;
         this.varName = varName;
@@ -476,20 +476,29 @@ export class CollectStream<I, T> extends Stream {
     }
 
     created(state:ProgramStateType, id:VarName):Stream {
-        if (this.init && typeof this.init === "object" && (this.init as any).then) {
-            (this.init as any).then((value:any) => {
-                state.streams.set(id, this);
-                this.init = value;
+        const scratch = state.scratch.get(id);
+        state.streams.set(id, this);
+        if (scratch) {
+            const resolving = (scratch as any).resolving;
+            if (resolving === true || typeof resolving !== "boolean") {
+                return this;
+            }
+        }
+        const initValue = this.init();
+
+        if (initValue && typeof initValue === "object" && (initValue as any).then) {
+            state.scratch.set(id, {resolving: true});
+            (initValue as any).then((value:any) => {
+                state.requestAlarm(1);
+                state.scheduleAlarm();
                 state.setResolved(id, {value, time: state.time});
-                state.scratch.set(id, {current: this.init});
+                state.scratch.set(id, {current: value});
             });
             return this;
         }
-        if (!state.scratch.get(id)) {
-            state.streams.set(id, this);
-            state.setResolved(id, {value: this.init, time: state.time});
-            state.scratch.set(id, {current: this.init});
-        }
+
+        state.setResolved(id, {value: initValue, time: state.time});
+        state.scratch.set(id, {current: initValue});
         return this;
     }
 
@@ -497,6 +506,7 @@ export class CollectStream<I, T> extends Stream {
         type ArgTypes = Parameters<typeof this.updater>;
         const scratch = state.scratch.get(node.id) as CollectRecord<ArgTypes[0]>;
         if (!scratch) {return;}
+        if ((scratch as any).resolving) {return;}
         const inputIndex = node.inputs.indexOf(this.varName);
         const inputValue = inputArray[inputIndex];
         if (inputValue !== undefined && (!lastInputArray || inputValue !== lastInputArray[inputIndex])) {
@@ -505,9 +515,11 @@ export class CollectStream<I, T> extends Stream {
                 // this check feels like unfortunate.
                 if (newValue !== null && (newValue as unknown as Promise<any>).then) {
                     (newValue as unknown as Promise<any>).then((value:any) => {
+                        state.requestAlarm(1);
+                        state.scheduleAlarm();
                         state.setResolved(node.id, {value, time: state.time});
                         state.scratch.set(node.id, {current: value});
-                    })
+                    });
                 } else {
                     state.setResolved(node.id, {value: newValue, time: state.time});
                     state.scratch.set(node.id, {current: newValue});
@@ -518,10 +530,10 @@ export class CollectStream<I, T> extends Stream {
 }
 
 export class SelectStream<I> extends Stream {
-    init: I|Promise<I>;
+    init: (()=>I)|(()=>Promise<I>);
     varName: VarName;
     updaters: Array<(acc:I, v: any) => I>;
-    constructor(init:I|Promise<I>, varName:VarName, updaters:Array<(acc:I, v: any) => I>, isBehavior: boolean) {
+    constructor(init:(()=>I)|(()=>Promise<I>), varName:VarName, updaters:Array<(acc:I, v: any) => I>, isBehavior: boolean) {
         super(selectType, isBehavior);
         this.init = init;
         this.varName = varName;
@@ -529,20 +541,29 @@ export class SelectStream<I> extends Stream {
     }
 
     created(state:ProgramStateType, id:VarName):Stream {
-        if (this.init && typeof this.init === "object" && (this.init as any).then) {
-            (this.init as any).then((value:any) => {
-                state.streams.set(id, this);
-                this.init = value;
+        const scratch = state.scratch.get(id);
+        state.streams.set(id, this);
+        if (scratch) {
+            const resolving = (scratch as any).resolving;
+            if (resolving === true || typeof resolving !== "boolean") {
+                return this;
+            }
+        }
+        const initValue = this.init();
+
+        if (initValue && typeof initValue === "object" && (initValue as any).then) {
+            state.scratch.set(id, {resolving: true});
+            (initValue as any).then((value:any) => {
+                state.requestAlarm(1);
+                state.scheduleAlarm();
                 state.setResolved(id, {value, time: state.time});
-                state.scratch.set(id, {current: this.init});
+                state.scratch.set(id, {current: value});
             });
             return this;
         }
-        if (!state.scratch.get(id)) {
-            state.streams.set(id, this);
-            state.setResolved(id, {value: this.init, time: state.time});
-            state.scratch.set(id, {current: this.init});
-        }
+
+        state.setResolved(id, {value: initValue, time: state.time});
+        state.scratch.set(id, {current: initValue});
         return this;
     }
 
@@ -550,6 +571,7 @@ export class SelectStream<I> extends Stream {
         type ArgTypes = Parameters<typeof this.updaters[0]>;
         const scratch = state.scratch.get(node.id) as CollectRecord<ArgTypes[0]>;
         if (scratch === undefined) {return;}
+        if ((scratch as any).resolving) {return;}
         const inputIndex = node.inputs.indexOf(this.varName);
         const orRecord = inputArray[inputIndex];
         if (orRecord !== undefined) {
@@ -558,9 +580,11 @@ export class SelectStream<I> extends Stream {
                 // this check feels like unfortunate.
                 if (newValue !== null && (newValue as unknown as Promise<any>).then) {
                     (newValue as unknown as Promise<any>).then((value:any) => {
+                        state.requestAlarm(1);
+                        state.scheduleAlarm();
                         state.setResolved(node.id, {value, time: state.time});
                         state.scratch.set(node.id, {current: value});
-                    })
+                    });
                 } else {
                     state.setResolved(node.id, {value: newValue, time: state.time});
                     state.scratch.set(node.id, {current: newValue});

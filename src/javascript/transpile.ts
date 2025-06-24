@@ -172,6 +172,8 @@ function rewriteRenkonCalls(
             } else if (selector === "send") {
               quote(node.arguments[0], output);
             } else if (["collect", "_select"].includes(selector)) {
+              output.insertLeft(node.arguments[0].start, "(() => (");
+              output.insertRight(node.arguments[0].end, "))");
               quote(node.arguments[1], output);
             }
           }
@@ -180,6 +182,8 @@ function rewriteRenkonCalls(
           if (callee.property.type === "Identifier") {
             const selector = callee.property.name;
             if (["collect", "_select"].includes(selector)) {
+              output.insertLeft(node.arguments[0].start, "(() => (");
+              output.insertRight(node.arguments[0].end, "))");
               quote(node.arguments[1], output);
             } else if (["or", "_or_index", "some"].includes(selector)) {
               for (const arg of node.arguments) {

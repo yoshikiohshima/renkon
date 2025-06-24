@@ -156,13 +156,13 @@ class Events {
     _or_index(...varNames:Array<VarName>) {
         return new OrStream(varNames, true, false);
     }
-    collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
+    collect<I, T>(init:(()=>I)|(()=>Promise<I>), varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
         return new CollectStream(init, varName, updater, false);
     }
-    select<I>(_init:I, ..._pairs:Array<any>) {
+    select<I>(_init:(()=>I)|(()=>Promise<I>), ..._pairs:Array<any>) {
         // this is a definition that transpiler transforms to _select
     }
-    _select<I>(init:I, varName:VarName, updaters: Array<(c:I, v:any) => I>):SelectStream<I> {
+    _select<I>(init:(()=>I)|(()=>Promise<I>), varName:VarName, updaters: Array<(c:I, v:any) => I>):SelectStream<I> {
         return new SelectStream(init, varName, updaters, false);
     }
     send(receiver:VarName, value:any) {
@@ -207,7 +207,7 @@ class Behaviors {
     keep(value:any) {
        return value;
     }
-    collect<I, T>(init:I, varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
+    collect<I, T>(init:(()=>I)|(()=>Promise<I>), varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
         return new CollectStream(init, varName, updater, true);
     }
     timer(interval:number):TimerEvent {
@@ -219,10 +219,10 @@ class Behaviors {
     resolvePart(object:any) {
         return new ResolvePart(object, true);
     }
-    select<I>(_init:I, ..._pairs:Array<any>) {
+    select<I>(_init:(()=>I)|(()=>Promise<I>), ..._pairs:Array<any>) {
         // this is a definition that transpiler transforms to _select
     }
-    _select<I>(init:I, varName:VarName, updaters: Array<(c:I, v:any) => I>):SelectStream<I> {
+    _select<I>(init:(()=>I)|(()=>Promise<I>), varName:VarName, updaters: Array<(c:I, v:any) => I>):SelectStream<I> {
         return new SelectStream(init, varName, updaters, true);
     }
     or(...varNames:Array<VarName>) {
