@@ -790,6 +790,32 @@ The `stop()` method stops the "ticker" or "self scheduler".
 
 The `start()` method restart the "ticker" or "self scheduler" that has been stopped.
 
+### `findDecls`
+
+```TypeScript
+type Decl = {code:string, start:number, end:number, decls:string[];
+findDecls(code:string):Array<Decl>
+```
+
+The findDecls method parses the argument as Renkon code, and returns information about the top-level Renkon node declaration in the string as array. A "decl" specifies the start index and the end index into the string, and decls array contains the variables defined by the string between start and end. Note that the decls may be length zero when the node is an expression statement, or more than one when it is a destructuring assignment. Also note that this method does not affect the internal state of the ProgramState, nor uses the state.
+
+### `findDecls`
+
+```TypeScript
+type Decl = {code:string, start:number, end:number, decls:string[];
+findDecls(code:string):Array<Decl>
+```
+
+The findDecls method parses the argument as Renkon code, and returns information about the top-level Renkon node declaration in the string as array. A "decl" specifies the start index and the end index into the string, and decls array contains the variables defined by the string between start and end. Note that the decls may be length zero when the node is an expression statement, or more than one when it is a destructuring assignment. Also note that this method does not affect the internal state of the ProgramState, nor uses the state.
+
+### `findDecl`
+
+```TypeScript
+findDecl(name:string):string|undefined;
+```
+
+The `findDecl` method looks up the definition of a node from the ProgramState.  It takes the name of a node to find the node definition from the ProgramState.
+
 ### `merge`
 
 ```TypeScript

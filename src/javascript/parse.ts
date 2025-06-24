@@ -32,7 +32,6 @@ export interface JavaScriptNode {
   extraType: {gather?:string, isSelect?:boolean};
   sendTargets: Identifier[]; // A special case where a variable is used for Events.send destination
   imports: ImportReference[];
-  blockId?: string,
   input: string;
 }
 
