@@ -688,6 +688,10 @@ export class ProgramState implements ProgramStateType {
                 this.inputArray.delete(newNode.id);
             }
             if (invalidatedStreamNames.has(nodeId)) {
+                const oldValue = this.resolved.get(nodeId)?.value;
+                if (isGenerator(oldValue)) {
+                    oldValue.return();
+                }
                 this.resolved.delete(nodeId);
                 this.scratch.delete(nodeId);
                 this.inputArray.delete(nodeId);
