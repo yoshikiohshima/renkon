@@ -320,6 +320,23 @@ export class OrStream extends Stream {
         this.collection = collection;
     }
 
+    ready(node: ScriptCell, state:ProgramStateType):boolean {
+        const lastInputArray = state.inputArray.get(node.id);
+        if (!lastInputArray) {
+            for (let i = 0; i < node.inputs.length; i++) {
+                const myInput = state.resolved.get(node.inputs[i])?.value;
+                if (myInput !== undefined) {return true;}
+            }
+            return false;
+        }
+
+        for (let i = 0; i < node.inputs.length; i++) {
+            const myInput = state.resolved.get(node.inputs[i])?.value;
+            if (myInput !== undefined && myInput !== lastInputArray[i]) {return true;}
+        }
+        return false;
+    }
+
     evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, lastInputArray:Array<any>|undefined):void {
         if (this.collection) {
             const indices = [];
@@ -347,7 +364,7 @@ export class OrStream extends Stream {
                 if (this.useIndex) {
                     state.setResolved(node.id, {value: {index: i, value: myInput}, time: state.time}); 
                 } else {
-                state.setResolved(node.id, {value: myInput, time: state.time});
+                    state.setResolved(node.id, {value: myInput, time: state.time});
                 }
                 return;
             }
