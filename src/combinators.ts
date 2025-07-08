@@ -747,15 +747,13 @@ export class GeneratorNextEvent<T> extends Stream {
 
     conclude(state:ProgramStateType, varName:VarName):VarName|undefined {
         const value = state.resolved.get(varName)?.value;
-        const self = this;
         if (value !== undefined) {
             if (!value.done) {
                 if (!this.generator.done) {
                     const promise = this.generator.next();
                     promise.then((value:any) => {
-                        if (self.generator.done) {return;}
+                        if (this.generator.done) {return;}
                         const wasResolved = state.resolved.get(varName)?.value;
-
                         if (!wasResolved) {
                             state.requestAlarm(1);
                             state.scheduleAlarm();
