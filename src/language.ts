@@ -1066,8 +1066,8 @@ export class ProgramState implements ProgramStateType {
 
         const func:Function = typeof argFunc === "string" ? Function(`return ` + argFunc)() : argFunc;
         const funcString = typeof argFunc === "string" ? argFunc : argFunc.toString();
+        let lastReturned: undefined | Array<any>;
         return (input:any, key:string) => {
-
             if (key === undefined) {console.log("the second argument key has to be specified");}
             let programState:ProgramState;
             let returnValues:{[key]:string}|null = null;
@@ -1117,19 +1117,23 @@ export class ProgramState implements ProgramStateType {
                 }
                 programState.componentUpdated = false;
                 programState.evaluator(this.time, {once: true});
-                const result:any = {};
+                let result:any = undefined;
                 const resultTest = [];
+                let resultTypeBehavior = true;
                 if (returnValues) {
                     if (Array.isArray(returnValues)) {
                         console.log("arrayform is no longer supported");
                     } else {
                         for (const k of Object.keys(returnValues)) {
                             const v = programState.resolved.get(returnValues[k]);
-                            resultTest.push(v ? v.value : undefined)
+                            resultTest.push(v ? v.value : undefined);
+                            resultTypeBehavior = resultTypeBehavior && programState.types.get(returnValues[k]) === "Behavior";
                             if (v && v.value !== undefined) {
+                                if (result === undefined) {
+                                    result = {}
+                                }
                                 result[k] = v.value;
                             }
-                        
                         }
                     }
 
@@ -1139,7 +1143,13 @@ export class ProgramState implements ProgramStateType {
                         this.scheduleAlarm();
                     }
                 }
+
                 programState.conclude();
+                const equals = programState.equals(lastReturned, resultTest);
+                lastReturned = resultTest;
+                if (resultTypeBehavior && equals) {
+                    return undefined;
+                }
                 return result;
             };
             return trigger(input);
