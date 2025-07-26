@@ -871,6 +871,31 @@ On the calling side, you use this function from your owning Renkon program:
 
 Here, `component` node is the `component`ized function componentFunc, and the `instanceOfComponent` is an instance of the component. The `html` property is available on `instanceOfComponent` because the last `return` line specifies that that is exposed from the component.
 
+You can specify the types of the incoming values (either Behavior or Event) by adding the second argument for the component function with its default values. Namely,
+
+```JavaScript
+export function componentFunc({a, b}, _types={a: "Behavior", b: "Event"}) {
+    const c = a + 42;
+    const d = b + Events.timer(100);
+    const {h} = import("../preact.standalone.module.js");
+    const html = h("div", {color: "#d22"}, c, d);
+    return {html};
+}
+```
+
+In the example above, a is treated as a Behavior and b is an
+Event. Note that the `Renkon.component()` parses the source code of
+the function definition and determines the input types. The variable
+name `_types` is not siginificant (your linter should not warm about
+an unused variable when the variable name starts with "_". The type
+defaults to Event, so you may only specify Behavior types.
+
+When an input for a component is an Event, it means that the value is
+cleared after an evaluation step. If the exact same value is passed in
+at a later time, the component gets evaluated. It can lead to an
+unexpected excessive evaluation, if the variable passed in is a
+Behavior.
+
 ### `spaceURL`
 
 ```TypeScript
