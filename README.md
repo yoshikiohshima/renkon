@@ -68,6 +68,8 @@ The evaluator topologically sorts the list of nodes based on the
 dependency graph. To compute the new state of all nodes, the evaluator
 walks through the nodes in the list and evaluates them as necessary.
 
+There is a paper presented at the Programming Experience 25 workshop. For more details, please refer to the [paper](https://tinlizzie.org/IADocs/px25-ohshima.pdf).
+
 ## FRP in Nutshell
 
 Functional Reactive Programming is a clean way to describe a program
@@ -399,62 +401,8 @@ it produces a value for time _t_.
 
 ## Live Editing
 
-We explained the language in isolation above, but it is part of a
-live-editable environment. One can have a text editor on the same page
-as your application.
-
-We discussed the dependency graph above, but how does a node determine
-what other nodes it depends on? The answer is "it uses variable
-names." Let's see what it means with a simple example:
-
-```JavaScript
-const a = 3;
-const b = a + 4;
-```
-
-The language system examines the definition of each node. For `a`, it
-determines that `a` does not depend on any other variable. It also
-examines `b` (`a + 4`), and it figures out that `b` needs "something
-named `a` to compute `b`'s value. The system does not need to know what actually is `a`; `b` just
-remembers that it depends on a node named `a`. To evaluate `b`, the value
-associated with `a` is looked up, and if the value is different from
-the last time `b` was evaluated, then b is updated with the new value.
-
-In this way, one can simply swap out the definition of `a` at
-runtime. This is the basis of the Live editing of Renkon program.
-
-One could imagine to update the definition of `a` in the live manner to this:
-
-```JavaScript
-const a = new Promise((resolve) => setTimeout(() => resolve(10), 1000));
-const b = a + 4;
-```
-
-When you make this live edit, the value of `a` becomes undefined but
-`b` keeps its current value. When the Promise resolves, `b` is
-evaluated to become 14.
-
-One can experiment Renkon code in the default Renkon page. Check the
-following video.
-
-https://github.com/user-attachments/assets/cbbc331e-abe5-49da-b74b-3caf50d76840
-
-<video controls width="800">
-  <source src="./docs/color.mov" type="video/mp4"/>
-</video>
-
-You open the editor in the drawer, and paste the
-code. Note that the pasted test has `<script type="reactive">` that
-surrounds the program part, and then a `div` element named `output`.
-
-When you press the "Update" button, the content as is is added to the
-document. So you can include DOM elments as well as code. If you open
-the developer console, you can see that what you put in the editor
-indeed is a part of the HTML.
-
-You can simply edit the code in the editor, in this video add some
-style to the "words". Notice that the `collection` array is kept when
-you update code so that you can experiment things quickly.
+The language explained above is conducive to live editing. A good use
+of it is the Renkon-pad application.  See [Renkon-pad](ttps://yoshikiohshima.github.io/renkon-pad) and [Its repository](https://github.com/yoshikiohshima/renkon-pad) for more information.
 
 ### Propagating the type of Event and Behavior
 
@@ -485,6 +433,29 @@ cosole.log(exp);
 ```
 
 then all four nodes are behaviors.
+
+## Node Definition with a JavaScript Function}
+
+The definition of a node may need local variables or JavaScript control structures.
+In that case, one can use a JavaScript function and ``immediately evaluate'' it.
+For example, the following `count` node gets a value when the `collection` node's value is updated,
+as the `collection` reference is a free variable.
+That triggers the evaluation of the function, and the value returned as `return result` becomes the value of `count`.
+
+\begin{Verbatim}[numbers=left,frame=single,fontsize=\small]
+const count = ((collection, testFunc) => {
+   let result = 0;
+   for (const elem of collection) {
+     if (testFunc(elem)) result++;
+   }
+   return result;
+})(collection, (x) => x > 0);
+\end{Verbatim}
+
+The body of the function contains a reassignment to a variable
+(`result`) and a `for` loop.
+
+The same rule, which says that a free variable make an expression reactive, applies to arrow functions. Namely, if there is a free variable in an arrow function, the function body is updated. From the version 0.9.1, however, a function defined with the `function` keyword is treated differently from an rrow function. Specifically, the body of a function with `function` won't be examined to make it reactive. Such a function is used to define a component function (see below).
 
 ## Combinators
 
@@ -896,14 +867,17 @@ at a later time, the component gets evaluated. It can lead to an
 unexpected excessive evaluation, if the variable passed in is a
 Behavior.
 
-### `spaceURL`
+### `getFunctionBody`
 
 ```TypeScript
-spaceURL(partialURL:string)
+getFunctionBody(func:Function|string, forMerge:boolean = true):(string|null)
 ```
 
-This method takes a partial path, and based on where the base program is installed tries to construct a full URL when running on the substrate OS.
+This is a helper function to extract the part that represents the sequence of renkon-node definitions from the component or mergeable function definition used in `merge` and `component`. If you have such a function definition and you wish to send the only node definition part to a separate Renkon execution context for example, you can have some code in Renkon like this:
 
+```JavaScript
+aProgramState.setupProgram([Renkon.getFunctionBody(componentFunc)]);
+```
 
 ### `addBreakpoint(...ids:Array<string>)`
 ### `removeBreakpoint(...ids:Array<string>)`
