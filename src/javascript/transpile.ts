@@ -1,5 +1,5 @@
 
-import type {FunctionDeclaration, Identifier, Node, Statement, Program} from "acorn";
+import type {FunctionDeclaration, Identifier, Node, Statement, Program, ExportNamedDeclaration} from "acorn";
 import {simple} from "acorn-walk";
 // import {isPathImport, relativePath, resolvePath, resolveRelativePath} from "../path.js";
 import {Sourcemap} from "./sourcemap.js";
@@ -155,6 +155,11 @@ function rewriteRenkonCalls(
   output: Sourcemap,
   body: Node,
 ): void {
+  if ((body as Program).body[0].type === "FunctionDeclaration") {return;}
+  if ((body as Program).body[0].type === "ExportNamedDeclaration") {
+    const exp = (body as Program).body[0] as ExportNamedDeclaration;
+    if (exp?.declaration?.type === "FunctionDeclaration") {return;}
+  }
   simple(body, {
     CallExpression(node) {
       const callee = node.callee;

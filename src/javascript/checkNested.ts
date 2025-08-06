@@ -1,4 +1,4 @@
-import type {CallExpression, MemberExpression, VariableDeclarator, ObjectPattern, ArrayPattern, Node, Identifier, AssignmentProperty} from "acorn";
+import type {CallExpression, MemberExpression, VariableDeclarator, ObjectPattern, ArrayPattern, Node, Identifier, AssignmentProperty, Program} from "acorn";
 import {ancestor} from "acorn-walk";
 import {isCombinatorOf} from "./references";
 
@@ -24,6 +24,7 @@ export function checkNested(
     baseId: number
 ): Array<RewriteSpec> {
     const rewriteSpecs:Array<RewriteSpec> = [];
+    if (body.type === "Program" && (body as Program).body[0].type === "FunctionDeclaration") return rewriteSpecs;
     ancestor(body, {
         CallExpression(node, ancestors:Array<Node>) {
             const inFunction = hasFunctionDeclaration(node, ancestors);

@@ -754,6 +754,12 @@ export class ProgramState implements ProgramStateType {
         return findDecls(code);
     }
 
+    getFunctionBody(func:Function|string, forMerge:boolean = true):(string|null) {
+        const str = typeof func === "function" ? func.toString() : func;
+        const {output} = getFunctionBody(str, forMerge);
+        return output;
+    }
+
     findDecl(name:string):string|undefined{
         const decls = this.findDecls(this.scripts.join("\n"));
         const decl = decls.find((d) => d.decls.includes(name));

@@ -216,5 +216,5 @@ export function findReferences(node: Node, {filterDeclaration = () => true}: {
       }
     }
   });
-    return [references, forceVars, sendTarget, extraType]
+  return [references, forceVars, sendTarget, extraType];
 }
