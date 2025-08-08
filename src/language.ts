@@ -692,8 +692,11 @@ export class ProgramState implements ProgramStateType {
                 if (isGenerator(oldValue)) {
                     oldValue.return();
                 }
-                this.resolved.delete(nodeId);
-                this.scratch.delete(nodeId);
+                const stream = this.streams.get(nodeId);
+                if (!stream || !stream[isBehaviorKey]) {
+                    this.resolved.delete(nodeId);
+                    this.scratch.delete(nodeId);
+                }
                 this.inputArray.delete(nodeId);
             }
         }
