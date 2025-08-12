@@ -475,7 +475,16 @@ Events.listener(dom: HTMLElement|string, eventName:string,
 ```TypeScript
 Events.delay(node, delay: number)
 ```
+
 The event specified in the first argument will trigger `delay` logical milliseconds later. The first argument can be either a behavior or an event; if it is a behavior, the `change` will be delayed with this combinator.
+
+### Events.calm
+
+```TypeScript
+Events.calm(node, interval: number)
+```
+
+This combinator ignores events that fire less than interval milliseconds apart. All other events are propagated.
 
 ### Events.timer
 
@@ -610,6 +619,15 @@ const v = Behaviors.select(0, ...);
 Behaviors.timer(interval:number)
 ```
 This creates a node that fires at the specified interval in logical time. The value is a multiple of the interval.
+
+
+### Behaviors.calm
+
+```TypeScript
+Behaviors.calm(node, interval: number)
+```
+
+This combinator ignores events that fire less than interval milliseconds apart.
 
 ### Behaviors.delay
 
