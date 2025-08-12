@@ -7,7 +7,7 @@ export const version = packageJson.version;
 import {
     ScriptCell, VarName, NodeId, Stream, BehaviorStream, EventStream,
     DelayedEvent, CollectStream, SelectStream, GatherStream, PromiseEvent,
-    GeneratorNextEvent, QueueRecord, TimerEvent, ChangeEvent, OnceEvent,
+    GeneratorNextEvent, QueueRecord, TimerEvent, CalmStream, ChangeEvent, OnceEvent,
     ReceiverEvent, UserEvent, SendEvent, OrStream, ResolvePart,
     typeKey, isBehaviorKey, GeneratorWithFlag, ProgramStateType,
     ValueRecord, ResolveRecord, SubProgramState, ComponentKey,
@@ -138,6 +138,9 @@ class Events {
     timer(interval:number):TimerEvent {
         return new TimerEvent(interval, false);
     }
+    calm(varName:VarName, interval:number):CalmStream {
+        return new CalmStream(interval, varName, false);
+    }
     change(value:any):ChangeEvent {
         return new ChangeEvent(value);
     }
@@ -212,6 +215,9 @@ class Behaviors {
     }
     timer(interval:number):TimerEvent {
         return new TimerEvent(interval, true);
+    }
+    calm(varName:VarName, interval:number):CalmStream {
+        return new CalmStream(interval, varName, true);
     }
     delay(varName:VarName, delay: number):DelayedEvent {
         return new DelayedEvent(delay, varName, true);
@@ -799,12 +805,6 @@ export class ProgramState implements ProgramStateType {
  
             if (!this.ready(this.thisNode) && !componentUpdate) {continue;}
 
-            if (trace) {
-                if (this.breakpoints.has(id)) {
-                     debugger;
-                 }
-            } 
-    
             const change = this.changeList.get(id);
     
             const inputArray = this.thisNode.inputs.map((inputName) => this.resolved.get(this.baseVarName(inputName))?.value);
@@ -812,11 +812,15 @@ export class ProgramState implements ProgramStateType {
                 inputArray.push(this.time);
             }
             const lastInputArray = this.inputArray.get(id);
-    
+
             let outputs:any;
             if (change === undefined && this.equals(inputArray, lastInputArray)) {
                 outputs = this.streams.get(id)!;
             } else {
+                if (trace && this.breakpoints.has(id)) {
+                    debugger;
+                }
+
                 if (change === undefined) {
                     outputs = this.thisNode.body.apply(
                         this,

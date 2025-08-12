@@ -38,6 +38,7 @@ export const eventType = "EventType";
 export const userEventType = "UserEventType";
 export const delayType = "DelayType";
 export const timerType = "TimerType";
+export const calmType = "CalmType";
 export const collectType = "CollectType";
 export const selectType = "SelectType"
 export const promiseType = "PromiseType";
@@ -56,6 +57,7 @@ export type StreamType =
     typeof userEventType |
     typeof delayType |
     typeof timerType |
+    typeof calmType |
     typeof collectType |
     typeof selectType |
     typeof promiseType |
@@ -254,13 +256,40 @@ export class DelayedEvent extends Stream {
     }
 }
 
+export class CalmStream extends Stream {
+    interval: number;
+    varName: VarName;
+    constructor(interval :number, varName: VarName, isBehavior:boolean) {
+        super(calmType, isBehavior);
+        this.interval = interval;
+        this.varName = varName;
+    }
+
+    ready(node: ScriptCell, state:ProgramStateType):boolean {
+        const output = node.outputs;
+        const last = state.scratch.get(output) as number;
+        const interval = this.interval;
+        return last === undefined || last + interval <= state.time;
+    }
+
+    created(_state:ProgramStateType, _id:VarName):Stream {
+        return this;
+    }
+
+    evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
+        const inputIndex = 0; // node.inputs.indexOf(this.varName);
+        const myInput = inputArray[inputIndex];
+        if (myInput === undefined) {return;}
+        state.setResolved(node.id, {value: myInput, time: state.time});
+        state.scratch.set(node.id, state.time);
+    }
+}
+
 export class TimerEvent extends Stream {
     interval: number;
-    scheduled: number;
     constructor(interval:number, isBehavior:boolean) {
         super(timerType, isBehavior);
         this.interval = interval;
-        this.scheduled = -1;
     }
 
     created(_state:ProgramStateType, _id:VarName):Stream {

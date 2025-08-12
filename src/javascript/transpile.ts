@@ -168,7 +168,7 @@ function rewriteRenkonCalls(
           output.insertRight(callee.object.end, ".create(Renkon)");
           if (callee.property.type === "Identifier") {
             const selector = callee.property.name;
-            if (selector === "delay") {
+            if (["delay", "calm"].includes(selector)) {
               quote(node.arguments[0], output);
             } else if (["or", "_or_index", "some"].includes(selector)) {
               for (const arg of node.arguments) {
@@ -186,7 +186,9 @@ function rewriteRenkonCalls(
           output.insertRight(callee.object.end, ".create(Renkon)");
           if (callee.property.type === "Identifier") {
             const selector = callee.property.name;
-            if (["collect", "_select"].includes(selector)) {
+            if (["delay", "calm"].includes(selector)) {
+              quote(node.arguments[0], output);
+            } else if (["collect", "_select"].includes(selector)) {
               output.insertLeft(node.arguments[0].start, "(() => (");
               output.insertRight(node.arguments[0].end, "))");
               quote(node.arguments[1], output);
