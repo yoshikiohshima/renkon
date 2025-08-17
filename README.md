@@ -484,7 +484,7 @@ The event specified in the first argument will trigger `delay` logical milliseco
 Events.calm(node, interval: number)
 ```
 
-This combinator ignores events that fire less than interval milliseconds apart. All other events are propagated.
+This combinator fires at most every interval milliseconds. The last event that occurs within the interval will fire after the interval.
 
 ### Events.timer
 
@@ -627,7 +627,7 @@ This creates a node that fires at the specified interval in logical time. The va
 Behaviors.calm(node, interval: number)
 ```
 
-This combinator ignores events that fire less than interval milliseconds apart.
+This combinator fires at most every interval milliseconds. The last change that occurs within the interval will fire after the interval.
 
 ### Behaviors.delay
 
