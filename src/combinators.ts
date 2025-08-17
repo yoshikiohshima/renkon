@@ -267,21 +267,37 @@ export class CalmStream extends Stream {
 
     ready(node: ScriptCell, state:ProgramStateType):boolean {
         const output = node.outputs;
-        const last = state.scratch.get(output) as number;
-        const interval = this.interval;
-        return last === undefined || last + interval <= state.time;
+        const scratch = state.scratch.get(output);
+        const {last, event} = scratch as {last: number, event?: any};
+        if (event && last + this.interval <= state.time) {return true;}
+        return state.defaultReady(node);
     }
 
-    created(_state:ProgramStateType, _id:VarName):Stream {
+    created(state:ProgramStateType, id:VarName):Stream {
+        const scratch = state.scratch.get(id);
+        if (!scratch) {
+            state.scratch.set(id, {last: state.time - (this.interval + 1), event: undefined})
+        }
         return this;
     }
 
     evaluate(state:ProgramStateType, node: ScriptCell, inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         const inputIndex = 0; // node.inputs.indexOf(this.varName);
         const myInput = inputArray[inputIndex];
-        if (myInput === undefined) {return;}
-        state.setResolved(node.id, {value: myInput, time: state.time});
-        state.scratch.set(node.id, state.time);
+        const scratch = state.scratch.get(node.id);
+        const {last, event} = scratch as {last: number, event?: any};
+        const maybeEvent = myInput !== undefined ? myInput : event;
+        if (last + this.interval <= state.time) {
+            if (maybeEvent !== undefined) {
+                state.setResolved(node.id, {value: maybeEvent, time: state.time});
+                state.scratch.set(node.id, {last: state.time, event: undefined});
+                state.requestAlarm(this.interval);
+            }
+        } else {
+            if (maybeEvent !== undefined && maybeEvent !== event) {
+                state.scratch.set(node.id, {last: last, event: maybeEvent});
+            }
+        }
     }
 }
 
