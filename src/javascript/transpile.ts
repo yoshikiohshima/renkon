@@ -5,6 +5,7 @@ import {simple} from "acorn-walk";
 import {Sourcemap} from "./sourcemap.js";
 import {JavaScriptNode, parseJavaScript} from "./parse.js";
 import {globals} from "./globals";
+import { ComponentType } from "../combinators.js";
 
 export interface TranspileOptions {
   id: string;
@@ -38,20 +39,33 @@ export function transpileJavaScript(node: JavaScriptNode): string {
   return String(output);
 }
 
-export function getFunctionBody(input: string, forMerge: boolean) {
+export function getFunctionBody(input: string):ComponentType {
   const compiled = parseJavaScript(input, 0, true);
   const node = compiled[0].body.body[0] as FunctionDeclaration;
   const params = getParams(node);
-  const types = getTypes(node);
+  const rawTypes = getTypes(node);
+  let types:Map<string, "Event"|"Behavior"> | null = null;
+  if (rawTypes !== null) {
+    types = new Map([...rawTypes].map(
+      (pair) => (
+        [pair[0], pair[1].startsWith("Event") ? "Event" : "Behavior"])
+      )
+    )
+  }
   const body = node.body.body;
   const last = body[body.length - 1];
-  const returnValues = forMerge ? {} : getReturn(last);
+  const returnValues = getReturn(last);
   const output = new Sourcemap(input).trim();
 
   output.delete(0, body[0].start);
-  output.delete(last.start, input.length);
 
-  return {params, types, returnValues, output: String(output)}
+  if (returnValues) {
+    output.delete(last.start, input.length);
+  } else {
+    output.delete(last.end, input.length);
+  }
+
+  return {params, types, rawTypes, returnValues, output: String(output)}
 }
 
 function getParams(node: FunctionDeclaration):Array<string> {
@@ -81,7 +95,7 @@ function getParams(node: FunctionDeclaration):Array<string> {
   return [];
 }
 
-function getTypes(node: FunctionDeclaration):(Map<string, string>|null) {
+export function getTypes(node: FunctionDeclaration):(Map<string, string>|null) {
   if (node.params.length < 2) {return null;}
   // The second argument has to be in the form of default
   // initializer with object expression:
@@ -90,21 +104,21 @@ function getTypes(node: FunctionDeclaration):(Map<string, string>|null) {
   if (param.type !== "AssignmentPattern") {return null;}
   if (param.left.type !== "Identifier") {return null;}
   if (param.right.type !== "ObjectExpression") {return null;}
-  const types:Map<string, "Event"|"Behavior"> = new Map();
+  const types:Map<string, string> = new Map();
   for (const prop of param.right.properties) {
     if (!prop) {continue;}
     if (prop.type !== "Property") {continue;}
     if (prop.key.type !== "Identifier") {continue;}
     if (prop.value.type !== "Literal") {continue;}
     if (typeof prop.value.value !== "string") {continue;}
-    types.set(prop.key.name, prop.value.value.startsWith("Event") ? "Event" : "Behavior");
+    types.set(prop.key.name, prop.value.value);
   }
   return types;
 }
 
 function getReturn(returnNode: Statement):{[key:string]:string}|null {
   if (returnNode.type !== "ReturnStatement") {
-    console.error("cannot convert");
+    console.log("function body does not end with a return statement.");
     return null;
   }
   const returnValue = returnNode.argument;
@@ -116,15 +130,15 @@ function getReturn(returnNode: Statement):{[key:string]:string}|null {
     const result:any = {};
     for (const prop of returnValue.properties) {
       if (!prop) {
-        console.error("cannot convert");
+        console.error("the return statemenet can only return an object with nodes.");
         return null;
       }
       if (prop.type !== "Property") {
-        console.error("cannot convert");
+        console.error("the return statemenet can only return an object with nodes.");
         return null;
       }
       if (prop.key.type !== "Identifier" || prop.value.type !== "Identifier") {
-        console.error("cannot convert");
+        console.error("the return statemenet can only return an object with nodes.");
         return null;
       }
       result[prop.key.name] = prop.value.name;

@@ -13,6 +13,7 @@ import {
     ValueRecord, ResolveRecord, SubProgramState, ComponentKey,
     EvaluatorOptions,
     PendingEvaluationType,
+    ComponentType,
 } from "./combinators";
 import { translateTS } from "./typescript";
 
@@ -331,8 +332,6 @@ export class ProgramState implements ProgramStateType {
     startTime: number;
     // indicates that the last evaluation of the program resulted in an error
     errored?: any;
-    // a flag whether any resolved value was updated in an evaluation step
-    updated: boolean;
     //  a timer of some kind that will call evaluate() in the later time.
     pendingEvaluation: PendingEvaluationType|null;
     // user visible meta feature that has the currently evaluating node
@@ -352,8 +351,12 @@ export class ProgramState implements ProgramStateType {
     evaluationAlarm: Array<number>;
     pendingAnimationFrame: boolean;
     log:(...values:any) => void;
+    announcer?:(varName:VarName, value:any) => void;
     futureScripts?: {scripts: Array<string>, path: string};
     breakpoints: Set<VarName>;
+ 
+    // a set of changed nodes after one cycle of evaluation  
+    changedNodeNames: Set<VarName>;
     constructor(startTime:number, app?:any) {
         this.scripts = [];
         this.order = [];
@@ -366,7 +369,6 @@ export class ProgramState implements ProgramStateType {
         this.time = 0,
         this.changeList = new Map();
         this.startTime = startTime;
-        this.updated = false;
         this.evaluationAlarm = [];
         this.pendingAnimationFrame = false;
         this.noSelfSchedule = false;
@@ -378,6 +380,7 @@ export class ProgramState implements ProgramStateType {
         this.programStates = new Map();
         this.breakpoints = new Set();
         this.nextDeps = new Set();
+        this.changedNodeNames = new Set();
     }
 
     start():void {
@@ -763,10 +766,9 @@ export class ProgramState implements ProgramStateType {
         return findDecls(code);
     }
 
-    getFunctionBody(func:Function|string, forMerge:boolean = true):(string|null) {
+    getFunctionBody(func:Function|string):(ComponentType|null) {
         const str = typeof func === "function" ? func.toString() : func;
-        const {output} = getFunctionBody(str, forMerge);
-        return output;
+        return getFunctionBody(str);
     }
 
     findDecl(name:string):string|undefined{
@@ -791,7 +793,7 @@ export class ProgramState implements ProgramStateType {
 
     evaluate(now:number) {
         this.time = now - this.startTime;
-        this.updated = false;
+        this.changedNodeNames = new Set();
         this.prelude();
         let trace:Array<{id:VarName, inputArray: Array<any>, inputs: Array<VarName>,value: any}>|undefined;
         if (this.breakpoints.size > 0) {
@@ -883,7 +885,7 @@ export class ProgramState implements ProgramStateType {
         this.scheduleAlarm();
 
         this.thisNode = undefined;
-        return this.updated;
+        return this.changedNodeNames;
     }
 
     prelude() {
@@ -1026,10 +1028,12 @@ export class ProgramState implements ProgramStateType {
         this.scheduleAlarm();
     }
 
-    setResolved(varName:VarName, value:any) {
+    setResolved(varName:VarName, value:{time:number, value:any}) {
         this.resolved.set(varName, value);
-        this.updated = true;
-        // this.componentUpdated = true;
+        this.changedNodeNames.add(varName);
+        if (this.announcer) {
+            this.announcer(varName, value.value);
+        }
         if (this.nextDeps.has(varName)) {
             this.requestAlarm(1);
         }
@@ -1045,7 +1049,7 @@ export class ProgramState implements ProgramStateType {
         let scripts = this.scripts;
         const outputs:string[] = [];
         funcs.forEach((func) => {
-            const {output} = getFunctionBody(func.toString(), true);
+            const {output} = getFunctionBody(func.toString());
             outputs.push(output);
         });
         this.updateProgram([...scripts, ...outputs]);
@@ -1099,7 +1103,7 @@ export class ProgramState implements ProgramStateType {
             const maybeOldFunc = subProgramState?.funcString;
 
             if (newProgramState || funcString !== maybeOldFunc) {
-                let {params, types, returnValues: rs, output} = getFunctionBody(funcString, false);
+                let {params, types, returnValues: rs, output} = getFunctionBody(funcString);
                 returnValues = rs;
                 // console.log(params, returnArray, output, this);
                 const receivers = params.map((r) => `const ${r} = ${types?.get(r) === "Behavior" ? "Behaviors" : "Events"}.receiver();`).join("\n");

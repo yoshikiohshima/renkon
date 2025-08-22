@@ -15,6 +15,14 @@ export type ScriptCell = {
     input?: string
 }
 
+export type ComponentType = {
+    params:string[],
+    types: Map<string, "Event"|"Behavior"> | null,
+    rawTypes: Map<string, string> | null,
+    returnValues: {[key: string]: string} | null,
+    output: string
+}
+
 export type ResolveRecord = {
     value: any,
     time: number
@@ -106,8 +114,6 @@ export interface ProgramStateType {
     startTime: number;
     // indicates that the last evaluation of the program resulted in an error
     errored?: any;
-    // a flag whether any resolved value was updated in an evaluation step
-    updated: boolean;
     // user visible meta feature that has the currently evaluating node
     thisNode?:ScriptCell;
     // ProgramStates instantiated from the component that is created with "Renkon.component" call
@@ -125,6 +131,9 @@ export interface ProgramStateType {
     // the list of future alarms.
     evaluationAlarm: Array<number>;
 
+    // a set of changed nodes after one cycle of evaluation  
+    changedNodeNames: Set<VarName>;
+
     // user visible function to update the program
     updateProgram(scripts:Array<string>):void;
 
@@ -135,7 +144,7 @@ export interface ProgramStateType {
     getEventValue(record:QueueRecord, _t:number):any;
     getEventValues(record:QueueRecord, _t:number):any;
     baseVarName(varName:VarName):VarName;
-    setResolved(varName:VarName, value:any):void;
+    setResolved(varName:VarName, value:{time:number, value:any}):void;
     requestAlarm: (alarm:number) => void;
     scheduleAlarm: (alarm?:number) => void;
     setLog(func:(...values:any) => void):void;

@@ -888,13 +888,20 @@ Behavior.
 ### `getFunctionBody`
 
 ```TypeScript
-getFunctionBody(func:Function|string, forMerge:boolean = true):(string|null)
+type ComponentType = {
+    params:string[],
+    types: Map<string, string> | null,
+    rawTypes: Map<string, string> | null,
+    returnValues: {[key: string]: string} | null,
+    output: string
+}
+getFunctionBody(func:Function|string):ComponentType|null
 ```
 
 This is a helper function to extract the part that represents the sequence of renkon-node definitions from the component or mergeable function definition used in `merge` and `component`. If you have such a function definition and you wish to send the only node definition part to a separate Renkon execution context for example, you can have some code in Renkon like this:
 
 ```JavaScript
-aProgramState.setupProgram([Renkon.getFunctionBody(componentFunc)]);
+aProgramState.setupProgram([Renkon.getFunctionBody(componentFunc).output]);
 ```
 
 ### `addBreakpoint(...ids:Array<string>)`
