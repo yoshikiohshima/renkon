@@ -746,7 +746,7 @@ evaluate(now:number);
 
 This method triggers an evaluation step. The argument is the logical time. It updates the values of nodes as necessary, and then clears out values of Events with `undefined`.
 
-Note that if the self scheduler is enabled (which happens by default), calling `evaluato()` may result in repeated invocation of `evaluate()` when other time-based node requests them.
+Note that if the self scheduler is enabled (which happens by default), calling `evaluate()` may result in repeated invocation of `evaluate()` when other time-based node requests them.
 
 ### `registerEvent`
 
