@@ -325,11 +325,13 @@ export class TimerEvent extends Stream {
         const output = node.outputs;
         const last = state.scratch.get(output) as number;
         const interval = this.interval;
+        if (interval <= 0) {return false;}
         return last === undefined || last + interval <= state.time;
     }
 
     evaluate(state:ProgramStateType, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         const interval = this.interval;
+        if (interval <= 0) {return;}
         const logicalTrigger = interval * Math.floor(state.time / interval);
         state.requestAlarm(this.interval);
         state.setResolved(node.id, {value: logicalTrigger, time: state.time});
