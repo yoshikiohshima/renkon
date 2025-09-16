@@ -341,8 +341,8 @@ export class TimerEvent extends Stream {
 
 export class PromiseEvent<T> extends Stream {
     promise:Promise<T>;
-    constructor(promise:Promise<T>) {
-        super(promiseType, true);
+    constructor(promise:Promise<T>, isBehavior:boolean) {
+        super(promiseType, isBehavior);
         this.promise = promise;
     }
 
