@@ -927,15 +927,14 @@ export class ProgramState implements ProgramStateType {
 
     componentReady(node:ScriptCell):boolean {
         const set = this.hasComponent.get(node.id);
-        if (set) {
-            for (const key of set) {
-                const subgraph = this.programStates.get(key);
-                if (!subgraph) {return false;}
-                const programState = subgraph.programState;
-                if (!programState) {return false;}
-                if (programState.evaluationAlarm.length === 0) {return false;}
-                if (programState.evaluationAlarm[0] <= this.time) {return true;}
-            }
+        if (!set) {return false;}
+        for (const key of set) {
+            const subgraph = this.programStates.get(key);
+            if (!subgraph) {continue;}
+            const programState = subgraph.programState;
+            if (!programState) {continue;}
+            if (programState.evaluationAlarm.length === 0) {continue;}
+            if (programState.evaluationAlarm[0] <= this.time) {return true;}
         }
         return false;
     }
