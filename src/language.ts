@@ -1172,6 +1172,23 @@ export class ProgramState implements ProgramStateType {
         };
     }
 
+    finalizeComponent(key:string) {
+        this.programStates.delete(key);
+        for (const [id, set] of this.hasComponent) {
+            if (set.has(id)) {
+                set?.delete(id);
+                if (set.size === 0) {
+                    this.hasComponent.delete(id);
+                }
+            }
+        }
+    }
+
+    finalizeAllComponents() {
+        this.programStates = new Map();
+        this.hasComponent = new Map();
+    }
+
     spaceURL(partialURL:string) {
         // partialURL: :http..."
         // return itself
