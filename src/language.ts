@@ -136,8 +136,8 @@ class Events {
     delay(varName:VarName, delay: number):DelayedEvent {
         return new DelayedEvent(delay, varName, false);
     }
-    timer(interval:number):TimerEvent {
-        return new TimerEvent(interval, false);
+    timer(interval:number, toggle: boolean = true):TimerEvent {
+        return new TimerEvent(interval, toggle, false);
     }
     calm(varName:VarName, interval:number):CalmStream {
         return new CalmStream(interval, varName, false);
@@ -214,8 +214,8 @@ class Behaviors {
     collect<I, T>(init:(()=>I)|(()=>Promise<I>), varName: VarName, updater: (c: I, v:T) => I):CollectStream<I, T> {
         return new CollectStream(init, varName, updater, true);
     }
-    timer(interval:number):TimerEvent {
-        return new TimerEvent(interval, true);
+    timer(interval:number, toggle:boolean = true):TimerEvent {
+        return new TimerEvent(interval, true, toggle);
     }
     calm(varName:VarName, interval:number):CalmStream {
         return new CalmStream(interval, varName, true);

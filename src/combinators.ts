@@ -312,7 +312,7 @@ export class CalmStream extends Stream {
 
 export class TimerEvent extends Stream {
     interval: number;
-    constructor(interval:number, isBehavior:boolean) {
+    constructor(interval:number, _toggle:boolean, isBehavior:boolean) {
         super(timerType, isBehavior);
         this.interval = interval;
     }
@@ -322,6 +322,9 @@ export class TimerEvent extends Stream {
     }
 
     ready(node: ScriptCell, state:ProgramStateType):boolean {
+        const toggle = state.resolved.get(node.inputs[1])?.value;
+
+        if (toggle === false) {return false;}
         const output = node.outputs;
         const last = state.scratch.get(output) as number;
         const interval = this.interval;
@@ -331,7 +334,9 @@ export class TimerEvent extends Stream {
 
     evaluate(state:ProgramStateType, node: ScriptCell, _inputArray:Array<any>, _lastInputArray:Array<any>|undefined):void {
         const interval = this.interval;
+        const toggle = state.resolved.get(node.inputs[1])?.value;
         if (interval <= 0) {return;}
+        if (toggle === false) {return;}
         const logicalTrigger = interval * Math.floor(state.time / interval);
         state.requestAlarm(this.interval);
         state.setResolved(node.id, {value: logicalTrigger, time: state.time});
