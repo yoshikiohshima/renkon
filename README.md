@@ -489,9 +489,11 @@ This combinator fires at most every interval milliseconds. The last event that o
 ### Events.timer
 
 ```TypeScript
-Events.timer(interval: number)
+Events.timer(interval: number, toggle?:boolean = true)
 ```
 This creates a node that fires at the specified interval in logical time. The value is a multiple of the interval.
+
+The toggle boolean turn on and off the event stream. Note that the toggle needs to have a behavior typically, as the value have to exist when the timer may fire.
 
 ### Events.change
 
@@ -616,10 +618,11 @@ const v = Behaviors.select(0, ...);
 ### Behaviors.timer
 
 ```TypeScript
-Behaviors.timer(interval:number)
+Behaviors.timer(interval:number, toggle?:boolean = true)
 ```
 This creates a node that fires at the specified interval in logical time. The value is a multiple of the interval.
 
+The toggle boolean turn on and off the event stream. Note that the toggle needs to have a behavior typically, as the value have to exist when the timer may fire.
 
 ### Behaviors.calm
 
