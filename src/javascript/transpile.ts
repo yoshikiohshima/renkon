@@ -14,11 +14,7 @@ export interface TranspileOptions {
 export function transpileJavaScript(node: JavaScriptNode): string {
   const outputs = Array.from(new Set<string>(node.declarations?.map((r) => r.name)));
   const only = outputs.length === 0 ? "" : outputs[0];
-  const inputs = Array.from(new Set<string>(node.references.map((r) => r.name)))
-      .filter((n) => {
-        return globals[n] !== false &&
-          !(node.sendTargets.findIndex((s) => s.name === n) >= 0)
-      });
+  const inputs = Array.from(new Set<string>(node.references.map((r) => r.name)));
   const forceVars = Array.from(new Set<string>(node.forceVars.map((r) => r.name)))
     .filter((n) => globals[n] !== false);
   // if (hasImportDeclaration(node.body)) async = true;

@@ -65,7 +65,7 @@ export function findReferences(node: Node, {filterDeclaration = () => true}: {
 ): [Identifier[], Identifier[], Identifier[], {gather?:string, isSelect?:boolean}] {
   const locals = new Map<Node, Set<string>>();
   const references: Identifier[] = [];
-  const sendTarget: Identifier[] = [];
+  const sendTargets: Identifier[] = [];
 
   function hasLocal(node: Node, name: string): boolean {
     const l = locals.get(node);
@@ -114,6 +114,17 @@ export function findReferences(node: Node, {filterDeclaration = () => true}: {
   }
 
   ancestor(node, {
+    CallExpression(node) {
+      if (isCombinatorOf(node, "Events", ["send"])) {
+        const arg = node.arguments[0];
+        if (arg.type === "Identifier") {
+          sendTargets.push(arg);
+        }
+      }
+    }
+  });
+
+  ancestor(node, {
     VariableDeclaration(node, _state, parents) {
       let parent: Node | null = null;
       for (let i = parents.length - 1; i >= 0 && parent === null; --i) {
@@ -149,14 +160,6 @@ export function findReferences(node: Node, {filterDeclaration = () => true}: {
     ImportDeclaration(node, _state, [root]) {
       node.specifiers.forEach((specifier) => declareLocal(root, specifier.local));
     },
-    CallExpression(node) {
-      if (isCombinatorOf(node, "Events", ["send"])) {
-        const arg = node.arguments[0];
-        if (arg.type === "Identifier") {
-          sendTarget.push(arg);
-        }
-      }
-    }
   });
 
   function identifier(node: Identifier, _state: never, parents: Node[]) {
@@ -167,7 +170,8 @@ export function findReferences(node: Node, {filterDeclaration = () => true}: {
         return;
       }
     }
-    if (globals[name] !== false) {
+    const wasSend = sendTargets.includes(node);
+    if (globals[name] !== false && !wasSend) {
       references.push(node);
     }
   }
@@ -216,5 +220,5 @@ export function findReferences(node: Node, {filterDeclaration = () => true}: {
       }
     }
   });
-  return [references, forceVars, sendTarget, extraType];
+  return [references, forceVars, sendTargets, extraType];
 }
