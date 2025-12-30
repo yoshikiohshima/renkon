@@ -14,6 +14,7 @@ import {
     EvaluatorOptions,
     PendingEvaluationType,
     ComponentType,
+    isThennable,
 } from "./combinators";
 import { translateTS } from "./typescript";
 
@@ -837,7 +838,7 @@ export class ProgramState implements ProgramStateType {
                 }
                 this.inputArray.set(id, inputArray);
                 const maybeValue = outputs;
-                if (maybeValue !== undefined && maybeValue !== null && (maybeValue.then || maybeValue[typeKey])) {
+                if (maybeValue !== undefined && maybeValue !== null && (isThennable(maybeValue) || maybeValue[typeKey])) {
                     const ev = maybeValue.then ? new PromiseEvent<any>(maybeValue, this.types.get(id) === "Behavior") : maybeValue;
                     const newStream = ev.created(this, id);
                     this.streams.set(id, newStream);

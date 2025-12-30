@@ -165,6 +165,10 @@ export interface QueueRecord extends ValueRecord {
 
 export type GeneratorWithFlag<T> = AsyncGenerator<T> & {done: boolean};
 
+export function isThennable(obj:any):boolean {
+    return typeof obj == "object" && obj !== null && obj.then && typeof obj.then === "function";
+}
+
 export class Stream {
     [typeKey]: StreamType;
     [isBehaviorKey]: boolean;
@@ -462,7 +466,7 @@ export class UserEvent extends Stream {
             newValue = state.getEventValue(state.scratch.get(node.id) as QueueRecord, state.time);
         }
         if (newValue !== undefined) {
-            if (newValue !== null && (newValue as unknown as Promise<any>).then) {
+            if (isThennable(newValue)) {
                 (newValue as unknown as Promise<any>).then((value:any) => {
                     state.setResolved(node.id, {value, time: state.time});
                 })
@@ -564,7 +568,7 @@ export class CollectStream<I, T> extends Stream {
         }
         const initValue = this.init();
 
-        if (initValue && typeof initValue === "object" && (initValue as any).then) {
+        if (isThennable(initValue)) {
             state.scratch.set(id, {resolving: true});
             (initValue as any).then((value:any) => {
                 state.requestAlarm(1);
@@ -591,7 +595,7 @@ export class CollectStream<I, T> extends Stream {
             const newValue = this.updater(scratch.current, inputValue);
             if (newValue !== undefined) {
                 // this check feels like unfortunate.
-                if (newValue !== null && (newValue as unknown as Promise<any>).then) {
+                if (isThennable(newValue)) {
                     (newValue as unknown as Promise<any>).then((value:any) => {
                         state.requestAlarm(1);
                         state.scheduleAlarm();
@@ -629,7 +633,7 @@ export class SelectStream<I> extends Stream {
         }
         const initValue = this.init();
 
-        if (initValue && typeof initValue === "object" && (initValue as any).then) {
+        if (isThennable(initValue)) {
             state.scratch.set(id, {resolving: true});
             (initValue as any).then((value:any) => {
                 state.requestAlarm(1);
@@ -656,7 +660,7 @@ export class SelectStream<I> extends Stream {
             const newValue = this.updaters[orRecord.index](scratch.current, orRecord.value);
             if (newValue !== undefined) {
                 // this check feels like unfortunate.
-                if (newValue !== null && (newValue as unknown as Promise<any>).then) {
+                if (isThennable(newValue)) {
                     (newValue as unknown as Promise<any>).then((value:any) => {
                         state.requestAlarm(1);
                         state.scheduleAlarm();
@@ -697,7 +701,7 @@ export class GatherStream extends Stream {
             if (v !== undefined) {
                 validInputNames.push(inputs[i]);
                 validInputs.push(v);
-                if (v !== null && v.then) {
+                if (isThennable(v)) {
                     hasPromise = true;
                 }
             }
@@ -732,7 +736,7 @@ export class ResolvePart extends Stream {
             const array:Array<any> = this.object;
             const indices = [...Array(array.length).keys()].filter((i) => {
                 const elem = this.object[i];
-                return typeof elem === "object" && elem !== null && elem.then;
+                return isThennable(elem);
             });
             const promises = indices.map((i) => array[i]);
             this.promise = Promise.all(promises);
@@ -740,7 +744,7 @@ export class ResolvePart extends Stream {
         } else {
             const keys = Object.keys(this.object).filter((k) => {
                 const elem = this.object[k];
-                return typeof elem === "object" && elem !== null && elem.then;
+                return isThennable(elem);
             });
             const promises = keys.map((k) => this.object[k]);
             this.promise = Promise.all(promises);
