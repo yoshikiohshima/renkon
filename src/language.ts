@@ -171,6 +171,9 @@ class Events {
         return new SelectStream(init, varName, updaters, false);
     }
     send(receiver:VarName, value:any) {
+        if (typeof receiver !== "string") {
+            console.log("receiver of Events.send needs to be a variable name", receiver);
+        }
         this.programState.registerEvent(receiver, value);
         return new SendEvent();
     }

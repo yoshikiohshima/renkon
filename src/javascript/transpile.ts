@@ -185,7 +185,9 @@ function rewriteRenkonCalls(
                 quote(arg, output);            
               }
             } else if (selector === "send") {
-              quote(node.arguments[0], output);
+              if (node.arguments[0].type === "Identifier") {
+                quote(node.arguments[0], output);
+              }
             } else if (["collect", "_select"].includes(selector)) {
               output.insertLeft(node.arguments[0].start, "(() => (");
               output.insertRight(node.arguments[0].end, "))");
