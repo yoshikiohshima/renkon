@@ -834,13 +834,13 @@ The `merge` operation takes the source code of this function, and "c", "d", "h" 
 
 ### `loadTS`
 
-``TypeScript
+```TypeScript
 loadTS(url:string)
 ```
 
 This method fetches the specified file as a mergeable function written in TypeScript, "detype" the function so that it can be loaded.
 
-When a TypeScript function looks like:
+When a TypeScript function in a file (called program.ts here) looks like:
 
 ```TypeScript
 type obj = {value:number};
