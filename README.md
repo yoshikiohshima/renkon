@@ -832,6 +832,41 @@ where the function arguments ("a", "b", etc.) are not relevant for the `merge` o
 
 The `merge` operation takes the source code of this function, and "c", "d", "h" and "html" are added to the ProgramState.
 
+### `loadTS`
+
+``TypeScript
+loadTS(url:string)
+```
+
+This method fetches the specified file as a mergeable function written in TypeScript, "detype" the function so that it can be loaded.
+
+When a TypeScript function looks like:
+
+```TypeScript
+type obj = {value:number};
+
+export function program() {
+  const a:obj = {value: 1};
+  const b:number = Events.timer(100);
+  const c:obj = {value: a.value + b};
+  console.log(c);
+  return {};
+}
+```
+
+You can load it in this way:
+
+```JavaScript
+const programState = new ProgramState(0);
+const mod = programState.loadTS("program.ts");
+mod.then((loaded) => {
+  programState.merge(loaded.program);
+  programState.start();
+})
+```
+
+to run the program.
+
 ### `component`
 
 ```TypeScript
