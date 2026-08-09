@@ -210,7 +210,7 @@ const gen = llama.llama(enter, {...config.params}, config);
 const v = Events.next(gen);
 
 const log = Behaviors.collect([], v, (a, b) => {
-    if (b.done) return [...a, b.value];
+    if (!b.done) return [...a, b.value];
     return a;
 });
 
