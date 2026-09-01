@@ -4,6 +4,7 @@ export {transpileJSX} from "./javascript/transpileJSX";
 export {translateTS} from "./typescript";
 export {globals} from "./javascript/globals";
 export {loader} from "./loader";
+export type {Behaviors, Events} from "./renkon-types";
 
 import {version} from "./language";
 console.log("Renkon core version:" + version);
