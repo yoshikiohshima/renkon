@@ -70,6 +70,58 @@ walks through the nodes in the list and evaluates them as necessary.
 
 There is a paper presented at the Programming Experience 25 workshop. For more details, please refer to the [paper](https://tinlizzie.org/IADocs/px25-ohshima.pdf).
 
+Because the semantics is clean and syntax is conducive to program transformation, there is a program transformation that can convert a single-user Renkon program into a multi-user one. Please refer to another [paper](https://tinlizzie.org/IADocs/onward26-ohshima.pdf).
+
+## Getting Started
+
+There are a few ways to start writing a Renkon program.
+
+- If you prefer a visual development environment, [Renkon-pad](https://yoshikiohshima.github.io/renkon-pad/).
+- If you want to write a web program textually and in TypeScript, you can install renkon-core and also `vite` for bundling:
+
+`npm install renkon-core`
+
+and create `index.html` that looks like:
+
+```HTML
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"> 
+  </head>
+  <body>
+    <script type="module">
+        import {ProgramState} from "renkon-core";
+        const programState = new ProgramState(Date.now());
+        const mod = programState.loadTS("program.ts");
+        mod.then((loaded) => {
+          programState.merge(loaded.program);
+          programState.start();
+        });
+    </script>
+  </body>
+</html>
+```
+
+If you use vite, you create a file called `program.ts` in the `public` directory that follows the program structure described in the `merge` section below.
+
+```TypeScript
+type obj = {value:number};
+import {Events, Behaviors} from "./renkon-core";
+
+export function program() {
+    const a:obj = {value: 1};
+    const b:number = Events.timer(100);
+    const c:obj = {value: a.value + b};
+    console.log(c);
+    return {};
+}
+```
+
+You can copy `renkon-core.d.ts` to your public directory or somewhere else to tell the typechecker to use types such as `Events` and `Behaviors`.  Not that your `program.ts` is not going to be bundled by `vite` but loaded by Renkon dynamically and transpiled. So import in the above is purely for type checking. You cannot import other libraries and use it from your Renkon program in that way: you need to use a dynamic `import` expression.
+
+You can totally avoid bundling or TypeScript. All you have to is to copy `renkon-core.js` (and possibly `renkon-core.d.ts`) from the `node_modules` directory to thedirectory your program lives. `index.html` above will import `./renkon-core.js` instead of `renkon-core`. In that case, you do not need any bundler. Just run a simple static server and load `index.html`.
+
 ## FRP in Nutshell
 
 Functional Reactive Programming is a clean way to describe a program
