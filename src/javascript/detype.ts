@@ -8,18 +8,19 @@ import {Sourcemap} from "./sourcemap.ts";
 * */
 
 export function detype(input:string) {
-    const ts = tsPlugin();
-    const node = acorn.Parser.extend(ts as any).parse(input, {
-        sourceType: 'module',
-        ecmaVersion: 'latest',
-        locations: true
-    });
+  const ts = tsPlugin();
+  const node = acorn.Parser.extend(ts as any).parse(input, {
+    sourceType: 'module',
+    ecmaVersion: 'latest',
+    locations: true
+  });
 
-    const output = new Sourcemap(input).trim();
+  const output = new Sourcemap(input).trim();
 
-    removeTypeNode(output, node);
-
-    return String(output);
+  removeTypeNode(output, node);
+  const result = String(output);
+  // console.log(result);
+  return result;
 }
 
 function removeTypeNode(output:Sourcemap, node:any, parent?:any) {
@@ -29,7 +30,16 @@ function removeTypeNode(output:Sourcemap, node:any, parent?:any) {
   }
   if (typeof node === "object" && node !== null && typeof node.type === "string") {
     if (node.type.startsWith("TS")) {
-      output.delete(node.start, node.end);
+      // console.log(node.type);
+      if (node.type === "TSAsExpression") {
+        removeTypeNode(output, node.expression, node);
+        output.delete(node.expression.end, node.typeAnnotation.end);
+      } else if (node.type === "TSNonNullExpression") {
+        removeTypeNode(output, node.expression, node);
+        output.delete(node.end - 1, node.end);
+      } else {
+        output.delete(node.start, node.end);
+      }
       return;
     }
     if (parent?.type === "Program" && node.type === "ImportDeclaration") {
@@ -42,17 +52,3 @@ function removeTypeNode(output:Sourcemap, node:any, parent?:any) {
     }
   }
 }
-/*
-function removeTypeNode(output:Sourcemap, node:any) {
-  fullAncestor(node, (node, state, ancestors) => {
-    if (node.type.startsWith("TS")) {
-      output.delete(node.start, node.end);
-      return;
-        }
-        for (let k in node) {
-            let v = node[k as keyof typeof node];
-            removeTypeNode(output, v);
-        }
-    }
-}
- */
